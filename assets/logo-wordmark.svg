@@ -13,11 +13,11 @@
   </defs>
   <g transform="translate(24 24) scale(0.53125)">
     <rect width="512" height="512" rx="112" fill="url(#bg)"/>
-    <path d="M136 92h240a20 20 0 0 1 20 20v318l-26.7-18-26.6 18-26.7-18-26.7 18-26.6-18-26.7 18-26.7-18-26.6 18-26.7-18V112a20 20 0 0 1 20-20z" fill="#000" opacity=".22" transform="translate(0 10)"/>
-    <path d="M136 92h240a20 20 0 0 1 20 20v318l-26.7-18-26.6 18-26.7-18-26.7 18-26.6-18-26.7 18-26.7-18-26.6 18-26.7-18V112a20 20 0 0 1 20-20z" fill="url(#paper)"/>
-    <path d="M188 146h40v88l76-88h50l-80 90 86 116h-50l-62-86-20 22v64h-40z" fill="#14532D"/>
-    <rect x="160" y="378" width="120" height="12" rx="6" fill="#14532D" opacity=".28"/>
-    <rect x="304" y="378" width="48" height="12" rx="6" fill="#F59E0B"/>
+    <path d="M146 84H366A20 20 0 0 1 386 104V428l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18V104A20 20 0 0 1 146 84Z" fill="#000" opacity=".22" transform="translate(0 10)"/>
+    <path d="M146 84H366A20 20 0 0 1 386 104V428l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18V104A20 20 0 0 1 146 84Z" fill="url(#paper)"/>
+    <path d="M170 136h40v88l76-88h50l-80 90 86 116h-50l-62-86-20 22v64h-40z" fill="#14532D"/>
+    <rect x="160" y="368" width="120" height="12" rx="6" fill="#14532D" opacity=".28"/>
+    <rect x="304" y="368" width="48" height="12" rx="6" fill="#F59E0B"/>
   </g>
   <text x="340" y="196" font-family="ui-rounded, 'SF Pro Rounded', 'Nunito', 'Inter', system-ui, sans-serif" font-size="168" font-weight="800" letter-spacing="-6" class="word">kassza</text>
   <rect x="348" y="226" width="96" height="14" rx="7" fill="#F59E0B"/>

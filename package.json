@@ -1,7 +1,6 @@
 {
   "name": "kassza",
-  "version": "0.0.0",
-  "private": true,
+  "version": "0.1.0",
   "description": "Számlázz.hu Számla Agent kliens TypeScripthez: számla, díjbekérő, nyugta, sztornó, befizetés, PDF, adószám. 0 függőség. Nem hivatalos.",
   "keywords": [
     "billing",
@@ -22,6 +21,14 @@
     "szamlazz.hu",
     "typescript"
   ],
+  "homepage": "https://github.com/futozs/szamlazz-egyszerubben#readme",
+  "bugs": {
+    "url": "https://github.com/futozs/szamlazz-egyszerubben/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/futozs/szamlazz-egyszerubben.git"
+  },
   "license": "MIT",
   "author": "futozs",
   "type": "module",
@@ -132,20 +139,19 @@
     "lint:fix": "biome check --write .",
     "check:package": "publint && attw --pack . --profile node16",
     "ci": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run check:package",
-    "changeset": "changeset",
     "xsd:fetch": "node scripts/fetch-xsd.mjs",
-    "prepublishOnly": "npm run ci"
+    "prepublishOnly": "npm run ci",
+    "release": "node scripts/release.mjs",
+    "release:dry": "node scripts/release.mjs --dry-run"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@biomejs/biome": "^2.5.13",
-    "@changesets/cli": "^3.0.3",
     "@types/node": "^26.6.0",
     "@vitest/coverage-v8": "^5.0.1",
     "publint": "^0.3.24",
     "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
-  },
-  "homepage": "https://www.npmjs.com/package/kassza"
+  }
 }

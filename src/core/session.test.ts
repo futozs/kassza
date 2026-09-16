@@ -35,7 +35,7 @@ describe('sessionKeyFor', () => {
 
     expect(key).toBe(sessionKeyFor('titkos-agent-kulcs'))
     expect(key).not.toContain('titkos')
-    expect(key).toMatch(/^szamlazz:session:[0-9a-f]{8}$/)
+    expect(key).toMatch(/^szamlazz:session:[0-9a-f]{28}$/)
     expect(sessionKeyFor('masik-kulcs')).not.toBe(key)
   })
 })

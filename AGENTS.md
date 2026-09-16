@@ -46,6 +46,28 @@ npm run ci
 - Every module has colocated `*.test.ts` files. Never call the real Számlázz.hu API in tests.
 - When a public API changes, update `README.md`, `agents/api.md` and `agents/recipes.md` in the same change.
 
-## Publishing
+## Releasing
 
-Publishing to npm, creating the GitHub repo and pushing happen only when the owner explicitly asks for them.
+```bash
+bun run ci
+bun run release:dry
+bun run release
+bun run release minor
+```
+
+- `bun run ci` runs every check and builds.
+- `bun run release:dry` shows the next version and the changelog entry, without changing anything.
+- `bun run release` releases the version picked from the commits. Add `patch`, `minor` or `major` to force a bump.
+
+`scripts/release.mjs` performs a release in this order:
+
+1. Checks that the working tree is clean and on `main`, and that you are logged in to npm.
+2. Picks the next version from Conventional Commits since the last `v*` tag. `feat` bumps minor, `fix` and others bump patch, and `!` or `BREAKING CHANGE` bumps major (minor while on 0.x).
+3. Runs `npm run ci`.
+4. Writes `package.json` and prepends the entry to `CHANGELOG.md`.
+5. Runs `npm publish`, which asks for the 2FA code. If publishing fails, it rolls back both files.
+6. Commits `release: vX.Y.Z`, tags `vX.Y.Z` and pushes.
+
+Write commit messages as Conventional Commits (`feat: ...`, `fix: ...`) so the changelog groups them.
+
+Releases and pushes happen only when the owner explicitly asks for them.
