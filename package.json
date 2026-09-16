@@ -4,7 +4,7 @@
   "author": "futozs",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/futozs/szamlazz-egyszerubben.git"
+    "url": "git+https://github.com/futozs/kassza.git"
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -102,7 +102,7 @@
     "./package.json": "./package.json"
   },
   "bugs": {
-    "url": "https://github.com/futozs/szamlazz-egyszerubben/issues"
+    "url": "https://github.com/futozs/kassza/issues"
   },
   "description": "Számlázz.hu Számla Agent kliens TypeScripthez: számla, díjbekérő, nyugta, sztornó, befizetés, PDF, adószám. 0 függőség. Nem hivatalos.",
   "engines": {
@@ -114,7 +114,7 @@
     "assets",
     "llms.txt"
   ],
-  "homepage": "https://github.com/futozs/szamlazz-egyszerubben#readme",
+  "homepage": "https://github.com/futozs/kassza#readme",
   "keywords": [
     "billing",
     "dijbekero",
