@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/futozs/szamlazz-egyszerubben/main/assets/logo-wordmark.svg" alt="kassza" width="460">
+  <img src="https://raw.githubusercontent.com/futozs/kassza/main/assets/logo-wordmark.svg" alt="kassza" width="460">
 </p>
 
 <p align="center">
@@ -37,7 +37,7 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 ## Miért kassza?
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/futozs/szamlazz-egyszerubben/main/assets/comparison.svg" alt="Számla Agent műveletek: kassza 11, a többi csomag 2–3" width="720">
+  <img src="https://raw.githubusercontent.com/futozs/kassza/main/assets/comparison.svg" alt="Számla Agent műveletek: kassza 11, a többi csomag 2–3" width="720">
 </p>
 
 |  | **kassza** | szamlazz.js | @ribbery009/ szamlazz-ts | @halftome/ szamlazz-client | szamlazz.ts | szamlazzhu-client |
