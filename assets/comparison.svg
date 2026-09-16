@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="344" viewBox="0 0 760 344" role="img" aria-labelledby="t d">
+  <title id="t">Számla Agent műveletek, 11-ből</title>
+  <desc id="d">kassza 11, szamlazz.js 3, @ribbery009/szamlazz-ts 3, @halftome/szamlazz-client 3, szamlazz.ts 3, szamlazzhu-client 2</desc>
+  <style>
+    text{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+    .title{fill:#111827;font-size:22px;font-weight:700}.sub{fill:#6B7280;font-size:14px}
+    .label{fill:#374151;font-size:15px}.label.hi{fill:#111827;font-weight:700}
+    .value{fill:#374151;font-size:15px;font-variant-numeric:tabular-nums}.value.hi{fill:#111827;font-weight:700}
+    .bar{fill:#9CA3AF}.bar.hi{fill:#14532D}.track{fill:#E5E7EB}.card{fill:#FFFFFF;stroke:#E5E7EB}
+    @media (prefers-color-scheme:dark){.title,.label.hi,.value.hi{fill:#F9FAFB}.sub{fill:#9CA3AF}.label,.value{fill:#D1D5DB}.bar{fill:#6B7280}.bar.hi{fill:#22C55E}.track{fill:#1F2937}.card{fill:#0D1117;stroke:#30363D}}
+  </style>
+  <rect class="card" x="0.5" y="0.5" width="759" height="343" rx="12"/>
+  <text class="title" x="16" y="34">Számla Agent műveletek, 11-ből</text>
+  <text class="sub" x="16" y="58">A csomagok publikált kódjában ellenőrizve, 2026. szeptember</text>
+  <text class="label hi" x="256" y="106" text-anchor="end">kassza</text>
+  <rect class="track" x="272" y="92" width="374" height="18" rx="4"/>
+  <rect class="bar hi" x="272" y="92" width="374" height="18" rx="4"/>
+  <text class="value hi" x="658" y="106">11/11</text>
+  <text class="label" x="256" y="144" text-anchor="end">szamlazz.js</text>
+  <rect class="track" x="272" y="130" width="374" height="18" rx="4"/>
+  <rect class="bar" x="272" y="130" width="102" height="18" rx="4"/>
+  <text class="value" x="658" y="144">3/11</text>
+  <text class="label" x="256" y="182" text-anchor="end">@ribbery009/szamlazz-ts</text>
+  <rect class="track" x="272" y="168" width="374" height="18" rx="4"/>
+  <rect class="bar" x="272" y="168" width="102" height="18" rx="4"/>
+  <text class="value" x="658" y="182">3/11</text>
+  <text class="label" x="256" y="220" text-anchor="end">@halftome/szamlazz-client</text>
+  <rect class="track" x="272" y="206" width="374" height="18" rx="4"/>
+  <rect class="bar" x="272" y="206" width="102" height="18" rx="4"/>
+  <text class="value" x="658" y="220">3/11</text>
+  <text class="label" x="256" y="258" text-anchor="end">szamlazz.ts</text>
+  <rect class="track" x="272" y="244" width="374" height="18" rx="4"/>
+  <rect class="bar" x="272" y="244" width="102" height="18" rx="4"/>
+  <text class="value" x="658" y="258">3/11</text>
+  <text class="label" x="256" y="296" text-anchor="end">szamlazzhu-client</text>
+  <rect class="track" x="272" y="282" width="374" height="18" rx="4"/>
+  <rect class="bar" x="272" y="282" width="68" height="18" rx="4"/>
+  <text class="value" x="658" y="296">2/11</text>
+</svg>
