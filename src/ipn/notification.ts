@@ -37,7 +37,9 @@ function toRecord(input: IpnInput): Record<string, string> {
   if (input instanceof URLSearchParams) return Object.fromEntries(input)
   if (typeof FormData !== 'undefined' && input instanceof FormData) {
     return Object.fromEntries(
-      [...input.entries()].filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      [...input.entries()].filter(
+        (entry): entry is [string, string] => typeof entry[1] === 'string',
+      ),
     )
   }
   if (input !== null && typeof input === 'object') {

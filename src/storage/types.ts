@@ -19,3 +19,9 @@ export interface StorageAdapter {
   delete?(key: string): Promise<void>
   getUrl?(key: string, options?: StorageUrlOptions): Promise<string>
 }
+
+export interface CompleteStorageAdapter extends StorageAdapter {
+  get(key: string): Promise<Uint8Array | undefined>
+  delete(key: string): Promise<void>
+  getUrl(key: string, options?: StorageUrlOptions): Promise<string>
+}

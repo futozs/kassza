@@ -7,7 +7,8 @@ export const SZAMLAZZ_OUTBOUND_IPS: readonly string[] = [
 const OUTBOUND_IP_SET: ReadonlySet<string> = new Set(SZAMLAZZ_OUTBOUND_IPS)
 
 function normalizeIp(value: string): string {
-  let ip = value.split(',')[0]?.trim() ?? ''
+  const comma = value.indexOf(',')
+  let ip = (comma === -1 ? value : value.slice(0, comma)).trim()
   const bracketed = /^\[([^\]]+)\](?::\d+)?$/.exec(ip)
   if (bracketed?.[1]) ip = bracketed[1]
   const ipv4WithPort = /^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/.exec(ip)

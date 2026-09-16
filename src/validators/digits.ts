@@ -10,9 +10,8 @@ export function isDigits(value: string, length?: number): boolean {
 }
 
 export function weightedDigitSum(digits: string, weights: readonly number[]): number {
-  let sum = 0
-  for (let index = 0; index < digits.length; index++) {
-    sum += Number(digits[index]) * (weights[index % weights.length] ?? 0)
-  }
-  return sum
+  return [...digits].reduce(
+    (sum, digit, index) => sum + Number(digit) * Number(weights[index % weights.length]),
+    0,
+  )
 }

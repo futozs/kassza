@@ -94,9 +94,7 @@ describe('getInvoicePdf', () => {
   })
 
   test('érvénytelen base64 PDF-re unexpected_response hibát dob', async () => {
-    const { ctx } = createTestContext(
-      invoiceXmlResponse('<sikeres>true</sikeres><pdf>A</pdf>'),
-    )
+    const { ctx } = createTestContext(invoiceXmlResponse('<sikeres>true</sikeres><pdf>A</pdf>'))
 
     await expect(getInvoicePdf(ctx, 'E-1')).rejects.toMatchObject({
       category: 'unexpected_response',
@@ -131,7 +129,9 @@ describe('getInvoicePdf', () => {
   })
 
   test('más gyökérelemű XML-re unexpected_response hibát dob', async () => {
-    const { ctx } = createTestContext({ body: '<?xml version="1.0"?><valami><sikeres>true</sikeres></valami>' })
+    const { ctx } = createTestContext({
+      body: '<?xml version="1.0"?><valami><sikeres>true</sikeres></valami>',
+    })
 
     await expect(getInvoicePdf(ctx, 'E-1')).rejects.toMatchObject({
       category: 'unexpected_response',

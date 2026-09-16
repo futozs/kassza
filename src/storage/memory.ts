@@ -1,6 +1,6 @@
 import { StorageError } from './errors'
 import { joinPublicUrl, normalizePrefix, resolveKey } from './shared'
-import type { StorageAdapter, StoragePutOptions, StorageUrlOptions, StoredFile } from './types'
+import type { CompleteStorageAdapter, StoragePutOptions, StoredFile } from './types'
 
 export interface MemoryStoredObject {
   readonly body: Uint8Array
@@ -12,11 +12,8 @@ export interface MemoryStorageOptions {
   readonly prefix?: string | undefined
 }
 
-export interface MemoryStorage extends StorageAdapter {
+export interface MemoryStorage extends CompleteStorageAdapter {
   readonly files: ReadonlyMap<string, MemoryStoredObject>
-  get(key: string): Promise<Uint8Array | undefined>
-  delete(key: string): Promise<void>
-  getUrl(key: string, options?: StorageUrlOptions): Promise<string>
   clear(): void
 }
 

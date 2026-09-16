@@ -32,3 +32,20 @@ export function describeError(error: unknown): string {
   }
   return String(error)
 }
+
+export async function guardStorageCall<T>(
+  service: string,
+  operation: StorageOperation,
+  key: string,
+  call: () => PromiseLike<T>,
+): Promise<T> {
+  try {
+    return await call()
+  } catch (error) {
+    throw new StorageError(`${service} hiba (${operation}): ${describeError(error)}`, {
+      operation,
+      key,
+      cause: error,
+    })
+  }
+}

@@ -2,6 +2,7 @@ import { StorageError } from './errors'
 
 export const PDF_CONTENT_TYPE = 'application/pdf'
 export const DEFAULT_URL_EXPIRES_SECONDS = 3600
+export const S3_MAX_PRESIGN_SECONDS = 604_800
 const MAX_KEY_LENGTH = 1024
 const CONTROL_CHARACTERS = /[\p{Cc}]/u
 

@@ -30,7 +30,9 @@ function withTimeout<T>(
   const timeout = new Promise<never>((_, reject) => {
     timer = setTimeout(() => {
       reject(
-        new Error(`A session cookie store "${operation}" művelete nem fejeződött be ${timeoutMs} ms alatt.`),
+        new Error(
+          `A session cookie store "${operation}" művelete nem fejeződött be ${timeoutMs} ms alatt.`,
+        ),
       )
     }, timeoutMs)
   })

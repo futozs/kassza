@@ -23,7 +23,12 @@ const FULL_INPUT = {
   additive: false,
   payments: [
     { date: '2026-09-01', method: 'készpénz', amount: 1000 },
-    { date: new Date('2026-09-15T23:30:00Z'), method: 'átutalás', amount: 2000.5, description: 'Minta' },
+    {
+      date: new Date('2026-09-15T23:30:00Z'),
+      method: 'átutalás',
+      amount: 2000.5,
+      description: 'Minta',
+    },
   ],
 } as const
 
