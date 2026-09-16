@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+.DS_Store
+# A docs.szamlazz.hu-ról letöltött oldalak csak lokális fejlesztési referenciának
+# vannak itt (szerzői jog miatt nem kerülnek a publikus repóba).
+.research/
+.xsd-cache/

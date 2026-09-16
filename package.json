@@ -1,0 +1,76 @@
+{
+  "name": "kassza",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Számlázz.hu Számla Agent kliens TypeScripthez: számla, díjbekérő, nyugta, sztornó, befizetés, PDF, adószám. 0 függőség. Nem hivatalos.",
+  "keywords": [
+    "billing",
+    "dijbekero",
+    "e-szamla",
+    "hungary",
+    "invoice",
+    "ipn",
+    "kassza",
+    "nav",
+    "nav-online-szamla",
+    "nyugta",
+    "receipt",
+    "szamla",
+    "szamla agent",
+    "szamla-agent",
+    "szamlazz",
+    "szamlazz.hu",
+    "typescript"
+  ],
+  "license": "MIT",
+  "author": "futozs",
+  "type": "module",
+  "sideEffects": false,
+  "engines": {
+    "node": ">=22"
+  },
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "tsdown --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "check:package": "publint && attw --pack . --profile node16",
+    "ci": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run check:package",
+    "changeset": "changeset",
+    "xsd:fetch": "node scripts/fetch-xsd.mjs"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@biomejs/biome": "^2.5.13",
+    "@changesets/cli": "^3.0.3",
+    "@types/node": "^26.6.0",
+    "@vitest/coverage-v8": "^5.0.1",
+    "publint": "^0.3.24",
+    "tsdown": "^0.23.0",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.1"
+  }
+}
