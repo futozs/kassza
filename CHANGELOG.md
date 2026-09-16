@@ -1,5 +1,12 @@
 # Változásnapló
 
+## 0.1.2 (2026-09-16)
+
+### Javítások
+
+- npm linkek a futozs/kassza repóra mutatnak (8d95c98)
+- publint npm pack visszaállítása, biztonságosabb release visszaállítás (ed14454)
+
 ## 0.1.1 (2026-09-16)
 
 ### Javítások
