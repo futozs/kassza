@@ -192,14 +192,24 @@ const restore = () => {
   }
 }
 
+const abort = () => {
+  restore()
+  fail('Megszakítva: a verziót és a changelogot visszaállítottam, semmi nem ment ki.')
+}
+process.once('SIGINT', abort)
+process.once('SIGTERM', abort)
+
 writeFileSync(packagePath, `${JSON.stringify({ ...pkg, version }, null, 2)}\n`)
 writeChangelog(entry)
 
-log(`Publikálás: ${pkg.name}@${version}`)
+log(`Publikálás: ${pkg.name}@${version} (az npm kérheti a 2FA kódot vagy a böngészős megerősítést)`)
 if (!run('npm', ['publish', '--ignore-scripts'])) {
   restore()
   fail('Az npm publish nem sikerült, a verziót és a changelogot visszaállítottam.')
 }
+
+process.removeListener('SIGINT', abort)
+process.removeListener('SIGTERM', abort)
 
 git('add', 'package.json', 'CHANGELOG.md')
 git('commit', '-m', `release: v${version}`)
