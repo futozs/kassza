@@ -1,5 +1,15 @@
 # Változásnapló
 
+## 0.1.1 (2026-09-16)
+
+### Javítások
+
+- publint mindig npm-mel csomagol, release megszakítás kezelése (7411da4)
+
+### Egyéb
+
+- új README, összehasonlító ábra, példák minden funkcióhoz (14b6959)
+
 ## 0.1.0 (2026-09-16)
 
 Az első kiadás.
