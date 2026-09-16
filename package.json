@@ -30,7 +30,10 @@
     "node": ">=22"
   },
   "files": [
-    "dist"
+    "dist",
+    "agents",
+    "assets",
+    "llms.txt"
   ],
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -44,6 +47,76 @@
       "require": {
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
+      }
+    },
+    "./money": {
+      "import": {
+        "types": "./dist/money/index.d.ts",
+        "default": "./dist/money/index.js"
+      },
+      "require": {
+        "types": "./dist/money/index.d.cts",
+        "default": "./dist/money/index.cjs"
+      }
+    },
+    "./validators": {
+      "import": {
+        "types": "./dist/validators/index.d.ts",
+        "default": "./dist/validators/index.js"
+      },
+      "require": {
+        "types": "./dist/validators/index.d.cts",
+        "default": "./dist/validators/index.cjs"
+      }
+    },
+    "./ipn": {
+      "import": {
+        "types": "./dist/ipn/index.d.ts",
+        "default": "./dist/ipn/index.js"
+      },
+      "require": {
+        "types": "./dist/ipn/index.d.cts",
+        "default": "./dist/ipn/index.cjs"
+      }
+    },
+    "./storage": {
+      "import": {
+        "types": "./dist/storage/index.d.ts",
+        "default": "./dist/storage/index.js"
+      },
+      "require": {
+        "types": "./dist/storage/index.d.cts",
+        "default": "./dist/storage/index.cjs"
+      }
+    },
+    "./storage/fs": {
+      "import": {
+        "types": "./dist/storage/fs.d.ts",
+        "default": "./dist/storage/fs.js"
+      },
+      "require": {
+        "types": "./dist/storage/fs.d.cts",
+        "default": "./dist/storage/fs.cjs"
+      }
+    },
+    "./cookie-stores": {
+      "import": {
+        "types": "./dist/cookie-stores/index.d.ts",
+        "default": "./dist/cookie-stores/index.js"
+      },
+      "require": {
+        "types": "./dist/cookie-stores/index.d.cts",
+        "default": "./dist/cookie-stores/index.cjs"
+      }
+    },
+    "./testing": {
+      "import": {
+        "types": "./dist/testing/index.d.ts",
+        "default": "./dist/testing/index.js"
+      },
+      "require": {
+        "types": "./dist/testing/index.d.cts",
+        "default": "./dist/testing/index.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -60,7 +133,8 @@
     "check:package": "publint && attw --pack . --profile node16",
     "ci": "npm run lint && npm run typecheck && npm run test:coverage && npm run build && npm run check:package",
     "changeset": "changeset",
-    "xsd:fetch": "node scripts/fetch-xsd.mjs"
+    "xsd:fetch": "node scripts/fetch-xsd.mjs",
+    "prepublishOnly": "npm run ci"
   },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
@@ -72,5 +146,6 @@
     "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"
-  }
+  },
+  "homepage": "https://www.npmjs.com/package/kassza"
 }

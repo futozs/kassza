@@ -311,6 +311,28 @@ describe('createAgentContext konfiguráció', () => {
   })
 })
 
+describe('hibás cookie store', () => {
+  test('ha a store dob, a kérés session nélkül is lefut', async () => {
+    const broken = {
+      get: () => Promise.reject(new Error('redis down')),
+      set: () => Promise.reject(new Error('redis down')),
+      delete: () => {
+        throw new Error('redis down')
+      },
+    }
+    const { ctx, agent } = createTestContext(
+      { headers: { 'set-cookie': 'JSESSIONID=abc' }, body: 'ok' },
+      { cookieStore: broken },
+    )
+
+    await expect(
+      ctx.execute({ action: 'getInvoicePdf', xml: XML }, (response) => response.text()),
+    ).resolves.toBe('ok')
+    await expect(ctx.resetSession()).resolves.toBeUndefined()
+    expect(agent.lastCall().cookie).toBeNull()
+  })
+})
+
 describe('resolveCredentials', () => {
   test('az Agent kulcsot szamlaagentkulcs elemként adja vissza', () => {
     expect(resolveCredentials({ agentKey: 'abc' })).toEqual([

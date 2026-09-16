@@ -119,7 +119,7 @@ describe('calculateInvoiceItem: forintos számla', () => {
     })
   })
 
-  test('bruttó egységárból fillérre pontos bruttó végösszeg (racehub nevezési díj)', () => {
+  test('bruttó egységárból fillérre pontos bruttó végösszeg (nevezési díj)', () => {
     expect(calculateInvoiceItem({ grossUnitPrice: 26_000, vat: 27 })).toMatchObject({
       netAmount: 20_472,
       vatAmount: 5_528,

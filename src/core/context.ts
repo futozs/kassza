@@ -144,6 +144,14 @@ function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
   })
 }
 
+async function ignoreStoreFailure<T>(operation: () => T | Promise<T>): Promise<T | undefined> {
+  try {
+    return await operation()
+  } catch {
+    return undefined
+  }
+}
+
 function clampAttempts(value: number | undefined): number {
   if (value === undefined) return DEFAULT_SAFE_ATTEMPTS
   if (!Number.isInteger(value) || value < 1) {
@@ -168,7 +176,9 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
   const hooks = options.hooks ?? {}
 
   async function send(request: AgentRequest): Promise<AgentResponse> {
-    const cookie = cookieStore ? await cookieStore.get(sessionKey) : undefined
+    const cookie = cookieStore
+      ? await ignoreStoreFailure(() => cookieStore.get(sessionKey))
+      : undefined
     request.signal?.throwIfAborted()
     const headers = new Headers({ Accept: 'application/xml, application/pdf, text/plain, */*' })
     if (cookie) headers.set('Cookie', cookie)
@@ -203,13 +213,14 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     const body = new Uint8Array(await response.arrayBuffer())
     if (cookieStore) {
       const merged = mergeSetCookies(cookie, response.headers)
-      if (merged) await cookieStore.set(sessionKey, merged, SESSION_TTL_SECONDS)
+      if (merged)
+        await ignoreStoreFailure(() => cookieStore.set(sessionKey, merged, SESSION_TTL_SECONDS))
     }
     return createAgentResponse(request.action, response.status, response.headers, body)
   }
 
   async function resetSession(): Promise<void> {
-    if (cookieStore) await cookieStore.delete(sessionKey)
+    if (cookieStore) await ignoreStoreFailure(() => cookieStore.delete(sessionKey))
   }
 
   async function execute<T>(
