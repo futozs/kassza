@@ -17,5 +17,5 @@ export default defineConfig({
   target: 'es2023',
   clean: true,
   sourcemap: false,
-  external: [/^node:/],
+  deps: { neverBundle: [/^node:/] },
 })
