@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    if: >-
+      github.repository == 'futozs/kassza' &&
+      !startsWith(github.event.head_commit.message, 'release:') &&
+      !contains(github.event.head_commit.message, '[skip release]')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repó kiolvasása
+        uses: actions/checkout@v5
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Node.js beállítása
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: npm frissítése (Trusted Publishing >=11.5.1-et igényel)
+        run: npm install -g npm@latest
+
+      - name: Git szerző beállítása
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Függőségek telepítése
+        run: npm ci
+
+      - name: XSD sémák letöltése
+        run: |
+          sudo apt-get update && sudo apt-get install -y --no-install-recommends libxml2-utils
+          npm run xsd:fetch
+
+      - name: Kiadás (lint, típusellenőrzés, teszt, build, verziólépés, publish, tag, push)
+        run: npm run release:ci

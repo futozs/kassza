@@ -10,6 +10,7 @@ const changelogPath = join(root, 'CHANGELOG.md')
 const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
 const skipChecks = args.includes('--skip-checks')
+const ciMode = args.includes('--ci')
 const requestedBump = args.find((arg) => ['patch', 'minor', 'major'].includes(arg))
 
 const ESC = String.fromCharCode(27)
@@ -144,13 +145,14 @@ if (git('status', '--porcelain') !== '' && !dryRun) {
 const branch = git('rev-parse', '--abbrev-ref', 'HEAD')
 if (branch !== 'main' && !dryRun) fail(`Csak a main branchről lehet kiadni (most: ${branch}).`)
 
-if (!dryRun) {
+if (!dryRun && !ciMode) {
   try {
     log(`npm fiók: ${execFileSync('npm', ['whoami'], { encoding: 'utf8' }).trim()}`)
   } catch {
     fail('Nem vagy bejelentkezve az npm-be. Futtasd: npm login')
   }
 }
+if (ciMode) log('CI mód: publikálás OIDC Trusted Publisher-en keresztül, npm token nélkül.')
 
 const previousTag = lastTag()
 const commits = readCommits(previousTag)
@@ -202,7 +204,11 @@ process.once('SIGTERM', abort)
 writeFileSync(packagePath, `${JSON.stringify({ ...pkg, version }, null, 2)}\n`)
 writeChangelog(entry)
 
-log(`Publikálás: ${pkg.name}@${version} (az npm kérheti a 2FA kódot vagy a böngészős megerősítést)`)
+log(
+  ciMode
+    ? `Publikálás: ${pkg.name}@${version} (OIDC Trusted Publisher, automatikus)`
+    : `Publikálás: ${pkg.name}@${version} (az npm kérheti a 2FA kódot vagy a böngészős megerősítést)`,
+)
 if (!run('npm', ['publish', '--ignore-scripts'])) {
   restore()
   fail('Az npm publish nem sikerült, a verziót és a changelogot visszaállítottam.')
