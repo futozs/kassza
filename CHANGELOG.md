@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.2.0 (2026-09-17)
+
+### Újdonságok
+
+- add CI release workflow and enhance release script with CI mode (66b15fe)
+
 ## 0.1.2 (2026-09-16)
 
 ### Javítások
