@@ -1,7 +1,15 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
   "files": {
-    "includes": ["**", "!dist", "!coverage", "!.research", "!src/generated", "!.xsd-cache"]
+    "includes": [
+      "**",
+      "!dist",
+      "!coverage",
+      "!.research",
+      "!src/generated",
+      "!.xsd-cache",
+      "!readme/assets"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

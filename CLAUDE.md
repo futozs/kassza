@@ -19,7 +19,8 @@ A részletes útmutató AI agenteknek: `AGENTS.md`.
 - Teszt minden új modulhoz, a coverage küszöb 80%
 
 ## Parancsok
-- `npm test`, `npm run ci` (lint + typecheck + coverage + build + publint/attw)
+- `npm test`, `npm run ci` (lint + typecheck + README check + coverage + build + publint/attw)
+- `npm run readme`: a `README.md` generált fájl, kézzel ne szerkeszd. A forrás a `readme/template.md`, a változók (például a weboldal URL-je) a `readme/config.json`-ban vannak. Részletek: `AGENTS.md`.
 
 ## Publikálás
 A `package.json`-ban `"private": true` van, amíg a csomagnév nincs eldöntve. npm publish, GitHub repo létrehozás és push csak a tulajdonos kifejezett kérésére történhet.
