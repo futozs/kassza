@@ -1,0 +1,66 @@
+---
+title: Receptek
+description: Teljes, bemásolható integrációs minták a kasszához. Webshop számlázás, Stripe és IPN webhook, díjbekérő, nyugta, PDF tárolás, adószám-kitöltés, devizás számla, Cloudflare Workers és egységtesztek.
+---
+
+A receptek teljes, működő fájlok, nem kódrészletek. Next.js App Router projektre készültek, de a kassza hívásai bármilyen szerveren ugyanígy működnek. Mindegyik a gyakorlatban bevált mintát követi: rendelésszám minden bizonylaton, lekérdezés a kiállítás előtt, és soha nincs újraküldés ciklusban.
+
+<Callout type="info" title="Mit kell magadnak megírnod?">
+  A receptek a `@/lib/kassza` modulból importálják a klienst, ezt a [Közös kliens](/docs/receptek/kozos-kliens)
+  recept írja le. A `@/lib/rendelesek` és a hasonló modulok a saját adatbázis-rétegedet jelölik.
+  Ezeket a függvényeket a saját adatbázisodhoz kell megírnod, a receptek csak a nevüket és a
+  szerepüket rögzítik.
+</Callout>
+
+## Alapok
+
+<Cards>
+  <Card title="Közös kliens" href="/docs/receptek/kozos-kliens">
+    Egyetlen szerveroldali kliens alapbeállításokkal, naplózással és közös munkamenettel.
+  </Card>
+  <Card title="Fizetett rendelés számlája" href="/docs/receptek/fizetett-rendeles-szamla">
+    Idempotens számlázás rendelésszámmal, amelyet minden fizetési webhook újrahasznosít.
+  </Card>
+</Cards>
+
+## Fizetések
+
+<Cards>
+  <Card title="Stripe webhook" href="/docs/receptek/stripe-webhook">
+    checkout.session.completed esemény, aláírás-ellenőrzés, dupla számla nélkül.
+  </Card>
+  <Card title="Nevezés díjbekérővel" href="/docs/receptek/nevezes-dijbekerovel">
+    Díjbekérő a nevezéskor, számla a befizetés után, törlés lemondáskor.
+  </Card>
+  <Card title="IPN webhook" href="/docs/receptek/ipn-webhook">
+    A Számlázz.hu fizetési értesítésének ellenőrzött, idempotens feldolgozása.
+  </Card>
+  <Card title="Pénztári nyugta" href="/docs/receptek/penztari-nyugta">
+    Nyugta hívásazonosítóval, e-mail kiküldéssel és a dupla nyugta kezelésével.
+  </Card>
+</Cards>
+
+## Adatok és tárolás
+
+<Cards>
+  <Card title="PDF mentése S3-ba vagy R2-be" href="/docs/receptek/pdf-mentes-s3-r2">
+    A számla PDF-je saját tárhelyre, lejáró letöltési linkkel, AWS SDK nélkül.
+  </Card>
+  <Card title="Adószám alapú kitöltés" href="/docs/receptek/adoszam-urlap">
+    Számlázási űrlap, amely a NAV adataiból tölti ki a cégnevet és a címet.
+  </Card>
+  <Card title="Devizás számla EU-s cégnek" href="/docs/receptek/devizas-eu-szamla">
+    Euróban kiállított, angol nyelvű számla közösségi adószámmal.
+  </Card>
+</Cards>
+
+## Futtatás és tesztelés
+
+<Cards>
+  <Card title="Cloudflare Workers" href="/docs/receptek/cloudflare-workers">
+    Worker KV munkamenettel és R2-ben gyorsítótárazott számla PDF-ekkel.
+  </Card>
+  <Card title="Egységtesztek" href="/docs/receptek/egysegtesztek">
+    Vitest tesztek mock klienssel: idempotencia, hálózati hiba, időtúllépés.
+  </Card>
+</Cards>

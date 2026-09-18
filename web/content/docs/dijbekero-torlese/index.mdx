@@ -1,0 +1,34 @@
+---
+title: Díjbekérő törlése
+description: Ki nem fizetett díjbekérő törlése díjbekérőszám vagy rendelésszám alapján a kassza invoices.deleteProforma() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/deleting-a-pro-forma-invoice
+---
+
+A díjbekérő nem számla, ezért nem sztornózod, hanem törlöd. A kasszában ezt az `invoices.deleteProforma()` végzi: megadod a díjbekérő számát vagy a rendelésszámát, és sikeres törlés után a metódus nem ad vissza semmit.
+
+```ts
+await kassza.invoices.deleteProforma('D-2026-77')
+```
+
+## Törlés vagy számla?
+
+- **A vevő nem fizetett, és már nem is fog:** töröld a díjbekérőt.
+- **A vevő kifizette:** ne töröld. Állíts ki róla számlát, és a `proformaNumber` mezőben hivatkozz rá, lásd [Bizonylattípusok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok#díjbekérő).
+- **Sztornózni akarod:** nem lehet. Díjbekérőre az `invoices.reverse()` `validation` hibát dob.
+
+<Cards>
+  <Card title="Kérés" href="/docs/dijbekero-torlese/keres">
+    A három hivatkozási forma és az xmlszamladbkdel XML elemei.
+  </Card>
+  <Card title="Válasz" href="/docs/dijbekero-torlese/valasz">
+    A visszatérési érték, a 335-ös hiba, és mi a teendő hálózati hiba után.
+  </Card>
+  <Card title="Minta" href="/docs/dijbekero-torlese/minta">
+    Díjbekérő kiállítása, törlése és a második törlés hibája a sandboxban.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="Rendelésszámnál mindegyik törlődik">
+  Ha rendelésszám alapján törölsz, és a fiókban több díjbekérő is ezzel a rendelésszámmal szerepel,
+  a Számlázz.hu mindegyiket törli. Egyetlen díjbekérőhöz a számát add meg.
+</Callout>

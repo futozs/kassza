@@ -1,0 +1,43 @@
+---
+title: Számla létrehozás
+description: Számla, díjbekérő, előleg-, vég- és helyesbítő számla, szállítólevél kiállítása a kassza invoices.create() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/generating-invoice
+---
+
+Számlát a `kassza.invoices.create()` metódussal állítasz ki. Ugyanez a metódus készít díjbekérőt, előleg-, vég- és helyesbítő számlát, valamint szállítólevelet is, a típust a `type` mező adja meg. A kassza kiszámolja a tételek összegeit, összeállítja a Számla Agent XML-jét, elküldi, és a választ típusos objektumként adja vissza.
+
+```ts
+import { createKassza } from 'kassza'
+
+const kassza = createKassza()
+
+const szamla = await kassza.invoices.create({
+  orderNumber: 'REND-1001',
+  buyer: { name: 'Vevő Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+  items: [{ name: 'Tanácsadás', quantity: 2, unit: 'óra', netUnitPrice: 20_000, vat: 27 }],
+})
+
+console.log(szamla.number, szamla.grossTotal)
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/szamla-letrehozas/keres">
+    Minden mező, ami a számlára kerülhet: vevő, tételek, dátumok, pénznem, mellékletek.
+  </Card>
+  <Card title="Válasz" href="/docs/szamla-letrehozas/valasz">
+    A CreatedInvoice mezői, a PDF, és a számlakészítésnél előforduló hibák.
+  </Card>
+  <Card title="Minta" href="/docs/szamla-letrehozas/minta">
+    Futtatható példák a ténylegesen elküldött XML-lel és a Számlázz.hu válaszával.
+  </Card>
+  <Card title="Számlázási beállítások és szabályok" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok">
+    Bizonylattípusok, áfakulcsok, kerekítés, devizák, rendelésszám, e-mail értesítő.
+  </Card>
+</Cards>
+
+<Callout type="danger" title="Soha ne küldd újra ciklusban">
+  A számlakészítés nem idempotens: ha a kérés kétszer ér be, két számla készül. A kassza ezért
+  soha nem próbálja újra magától. Bizonytalan hiba után előbb kérdezd le a számlát a rendelésszám
+  alapján, lásd a [Hibakezelés](/docs/alapok/hibakezeles#bizonytalan-kimenet-számla-készült-vagy-nem)
+  oldalt.
+</Callout>

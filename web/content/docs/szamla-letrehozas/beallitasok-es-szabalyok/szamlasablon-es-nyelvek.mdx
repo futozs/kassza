@@ -1,0 +1,54 @@
+---
+title: Számlasablon és nyelvek
+description: A számlakép kiválasztása a template mezővel, és a számla, az értesítő e-mail és a vevői fiók nyelvének beállítása a language mezővel.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/invoice-template
+---
+
+## Számlasablon
+
+A `template` mező (XML-ben `szamlaSablon`) a számlaképet választja ki. Ha nem adod meg, a fiókban beállított alapértelmezett sablon készül.
+
+| `template` | Számlakép |
+| --- | --- |
+| `'SzlaMost'` | A Számlázz.hu ajánlott számlaképe |
+| `'SzlaAlap'` | Tradicionális számlakép |
+| `'SzlaNoEnv'` | Borítékbarát számlakép, ablakos borítékhoz |
+| `'Szla8cm'` | Hőnyomtatós számlakép, 8 cm széles |
+| `'SzlaTomb'` | Retró kéziszámla |
+| `'SzlaFuvarlevelesAlap'` | Fuvarleveles számlakép, lásd [Szállítólevél](/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok#szállítólevél) |
+
+```ts
+const kassza = createKassza({ defaults: { invoice: { template: 'SzlaNoEnv' } } })
+```
+
+Egyszerűsített számlaképnél (`simpleItems: true`) a sablon hatástalan. Nyugtánál a PDF sablont a nyugta `template` mezője választja ki, lásd [Nyugta PDF sablon](/docs/nyugta-letrehozas/beallitasok/pdf-sablon).
+
+## Nyelvek
+
+A `language` mező (XML-ben `szamlaNyelve`) a számla nyelvét adja meg, alapértéke `'hu'`. A nyelv a számlán kívül az értesítő e-mail szövegét és a vevői fiók oldalának nyelvét is meghatározza.
+
+| `language` | Nyelv | `language` | Nyelv |
+| --- | --- | --- | --- |
+| `'hu'` | magyar | `'cz'` | cseh |
+| `'en'` | angol | `'pl'` | lengyel |
+| `'de'` | német | `'bg'` | bolgár |
+| `'it'` | olasz | `'nl'` | holland |
+| `'ro'` | román | `'ru'` | orosz |
+| `'sk'` | szlovák | `'si'` | szlovén |
+| `'hr'` | horvát | `'fr'` | francia |
+| `'es'` | spanyol | | |
+
+<Callout type="warning" title="Cseh és szlovén">
+  A cseh nyelv kódja `'cz'`, a szlovéné `'si'`, nem az ISO szerinti `cs` és `sl`. A kassza típusa
+  ezt ismeri, ezért a szerkesztő jelzi, ha a szabványos kódot írnád.
+</Callout>
+
+Ha a vevő nyelvét a böngészőből olvasod ki, képezd le a Számlázz.hu kódjaira:
+
+```ts
+import type { InvoiceLanguage } from 'kassza'
+
+const NYELVEK: Record<string, InvoiceLanguage> = { cs: 'cz', sl: 'si', de: 'de', en: 'en' }
+
+const language = NYELVEK[vevo.nyelv] ?? 'hu'
+```

@@ -1,0 +1,97 @@
+---
+title: Kérés
+description: Az invoices.registerPayment() és clearPayments() bemenete, a Számla Agent xmlszamlakifiz XML elemeivel, alapértékekkel és az újrapróbálás szabályával.
+official: https://docs.szamlazz.hu/hu/agent/credit_entry/request
+---
+
+```ts
+kassza.invoices.registerPayment(input: RegisterPaymentInput, options?: { signal?: AbortSignal }): Promise<RegisteredPayment>
+kassza.invoices.clearPayments(input: string | { invoiceNumber: string; taxNumber?: string }, options?: { signal?: AbortSignal }): Promise<RegisteredPayment>
+```
+
+A kassza mindkét metódusnál `xmlszamlakifiz` XML-t küld az `action-szamla_agent_kifiz` form mezőben. A `registerPayment()` kétféle bemenetet fogad: egyetlen befizetést közvetlenül a mezőkkel, vagy legfeljebb öt befizetést a `payments` tömbben.
+
+## Egy befizetés
+
+```ts
+await kassza.invoices.registerPayment({
+  invoiceNumber: 'WEB-2026-128',
+  amount: 19_470,
+})
+```
+
+Ez a hívás mai dátummal, `'átutalás'` jogcímmel rögzít egy 19 470 összegű befizetést, a számla korábbi befizetései mellé. Ha mást akarsz, add meg a `method`, a `date` vagy a `description` mezőt.
+
+## Több befizetés egy kérésben
+
+```ts
+await kassza.invoices.registerPayment({
+  invoiceNumber: 'WEB-2026-128',
+  payments: [
+    { date: '2026-09-01', method: 'készpénz', amount: 10_000 },
+    { date: '2026-09-15', method: 'átutalás', amount: 9_470, description: 'Második részlet' },
+  ],
+})
+```
+
+A tömbös formában a `method` minden elemnél kötelező, itt nincs alapértéke. Egy kérésben legfeljebb 5 befizetés lehet.
+
+## Mezők
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `invoiceNumber` | `beallitasok/szamlaszam` | – | **Kötelező.** A számla száma, amelyhez a befizetés tartozik. |
+| `taxNumber` | `beallitasok/adoszam` | – | A számla kiállítójának, vagyis a saját cégednek az adószáma. A Számlázz.hu ezzel is azonosítja, melyik számlához tartozik a befizetés. |
+| `additive` | `beallitasok/additiv` | `true` | `true` esetén az új befizetések a korábbiak mellé kerülnek. `false` esetén a kérésben küldött befizetések lecserélik a korábbiakat. |
+| `amount` | `kifizetes/osszeg` | – | **Kötelező.** A befizetett összeg. Véges szám kell legyen. |
+| `method` | `kifizetes/jogcim` | `'átutalás'` egy befizetésnél | A befizetés jogcíme, szabad szöveg, például `'készpénz'` vagy `'bankkártya'`. A `payments` tömbben kötelező. |
+| `date` | `kifizetes/datum` | ma | A befizetés dátuma. `Date` vagy `'YYYY-MM-DD'`. |
+| `description` | `kifizetes/leiras` | – | Leírás a befizetéshez. Üres szöveg esetén a kassza kihagyja az elemet. |
+| `payments` | `kifizetes` (legfeljebb 5) | – | Több befizetés egy kérésben. Egy elem mezői: `amount`, `method`, `date`, `description`. |
+
+A „ma” mindig a budapesti naptári nap. `Date` objektumnál is a budapesti idő szerinti dátum kerül az XML-be, így például a `2026-09-15T23:30:00Z` időpontból `2026-09-16` lesz. A kassza a `beallitasok/valaszVerzio` elembe mindig `2`-t ír, ezért a Számlázz.hu XML-ben válaszol.
+
+## Korábbi befizetések felülírása
+
+`additive: false` esetén a számlán a hívás után pontosan a kérésben küldött befizetések szerepelnek. Ha a befizetéseket a saját adatbázisodban is vezeted, így egy lépésben szinkronizálhatod őket:
+
+```ts
+await kassza.invoices.registerPayment({
+  invoiceNumber: 'WEB-2026-128',
+  additive: false,
+  payments: [
+    { date: '2026-09-01', method: 'készpénz', amount: 10_000 },
+    { date: '2026-09-15', method: 'átutalás', amount: 9_470 },
+  ],
+})
+```
+
+Ennek a formának az eredménye ugyanaz, akárhányszor ér be a kérés, ezért a kassza hálózati hiba után újra is próbálja.
+
+## Befizetések törlése
+
+A `clearPayments()` a számla összes befizetését törli. Elég a számlaszámot megadni, de objektumban az adószámot is átadhatod:
+
+```ts
+await kassza.invoices.clearPayments('WEB-2026-128')
+
+await kassza.invoices.clearPayments({ invoiceNumber: 'WEB-2026-128', taxNumber: '12345678-1-42' })
+```
+
+A kassza ilyenkor `additiv` `false` értékkel, `kifizetes` elem nélkül küldi a kérést. Üres `payments` tömbbel a `registerPayment()` nem töröl, hanem `validation` hibát dob, és a `clearPayments()` metódusra irányít, így véletlenül nem tüntetheted el a befizetéseket.
+
+## Újrapróbálás
+
+A kassza csak a felülíró hívásokat próbálja újra: a `registerPayment()` hívást `additive: false` mellett, és a `clearPayments()` hívást. Ezeknél egy második beérkezés ugyanazt az állapotot hozza létre. Az alapértelmezett, hozzáadó hívást soha nem küldi újra, mert egy ismételt kérés dupla befizetést rögzítene.
+
+Újrapróbálás is csak `maintenance`, `network` és `timeout` hibánál történik, alapból legfeljebb háromszor, 1, majd 2 másodperc várakozással. A részleteket a [Hibakezelés](/docs/alapok/hibakezeles#amit-a-kassza-újrapróbál) oldal írja le. Mit tegyél, ha egy hozzáadó hívás bizonytalan kimenettel ért véget, azt a [Válasz](/docs/befizetes-rogzitese/valasz#hibák) oldalon találod.
+
+## Amit a kassza a küldés előtt ellenőriz
+
+Ezeknél a hibáknál `validation` kategóriájú `SzamlazzError` jön, és kérés nem megy a Számlázz.hu-hoz:
+
+- hiányzik vagy üres a számlaszám,
+- a `payments` tömb üres, vagy 5-nél több elemet tartalmaz,
+- egy befizetés összege nem véges szám, például `NaN`,
+- egy befizetésnél hiányzik vagy üres a `method`,
+- egy dátum érvénytelen.

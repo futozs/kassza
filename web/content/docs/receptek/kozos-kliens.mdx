@@ -1,0 +1,145 @@
+---
+title: Közös kliens
+description: Egyetlen szerveroldali kassza kliens alapbeállításokkal, hibanaplózással és közös munkamenettel, amelyet a többi recept importál.
+---
+
+A kassza klienst egy folyamatban egyszer hozd létre, és mindenhol ugyanazt használd. Így a munkamenet süti a hívások között megmarad, az alapbeállításokat (előtag, fizetési határidő, válaszcím) pedig egy helyen tartod karban. A többi recept ezt a modult importálja `@/lib/kassza` néven.
+
+## Telepítés és kulcs
+
+```package-install
+kassza server-only
+```
+
+```dotenv title=".env.local"
+SZAMLAZZ_AGENT_KEY=a-te-kisbetus-agent-kulcsod
+```
+
+A `server-only` csomag build hibát ad, ha a modult véletlenül egy kliens komponens importálja. Így az Agent kulcs és a kliens biztosan a szerveren marad.
+
+## A kliens
+
+Hosszan futó Node.js szerveren a memóriában tárolt munkamenet elég. Vercelen és más serverless platformon a példányok nem osztoznak a memórián, ott közös tárolót adj meg.
+
+<Tabs items={['Node.js szerver', 'Vercel + Upstash Redis']} groupId="receptek-kliens">
+  <Tab value="Node.js szerver">
+    ```ts title="lib/kassza.ts"
+    import 'server-only'
+    import { createKassza } from 'kassza'
+
+    export const kassza = createKassza({
+      defaults: {
+        invoice: {
+          prefix: 'WEB',
+          paymentDueInDays: 8,
+          seller: {
+            emailReplyTo: 'szamlazas@example.hu',
+            emailSubject: 'Elkészült a számlád',
+          },
+        },
+        receipt: { prefix: 'NYGT', paymentMethod: 'bankkártya' },
+      },
+      hooks: {
+        onError: ({ action, attempt, error, willRetry }) => {
+          console.warn('Számlázz.hu hiba', {
+            action,
+            attempt,
+            category: error.category,
+            code: error.code,
+            willRetry,
+          })
+        },
+      },
+    })
+    ```
+  </Tab>
+  <Tab value="Vercel + Upstash Redis">
+    ```ts title="lib/kassza.ts"
+    import 'server-only'
+    import { Redis } from '@upstash/redis'
+    import { createKassza } from 'kassza'
+    import { upstashRedisCookieStore } from 'kassza/cookie-stores'
+
+    export const kassza = createKassza({
+      cookieStore: upstashRedisCookieStore(Redis.fromEnv(), {
+        prefix: 'webshop:',
+        timeoutMs: 300,
+      }),
+      defaults: {
+        invoice: {
+          prefix: 'WEB',
+          paymentDueInDays: 8,
+          seller: {
+            emailReplyTo: 'szamlazas@example.hu',
+            emailSubject: 'Elkészült a számlád',
+          },
+        },
+        receipt: { prefix: 'NYGT', paymentMethod: 'bankkártya' },
+      },
+      hooks: {
+        onError: ({ action, attempt, error, willRetry }) => {
+          console.warn('Számlázz.hu hiba', {
+            action,
+            attempt,
+            category: error.category,
+            code: error.code,
+            willRetry,
+          })
+        },
+      },
+    })
+    ```
+  </Tab>
+</Tabs>
+
+A hook csak a műveletet, a kategóriát és a kódot naplózza. A kérés XML-jét és az Agent kulcsot a hookok soha nem kapják meg, a `rawResponse` mezőt pedig szándékosan hagyjuk ki, mert vevőadat lehet benne.
+
+## Buktatók
+
+<Callout type="warning" title="Ne hozz létre klienst kérésenként">
+  Ha a `createKassza()` egy route handleren belül fut, minden kérés saját, üres munkamenet-tárolót
+  kap, és minden hívás teljes hitelesítéssel indul. Ez működik, de nagy forgalomnál érezhetően
+  lassabb. A klienst modulszinten hozd létre, ahogy fent.
+</Callout>
+
+<Callout type="danger" title="Az Agent kulcs titok">
+  Ne adj a változónak `NEXT_PUBLIC_` előtagot, és ne importáld a `lib/kassza.ts` modult kliens
+  komponensből. A kulcs csak kisbetűs lehet. A nagybetűs kulcsot a kassza a kérés elküldése előtt
+  `configuration` hibával elutasítja.
+</Callout>
+
+<Callout type="info" title="A hiányzó kulcs már a modul betöltésekor hibát dob">
+  A `createKassza()` azonnal ellenőrzi a kulcsot. Ha a `SZAMLAZZ_AGENT_KEY` egy környezetben
+  hiányzik, például CI-ban vagy tesztfuttatáskor, már a `lib/kassza.ts` importja `configuration`
+  hibát dob. Tesztekhez állíts be egy kamu kulcsot, ahogy az [Egységtesztek](/docs/receptek/egysegtesztek)
+  recept mutatja.
+</Callout>
+
+<Callout type="note" title="Az előtagot előbb rögzítsd a fiókban">
+  A `WEB` számlaelőtagot a Számlázz.hu felületén, a Beállítások / Előtagok menüben kell felvenni,
+  különben 202-es hibát kapsz. A nyugta előtagja csak nagybetűt és számot tartalmazhat, és nem
+  lehet olyan, amit számlán már használtál (336, 337).
+</Callout>
+
+<Callout type="tip" title="Külön kulcs fejlesztéshez">
+  Fejlesztéshez és preview környezethez Számlázz.hu tesztfiók kulcsát használd. A tesztfiókban
+  10 percenként legfeljebb 500 számla készíthető, az éles kulcs pedig csak az éles környezetben
+  legyen beállítva.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Kliens beállítása" href="/docs/alapok/kliens-beallitasa">
+    A createKassza() összes opciója és az alapértelmezések.
+  </Card>
+  <Card title="Munkamenet" href="/docs/alapok/munkamenet">
+    Hogyan tárolja a kassza a session sütit, és milyen tárolók közül választhatsz.
+  </Card>
+  <Card title="Serverless és edge" href="/docs/kiegeszitok/serverless-es-edge">
+    A kassza futtatása serverless és edge környezetben.
+  </Card>
+  <Card title="Fizetett rendelés számlája" href="/docs/receptek/fizetett-rendeles-szamla">
+    A következő recept, amely ezt a klienst használja.
+  </Card>
+</Cards>

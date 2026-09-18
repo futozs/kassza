@@ -1,0 +1,46 @@
+---
+title: Minta
+description: Futtatható számlakészítési példák a kassza kódjával, a ténylegesen elküldött xmlszamla XML-lel és a Számlázz.hu válaszával.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/xml
+---
+
+Az alábbi példák a [sandboxban](/sandbox) futottak. A **Kód** fül a kassza hívást, az **Elküldött XML** fül a Számla Agentnek küldött `xmlszamla` dokumentumot, a **Válasz** fül a szimulált Számlázz.hu választ mutatja. A kód fölé húzva az egeret a típusokat is látod.
+
+## B2B számla nettó árakkal
+
+Vállalkozásnak szóló számla, nettó egységárakkal, 8 napos fizetési határidővel. A vevőnek e-mail címe is van, ezért a Számlázz.hu elküldi neki a számlát.
+
+<Example slug="szamla" />
+
+## Webshop számla bruttó árakkal
+
+Magánszemélynek szóló, kártyával kifizetett rendelés. Bruttó egységárak, két különböző áfakulcs, a kliens alapbeállításaiban megadott előtaggal és e-mail szöveggel.
+
+<Example slug="szamla-brutto" />
+
+## XSD séma
+
+A kassza az XML-t a Számlázz.hu `xmlszamla.xsd` sémája szerint, kötött elemsorrendben építi fel. A séma itt érhető el:
+
+```text
+https://www.szamlazz.hu/szamla/docs/xsds/agent/xmlszamla.xsd
+```
+
+A kassza tesztjei a generált XML-t a hivatalos XSD sémákkal is összevetik, ezért a sémával neked nem kell foglalkoznod. Ha a hivatalos dokumentációban olyan mezőt találsz, amely a kasszában még nincs meg, [nyiss egy issue-t](https://github.com/futozs/kassza/issues).
+
+## További példák
+
+<Cards>
+  <Card title="Díjbekérő, majd számla" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok#díjbekérő">
+    Díjbekérő kiállítása és a befizetés utáni végleges számla.
+  </Card>
+  <Card title="Előleg- és végszámla" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok#előlegszámla-és-végszámla">
+    Előlegszámla, majd végszámla az előleg levonásával.
+  </Card>
+  <Card title="Devizás számla" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok/penznemek">
+    Euróban kiállított angol nyelvű számla EU-s vevőnek.
+  </Card>
+  <Card title="Idempotens számlázás" href="/docs/alapok/hibakezeles#bizonytalan-kimenet-számla-készült-vagy-nem">
+    Webhookból indított számlázás dupla számla nélkül.
+  </Card>
+</Cards>

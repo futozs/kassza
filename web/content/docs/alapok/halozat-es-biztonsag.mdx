@@ -1,0 +1,111 @@
+---
+title: Hálózat és biztonság
+description: Tűzfalszabályok a Számlázz.hu felé és felől, időkorlát, újrapróbálás, naplózás hookokkal és az Agent kulcs védelme.
+official: https://docs.szamlazz.hu/hu/agent/basics/security
+---
+
+A kassza minden kérést HTTPS-en küld a `https://www.szamlazz.hu/szamla/` címre. Ezen az oldalon azt találod, amire egy szigorúbban védett szerveren szükséged lehet: IP-címek a tűzfalhoz, időkorlát, újrapróbálás és naplózás.
+
+## Kimenő forgalom a Számlázz.hu felé
+
+A Számlázz.hu a Cloudflare hálózatán keresztül érhető el. Ha a szervered csak engedélyezett címekre indíthat kapcsolatot, a 443-as porton engedd a Cloudflare alábbi IPv4 tartományait. A lista 2025. augusztus 1-je óta érvényes.
+
+| IP-tartomány | IP-tartomány | IP-tartomány |
+| --- | --- | --- |
+| `173.245.48.0/20` | `103.21.244.0/22` | `103.22.200.0/22` |
+| `103.31.4.0/22` | `141.101.64.0/18` | `108.162.192.0/18` |
+| `190.93.240.0/20` | `188.114.96.0/20` | `197.234.240.0/22` |
+| `198.41.128.0/17` | `162.158.0.0/15` | `104.16.0.0/13` |
+| `104.24.0.0/14` | `172.64.0.0/13` | `131.0.72.0/22` |
+
+<Callout type="tip">
+  Tartomány helyett egyszerűbb a `www.szamlazz.hu` domaint engedélyezni, ha a proxyd vagy a
+  tűzfalad támogatja a domain alapú szabályokat.
+</Callout>
+
+## Bejövő forgalom a Számlázz.hu felől
+
+A Számlázz.hu a fizetési értesítéseket (IPN) és a többi, általa indított hívást az alábbi címekről küldi. Ha a webhook végpontodat IP alapján korlátozod, ezeket engedélyezd:
+
+<OutboundIpTable />
+
+A lista a kódban is elérhető, és az `isSzamlazzIp()` ellenőrzi, hogy egy cím a Számlázz.hu-é-e:
+
+```ts title="app/api/szamlazz/ipn/route.ts"
+import { ipnOkResponse, isSzamlazzIp, readIpnNotification } from 'kassza/ipn'
+
+export async function POST(request: Request) {
+  const ip = request.headers.get('x-forwarded-for') ?? ''
+  if (!isSzamlazzIp(ip)) return new Response('Tiltott', { status: 403 })
+
+  const ertesites = await readIpnNotification(request)
+  await rendelesFizetve(ertesites)
+  return ipnOkResponse()
+}
+```
+
+<Callout type="warning" title="Csak megbízható proxy mögött">
+  Az `x-forwarded-for` fejlécet a kliens is beállíthatja, és az `isSzamlazzIp()` a fejléc első
+  címét vizsgálja. A fenti példa Vercelen biztonságos, mert a Vercel felülírja ezt a fejlécet. A
+  Cloudflare és az nginx szokásos beállítása viszont csak hozzáfűz, ezért ott a `cf-connecting-ip`,
+  illetve a `proxy_set_header X-Real-IP $remote_addr` után az `x-real-ip` fejlécet ellenőrizd.
+  Platformonkénti táblázatot az [IPN](/docs/befizetes-rogzitese/ipn) oldalon találsz.
+</Callout>
+
+## Időkorlát
+
+Egy kérés alapból 60 másodpercig várhat válaszra, ezt a `timeoutMs` opcióval módosíthatod. Egy hívásra saját `AbortSignal`-t is adhatsz, például ha a webhook szolgáltatód 10 másodpercen belül választ vár:
+
+```ts
+const szamla = await kassza.invoices.create(adatok, { signal: AbortSignal.timeout(8_000) })
+```
+
+<Callout type="danger" title="Időtúllépés után ne állítsd ki újra">
+  Ha a számlakészítés időtúllépéssel ér véget, a Számlázz.hu ettől még elkészíthette a számlát.
+  Előbb kérdezd le rendelésszám alapján, ahogy a [Hibakezelés](/docs/alapok/hibakezeles#bizonytalan-kimenet-számla-készült-vagy-nem)
+  oldal mutatja.
+</Callout>
+
+## Újrapróbálás és naplózás
+
+A biztonságosan ismételhető műveleteket a kassza hálózati hiba, 5xx válasz, időtúllépés és karbantartás esetén magától újrapróbálja, 1, majd 2 másodperc várakozással. A hookokkal minden próbálkozást naplózhatsz:
+
+<Example slug="hookok" />
+
+A hookok a műveletet, a próbálkozás sorszámát, a HTTP státuszt, az időtartamot és a hibát kapják meg. Az Agent kulcsot és a kérés XML-jét soha, így a naplóba nem kerülhet titok vagy vevőadat.
+
+<Callout type="warning" title="A rawResponse személyes adatot tartalmazhat">
+  A `SzamlazzError.rawResponse` a Számlázz.hu válaszának elejét tartalmazza, amiben vevőnév vagy
+  cím is lehet. Ne küldd el változatlanul külső hibakövető szolgáltatásba, inkább a `code`, a
+  `category` és a `message` mezőt naplózd.
+</Callout>
+
+## Proxy és egyedi fetch
+
+A kassza a globális `fetch`-et használja, így vállalati proxy mögött elég a Node.js globális HTTP kliensét beállítani, például az `undici` csomaggal:
+
+```ts title="instrumentation.ts"
+import { ProxyAgent, setGlobalDispatcher } from 'undici'
+
+const proxy = process.env.HTTPS_PROXY
+if (proxy) setGlobalDispatcher(new ProxyAgent(proxy))
+```
+
+Ha csak a Számlázz.hu felé menő forgalmat akarod mérni vagy módosítani, add meg a saját `fetch` függvényedet:
+
+```ts
+export const kassza = createKassza({
+  fetch: async (url, init) => {
+    const valasz = await fetch(url, init)
+    metrika.novel('szamlazz_http_valasz', { status: valasz.status })
+    return valasz
+  },
+})
+```
+
+## Az Agent kulcs védelme
+
+- A kulcsot csak szerveroldali kód olvassa, soha ne kerüljön böngészőbe vagy mobilalkalmazásba.
+- Titokkezelőben vagy környezeti változóban tárold, ne a forráskódban.
+- Webshoponként és integrációnként használj külön kulcsot, így egy kiszivárgott kulcs a többit nem érinti.
+- A kulcsot a Számlázz.hu felületén bármikor visszavonhatod. Visszavonás után a kassza `auth` kategóriájú hibát ad, a `verifyCredentials()` pedig `false`-t.

@@ -1,0 +1,25 @@
+---
+title: Minta
+description: Számla kiállítása, egy és több befizetés rögzítése, majd a befizetések törlése, a ténylegesen elküldött xmlszamlakifiz XML-lel.
+official: https://docs.szamlazz.hu/hu/agent/credit_entry/xml
+---
+
+A példa kiállít egy 127 000 bruttó végösszegű számlát, és három lépésben kezeli a befizetéseit:
+
+1. rögzít egy 50 000 összegű első részletet átutalással,
+2. egy kérésben hozzáad két további befizetést (20 000 készpénzben és 57 000 bankkártyával), így a befizetések összege eléri a végösszeget,
+3. a `clearPayments()` hívással törli a számla összes befizetését.
+
+Minden lépés után a konzolon a hátralék (`outstanding`) látszik. Az **Elküldött XML** fülön az összes kérést megtalálod, köztük a három `xmlszamlakifiz` dokumentumot. A törlő kérésben nincs `kifizetes` elem, és az `additiv` értéke `false`.
+
+<Example slug="befizetes" />
+
+## XSD séma
+
+A kassza az XML-t a Számlázz.hu `xmlszamlakifiz.xsd` sémája szerint, kötött elemsorrendben építi fel, és a tesztjei a generált kéréseket ezzel a sémával ellenőrzik:
+
+```text
+https://www.szamlazz.hu/szamla/docs/xsds/agentkifiz/xmlszamlakifiz.xsd
+```
+
+A sémában szereplő `aggregator` elemet a kassza nem tölti ki.

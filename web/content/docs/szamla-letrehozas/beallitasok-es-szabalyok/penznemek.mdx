@@ -1,0 +1,44 @@
+---
+title: Támogatott devizanemek
+description: A currency mezőben megadható pénznemkódok, az árfolyam és az árfolyamot jegyző bank megadása devizás számlán.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/currencies
+---
+
+A számla pénznemét a `currency` mező adja meg (XML-ben `penznem`), alapértéke `'HUF'`. A forint `'HUF'` és `'Ft'` alakban is megadható.
+
+## Devizás számla
+
+Nem forintos számlánál a Számlázz.hu az áfát forintban is kimutatja, ehhez árfolyam kell. A kassza szabályai:
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `currency` | `penznem` | `'HUF'` | A pénznem kódja. |
+| `exchangeBank` | `arfolyamBank` | `'MNB'` | Az árfolyamot jegyző bank. |
+| `exchangeRate` | `arfolyam` | – | Az árfolyam. Ha a bank `'MNB'`, elhagyható, és a Számlázz.hu az aznapi MNB árfolyamot használja. Más banknál kötelező. |
+
+Forintos számlán árfolyam és bank nem adható meg, a kassza ilyenkor `validation` hibát ad.
+
+<Example slug="devizas-szamla" />
+
+```ts
+await kassza.invoices.create({
+  currency: 'USD',
+  exchangeBank: 'OTP',
+  exchangeRate: 358.2,
+  buyer,
+  items: [{ name: 'Szoftverfejlesztés', netUnitPrice: 1_200, vat: 'HO' }],
+})
+```
+
+Devizás számlán a tételösszegek 2 tizedesjegyre kerekednek, lásd [Kerekítés](/docs/szamla-letrehozas/beallitasok-es-szabalyok/kerekites#devizás-számla).
+
+## Pénznemkódok
+
+A `Currency` típus a Számla Agent által ismert kódokat kínálja fel, de tetszőleges szöveget is elfogad, ha a Számlázz.hu később új pénznemet vezet be.
+
+<CurrencyTable />
+
+<Callout type="note">
+  Nyugtán a devizát ugyanígy, a `currency`, `exchangeRate` és `exchangeBank` mezőkkel adod meg, az
+  XML-ben ezek a `devizaarf` és `devizabank` elemekbe kerülnek.
+</Callout>

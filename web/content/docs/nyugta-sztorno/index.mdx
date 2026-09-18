@@ -1,0 +1,29 @@
+---
+title: Nyugta sztornó
+description: Kiállított nyugta érvénytelenítése sztornó nyugtával a kassza receipts.reverse() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/reversing-a-receipt
+---
+
+Egy kiállított nyugtát a `kassza.receipts.reverse()` érvénytelenít. A Számlázz.hu ilyenkor egy új, `SN` típusú sztornó nyugtát készít, amely hivatkozik az eredetire, az eredeti nyugta pedig sztornózott állapotba kerül. Elég a nyugtaszámot átadnod.
+
+```ts
+const sztorno = await kassza.receipts.reverse('NYGT-2026-107')
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/nyugta-sztorno/keres">
+    A sztornó mezői: nyugtaszám, hívásazonosító, PDF letöltés és sablon.
+  </Card>
+  <Card title="Válasz" href="/docs/nyugta-sztorno/valasz">
+    A sztornó nyugta Receipt objektuma és a sztornónál előforduló hibák.
+  </Card>
+  <Card title="Minta" href="/docs/nyugta-sztorno/minta">
+    Nyugta kiállítása és sztornózása a sandboxban.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="Adj meg callId-t">
+  A kassza a sztornót csak `callId` megadásával próbálja újra karbantartás,
+  hálózati hiba vagy időtúllépés után. Nélküle az első hiba hozzád kerül, és
+  neked kell kiderítened, elkészült-e a sztornó.
+</Callout>

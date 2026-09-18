@@ -1,0 +1,50 @@
+---
+title: kassza
+description: A kassza dokumentációja. TypeScript kliens a Számlázz.hu Számla Agenthez, kérés, válasz és XML minta minden művelethez.
+---
+
+## Üdvözlünk a kassza dokumentációjában
+
+**A kassza a Számlázz.hu Számla Agent TypeScript kliense. Számlát, díjbekérőt és nyugtát állít ki, sztornóz, befizetést rögzít, lekéri a PDF-et és a számla adatait, a NAV-tól pedig az adószámhoz tartozó cégadatokat. Nincs futásidejű függősége, így Node.js-en, Bunon, Denón, Cloudflare Workersen és Vercel Edge-en is ugyanúgy fut.**
+
+A dokumentáció a [Számlázz.hu hivatalos Agent dokumentációjának](https://docs.szamlazz.hu/hu/agent/) felépítését követi. Minden műveletnél három oldalt találsz: a **kérést** (mit adsz át a kasszának), a **választ** (mit kapsz vissza, és milyen hibák jöhetnek), és a **mintát** a kóddal, a ténylegesen elküldött XML-lel és a Számlázz.hu válaszával. A hivatalos leírás bármelyik oldala mellé így odateheted a megfelelő kassza oldalt.
+
+Ha kérdésed van, vagy hibát találtál, [nyiss egy issue-t a GitHubon](https://github.com/futozs/kassza/issues).
+
+<Callout type="info" title="Nem hivatalos projekt">
+  A kassza független, nyílt forráskódú projekt, és nem a KBOSS.hu Kft. (Számlázz.hu) terméke. Az
+  Agent kulcsot, az előfizetést és a számlázási beállításokat a Számlázz.hu felületén kezeled.
+</Callout>
+
+## Hol kezdjem?
+
+<Cards>
+  <Card title="Hogyan működik a kassza?" href="/docs/alapok/hogyan-mukodik">
+    Mi történik a kódod és a vevő postafiókja között, amikor kiállítasz egy számlát.
+  </Card>
+  <Card title="Telepítés és az első számla" href="/docs/alapok/telepites">
+    Telepítés, Agent kulcs, és egy működő számla néhány sorból.
+  </Card>
+  <Card title="Hibakezelés, hibakódok" href="/docs/alapok/hibakezeles">
+    A Számlázz.hu összes ismert hibakódja, kategóriával és magyar javítási tippel.
+  </Card>
+  <Card title="Sandbox" href="/sandbox">
+    Futtasd a példákat a böngészőben Agent kulcs nélkül, és nézd meg az elküldött XML-t.
+  </Card>
+</Cards>
+
+## A 11 Számla Agent művelet
+
+| Művelet | kassza metódus | Hivatalos leírás |
+| --- | --- | --- |
+| [Számla létrehozás](/docs/szamla-letrehozas) | `invoices.create()`, `invoices.preview()` | [Számla létrehozás](https://docs.szamlazz.hu/hu/agent/generating_invoice/request) |
+| [Számla sztornó](/docs/szamla-sztorno) | `invoices.reverse()` | [Számla sztornó](https://docs.szamlazz.hu/hu/agent/reversing_invoice/request) |
+| [Befizetés rögzítése](/docs/befizetes-rogzitese) | `invoices.registerPayment()`, `invoices.clearPayments()` | [Befizetés rögzítése](https://docs.szamlazz.hu/hu/agent/credit_entry/request) |
+| [Bizonylat lekérése PDF-ben](/docs/bizonylat-pdf) | `invoices.getPdf()` | [PDF lekérés](https://docs.szamlazz.hu/hu/agent/querying_pdf/request) |
+| [Számla adatainak lekérése](/docs/szamla-adatai) | `invoices.get()`, `invoices.find()` | [XML lekérés](https://docs.szamlazz.hu/hu/agent/querying_xml/request) |
+| [Díjbekérő törlése](/docs/dijbekero-torlese) | `invoices.deleteProforma()` | [Díjbekérő törlése](https://docs.szamlazz.hu/hu/agent/deleting_pro_forma_invoice/request) |
+| [Nyugta létrehozás](/docs/nyugta-letrehozas) | `receipts.create()` | [Nyugta létrehozás](https://docs.szamlazz.hu/hu/agent/generating_receipt/request) |
+| [Nyugta sztornó](/docs/nyugta-sztorno) | `receipts.reverse()` | [Nyugta sztornó](https://docs.szamlazz.hu/hu/agent/reversing_receipt/request) |
+| [Nyugta lekérdezés](/docs/nyugta-lekerdezes) | `receipts.get()`, `receipts.find()` | [Nyugta lekérdezés](https://docs.szamlazz.hu/hu/agent/querying_receipt/request) |
+| [Nyugta kiküldés](/docs/nyugta-kikuldes) | `receipts.send()` | [Nyugta kiküldés](https://docs.szamlazz.hu/hu/agent/sending_receipt/request) |
+| [Adószám lekérdezése](/docs/adoszam-lekerdezes) | `taxpayer.query()` | [Adószám lekérdezés](https://docs.szamlazz.hu/hu/agent/querying_taxpayer/request) |

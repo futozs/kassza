@@ -1,0 +1,71 @@
+---
+title: Válasz
+description: A RegisteredPayment mezői, amelyeket a registerPayment() és a clearPayments() visszaad, és a befizetés rögzítésénél jellemző hibák.
+official: https://docs.szamlazz.hu/hu/agent/credit_entry/response
+---
+
+Sikeres kérés után a `registerPayment()` és a `clearPayments()` is egy `RegisteredPayment` objektumot ad vissza. A mezők a Számlázz.hu `xmlszamlavalasz` válaszából jönnek. Ha egy elem hiányzik az XML-ből, a kassza a `szlahu_*` fejlécekből pótolja.
+
+| Mező | Típus | Forrás | Leírás |
+| --- | --- | --- | --- |
+| `invoiceNumber` | `string` | `szamlaszam` | A számla száma. Ha a válaszban nincs benne, a kérésben megadott szám. |
+| `netTotal` | `number \| undefined` | `szamlanetto` | A számla nettó végösszege. |
+| `grossTotal` | `number \| undefined` | `szamlabrutto` | A számla bruttó végösszege. |
+| `outstanding` | `number \| undefined` | `kintlevoseg` | A számla hátraléka a befizetések után. |
+| `buyerAccountUrl` | `string \| undefined` | `vevoifiokurl` | A vevői fiók linkje, ha a fiókban be van kapcsolva. |
+
+A válaszban nincs PDF, és a rögzített befizetések listája sem. A hátralékból viszont látod, hogy a számla ki van-e egyenlítve:
+
+```ts
+const eredmeny = await kassza.invoices.registerPayment({ invoiceNumber: szamlaszam, amount: 19_470 })
+
+if (eredmeny.outstanding === 0) {
+  await db.rendeles.update({ where: { szamlaszam }, data: { fizetve: true } })
+}
+```
+
+<Callout type="info" title="A befizetések listája">
+  A számlán szereplő befizetéseket a [Számla adatainak lekérése](/docs/szamla-adatai) adja vissza:
+  a `kassza.invoices.get()` eredményének `payments` tömbjében minden befizetés dátuma (`date`),
+  jogcíme (`method`) és összege (`amount`) benne van.
+</Callout>
+
+## Hibák
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | A kassza a küldés előtt hibát talált, lásd [Kérés](/docs/befizetes-rogzitese/keres#amit-a-kassza-a-küldés-előtt-ellenőriz). |
+| 1 | `maintenance` | Karbantartás. Felülíró hívásnál a kassza magától újrapróbálja. |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 7 | `not_found` | Ismeretlen számlaszám. |
+| 136 | `account` | Lejárt előfizetés vagy rendezetlen díj. |
+| – | `unexpected_response` | A Számlázz.hu ismeretlen formátumban válaszolt. |
+| – | `network`, `timeout` | Nem tudni, rögzült-e a befizetés. Hozzáadó hívásnál ellenőrizd, mielőtt újra küldenéd. |
+
+Az összes kódot a [Hibakezelés, hibakódok](/docs/alapok/hibakezeles#hibakódok) oldal sorolja fel.
+
+## Bizonytalan kimenet hozzáadó hívásnál
+
+Hálózati hiba vagy időtúllépés után a befizetés már rögzülhetett. Hozzáadó hívásnál egy vak újraküldés dupla befizetést okozhat, ezért előbb nézd meg a számla befizetéseit:
+
+```ts
+import { isSzamlazzError, type PaymentEntry } from 'kassza'
+
+async function befizetesRogzitese(szamlaszam: string, befizetes: PaymentEntry & { date: string }) {
+  try {
+    return await kassza.invoices.registerPayment({ invoiceNumber: szamlaszam, payments: [befizetes] })
+  } catch (error) {
+    if (!isSzamlazzError(error) || (error.category !== 'network' && error.category !== 'timeout')) {
+      throw error
+    }
+    const { payments } = await kassza.invoices.get(szamlaszam)
+    const rogzult = payments.some(
+      (meglevo) => meglevo.date === befizetes.date && meglevo.amount === befizetes.amount,
+    )
+    if (rogzult) return undefined
+    throw error
+  }
+}
+```
+
+Ha a számla összes befizetését a saját adatbázisodban vezeted, egyszerűbb a teljes listát `additive: false` értékkel küldeni. Ez a hívás ismételhető, és a kassza hálózati hiba után magától újrapróbálja.

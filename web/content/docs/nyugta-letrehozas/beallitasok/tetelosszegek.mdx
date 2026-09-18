@@ -1,0 +1,112 @@
+---
+title: Tételösszegek és kerekítés
+description: Forintos nyugtán a bruttó egész, a nettó és az áfa legfeljebb 2 tizedes, és az összegük pontosan a bruttó. Így számol a kassza, és ezt jelentik a 261-es és a 363–365-ös hibák.
+official: https://docs.szamlazz.hu/hu/agent/generating_receipt/settings_and_rules/item-amounts
+---
+
+Forintos nyugtán szigorúbbak a tételösszegek szabályai, mint a számlán. Forintosnak számít a nyugta, ha a `currency` üres (ez az alapérték), `'HUF'` vagy `'Ft'`. Ilyenkor:
+
+- a bruttó érték egész szám, mert a nyugtát egész forintban fizetik ki,
+- a nettó és az áfa értéke legfeljebb 2 tizedesjegy lehet,
+- a nettó és az áfa összegének tűrés nélkül ki kell adnia a bruttót, a Számlázz.hu kerekítés nélkül hasonlít,
+- a nettó egységár × mennyiség legfeljebb 2 Ft-tal térhet el a nettó értéktől, a nettó × áfakulcs / 100 pedig az áfa értéktől.
+
+Ezt nem kell kézzel kiszámolnod. Megadod a `grossUnitPrice` vagy a `netUnitPrice` mezőt és az áfakulcsot, a kassza pedig a nyugtára érvényes szabályokkal számolja ki a nettó, az áfa és a bruttó értéket.
+
+<RoundingCalculator />
+
+A kalkulátorban a Bizonylat kapcsolót állítsd Nyugtára, így ugyanazt látod, ami a nyugtára kerül.
+
+## Bruttó alapon
+
+Nyugtánál ez a gyakoribb eset, mert a vevő bruttó árat fizet.
+
+1. bruttó érték = bruttó egységár × mennyiség, egészre kerekítve,
+2. áfa érték = bruttó érték × áfakulcs / (100 + áfakulcs), 2 tizedesre kerekítve,
+3. nettó érték = bruttó érték − áfa érték,
+4. a nettó egységárat a kassza visszaszámolja: a legkevesebb tizedesjegyű (legfeljebb 6) értéket választja, amely a mennyiséggel szorozva kiadja a nettó értéket.
+
+Például 3 darab 890 Ft-os kávé 27%-os áfával: bruttó 2 670 Ft, áfa 567,64 Ft, nettó 2 102,36 Ft, nettó egységár 700,787 Ft. Ugyanez számlán 568 Ft áfa és 2 102 Ft nettó lenne, mert ott a nettó és az áfa is egész.
+
+Tört bruttó egységárnál a bruttó érték egészre kerekedik: 199,50 Ft-ból 200 Ft lesz, 42,52 Ft áfával és 157,48 Ft nettóval.
+
+<Example slug="nyugta" />
+
+## Nettó alapon
+
+Mivel a bruttónak nettó alapon is egésznek kell lennie, a sorrend más, mint a számlán:
+
+1. nettó érték = nettó egységár × mennyiség, 2 tizedesre kerekítve,
+2. bruttó érték = nettó érték × (1 + áfakulcs / 100), egészre kerekítve,
+3. áfa érték = bruttó érték − nettó érték.
+
+Például 3 darab 99,99 Ft nettó egységárú tétel 27%-os áfával: nettó 299,97 Ft, bruttó 380,9619 helyett 381 Ft, áfa 81,03 Ft. Az áfa így nem pontosan a nettó 27%-a (80,99 Ft), de a 2 Ft-os tűrésen belül marad, és a nettó és az áfa összege pontosan 381.
+
+## Devizás nyugta
+
+A fenti forintos szabályok devizás nyugtára nem vonatkoznak. Devizában a kassza a nettó, az áfa és a bruttó értéket is legfeljebb 2 tizedesre kerekíti, ugyanúgy, mint a devizás számlán.
+
+## Ellenőrzés küldés előtt
+
+Forintos nyugtánál a kassza a kérés elküldése előtt ellenőrzi a tételösszegeket. Ha valami nem stimmel, `validation` kategóriájú `SzamlazzError`-t dob, a kérés el sem jut a Számlázz.hu-hoz. A hibaüzenet megnevezi a tételt, és zárójelben a megfelelő hibakódot:
+
+| Kód az üzenetben | Mi a hiba |
+| --- | --- |
+| 261 | A nettó és az áfa összege nem pontosan a bruttó |
+| 363 | A bruttó nem egész szám |
+| 364 | A nettó 2-nél több tizedesjegyet tartalmaz |
+| 365 | Az áfa 2-nél több tizedesjegyet tartalmaz |
+| 259 | A nettó egységár × mennyiség 2 Ft-nál többel eltér a nettótól |
+| 260 | Az áfa 2 Ft-nál többel eltér a nettó × áfakulcs / 100 értéktől |
+
+A Számlázz.hu a 261-es és a 363–365-ös kódot adja vissza, ha ilyen tétel mégis eljut hozzá. Lásd még: [Hibakezelés](/docs/alapok/hibakezeles).
+
+## Saját összegek
+
+Ha a tételösszegeket máshonnan kapod, a `netAmount`, `vatAmount` és `grossAmount` mezővel felülírhatod a számolást. Mindhármat meg kell adnod. A számlával ellentétben forintos nyugtán a kassza ezeket is ellenőrzi, ezért már kerekített értékeket adj át:
+
+```ts
+items: [
+  { name: 'Ajándékkártya', vat: 27, netAmount: 787.4, vatAmount: 212.6, grossAmount: 1_000 },
+]
+```
+
+Egy másik rendszerből változtatás nélkül átvett, kerekítetlen érték, például a `netAmount: 787.40157480315`, 364-es hivatkozású `validation` hibát ad, mert a nettó 2-nél több tizedesjegyet tartalmaz.
+
+## Áfakulcsok nyugtán
+
+Nyugtán a számlánál használható összes áfakulcs megadható, lásd [Áfakulcsok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/afakulcsok). Ezeken felül a kassza négy olyan kódot is elfogad, amely csak nyugtán használható:
+
+| `vat` | Számolás |
+| --- | --- |
+| `'ÁKK'` | 0%-os kulcsként |
+| `'MAA'` | 0%-os kulcsként |
+| `'EU'` | 0%-os kulcsként |
+| `'EUK'` | 0%-os kulcsként |
+
+A kód változatlanul kerül a kérés `afakulcs` mezőjébe. TypeScriptben a nyugtatételek `vat` mezőjének típusa a `ReceiptVatRate`, amely ezt a négy kódot is tartalmazza.
+
+## Számolás a kassza nélkül
+
+A nyugta kerekítése külön is elérhető a `kassza/money` modulból, például ha a pénztárfelületen ugyanazt az összeget akarod mutatni, ami a nyugtára kerül:
+
+```ts
+import { calculateReceiptItem, summarizeItems } from 'kassza/money'
+
+const tetelek = [
+  calculateReceiptItem({ quantity: 2, grossUnitPrice: 890, vat: 27 }),
+  calculateReceiptItem({ grossUnitPrice: 250, vat: 5 }),
+]
+
+const { grossAmount, byVat } = summarizeItems(tetelek)
+```
+
+Itt a `grossAmount` 2 030, a `byVat` pedig áfakulcsonként bontja a nettó, az áfa és a bruttó értéket. Devizás nyugtához a pénznemet második paraméterként add át: `calculateReceiptItem(tetel, 'EUR')`.
+
+<Callout type="warning" title="Nyugtás áfakódok a kassza/money modulban">
+  A `calculateReceiptItem` nem ismeri az `'ÁKK'`, `'MAA'`, `'EU'` és `'EUK'` kódot, ezekre
+  „Ismeretlen áfakulcs” hibát dob. Ilyen tételnél a számoláshoz add át a `vat: 0` értéket, ahogy
+  a `receipts.create()` is teszi.
+</Callout>
+
+Lásd még: [Kerekítés számlán](/docs/szamla-letrehozas/beallitasok-es-szabalyok/kerekites) és [Pénzszámítás](/docs/kiegeszitok/penzszamitas).

@@ -1,0 +1,50 @@
+---
+title: Válasz
+description: A ReversedInvoice mezői, amelyeket az invoices.reverse() visszaad, és a sztornózásnál jellemző hibák.
+official: https://docs.szamlazz.hu/hu/agent/reversing_invoice/response
+---
+
+Sikeres sztornó után a `reverse()` egy `ReversedInvoice` objektumot ad vissza. A mezők a Számlázz.hu `xmlszamlavalasz` válaszából és a `szlahu_*` fejlécekből jönnek.
+
+| Mező | Típus | Forrás | Leírás |
+| --- | --- | --- | --- |
+| `number` | `string` | `szamlaszam` | A sztornó számla száma. |
+| `netTotal` | `number \| undefined` | `szamlanetto` | A sztornó nettó végösszege, negatív. |
+| `grossTotal` | `number \| undefined` | `szamlabrutto` | A sztornó bruttó végösszege, negatív. |
+| `outstanding` | `number \| undefined` | `kintlevoseg` | Hátralék. |
+| `buyerAccountUrl` | `string \| undefined` | `vevoifiokurl` | A vevői fiók linkje. |
+| `pdf` | `Uint8Array \| undefined` | `pdf` | A sztornó számla PDF-je. |
+
+```ts
+const sztorno = await kassza.invoices.reverse('WEB-2026-128')
+
+if (sztorno.pdf) await writeFile(`sztorno/${sztorno.number}.pdf`, sztorno.pdf)
+```
+
+Hogy egy számla sztornózva van-e, a [Számla adatainak lekérése](/docs/szamla-adatai) után a `header.reversed` mező mutatja.
+
+## Hibák
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | Hiányzó számlaszám, érvénytelen dátum vagy ismeretlen sablon. |
+| – | `validation` | Díjbekérőt vagy szállítólevelet próbáltál sztornózni: a Számlázz.hu az eredeti bizonylatot adta vissza. |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 7 | `not_found` | Nincs ilyen számlaszám. |
+| 54, 55 | `account` | E-számla sztornó, de az e-számla nincs engedélyezve, vagy az aláírás nem sikerült. |
+| 56 | `partial_success` | A sztornó elkészült, de az értesítő nem ment ki. **Ne küldd újra.** |
+| – | `network`, `timeout` | Nem tudni, elkészült-e a sztornó. Ellenőrizd a `get()` metódussal, mielőtt újra próbálnád. |
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.reverse(szamlaszam)
+} catch (error) {
+  if (isSzamlazzError(error) && (error.category === 'network' || error.category === 'timeout')) {
+    const adatok = await kassza.invoices.get(szamlaszam)
+    if (adatok.header.reversed) return
+  }
+  throw error
+}
+```

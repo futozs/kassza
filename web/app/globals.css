@@ -1,0 +1,145 @@
+@import "tailwindcss";
+@import "../styles/tokens.css";
+@import "../styles/prose.css" layer(components);
+@import "../styles/code.css" layer(components);
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-display: var(--ff-display), ui-sans-serif, sans-serif;
+  --font-sans: var(--ff-sans), ui-sans-serif, sans-serif;
+  --font-mono: var(--ff-mono), ui-monospace, monospace;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-rule: var(--rule);
+  --color-rule-strong: var(--rule-strong);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-brand: var(--brand);
+  --color-brand-deep: var(--brand-deep);
+  --color-brand-ink: var(--brand-ink);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-amber-ink: var(--amber-ink);
+  --color-focus: var(--focus);
+  --color-receipt: var(--receipt);
+  --color-receipt-edge: var(--receipt-edge);
+  --color-overlay: var(--overlay);
+  --color-note-bg: var(--note-bg);
+  --color-note-border: var(--note-border);
+  --color-note-ink: var(--note-ink);
+  --color-tip-bg: var(--tip-bg);
+  --color-tip-border: var(--tip-border);
+  --color-tip-ink: var(--tip-ink);
+  --color-info-bg: var(--info-bg);
+  --color-info-border: var(--info-border);
+  --color-info-ink: var(--info-ink);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-border: var(--warning-border);
+  --color-warning-ink: var(--warning-ink);
+  --color-danger-bg: var(--danger-bg);
+  --color-danger-border: var(--danger-border);
+  --color-danger-ink: var(--danger-ink);
+
+  --shadow-hairline: 0 0 0 1px var(--rule);
+  --shadow-whisper: 0 1px 2px oklch(from var(--shadow-color) l c h / 0.08);
+  --shadow-lift:
+    0 1px 2px oklch(from var(--shadow-color) l c h / 0.06),
+    0 8px 24px -12px oklch(from var(--shadow-color) l c h / 0.22);
+  --shadow-overlay:
+    0 24px 64px -24px oklch(from var(--shadow-color) l c h / 0.45),
+    0 2px 6px oklch(from var(--shadow-color) l c h / 0.08);
+}
+
+@layer base {
+  html {
+    overflow-x: clip;
+    scroll-padding-top: calc(var(--navbar-height) + var(--space-lg));
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    overflow-x: clip;
+    min-height: 100dvh;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    line-height: 1.65;
+    font-feature-settings: "ss01" 0;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .dark body {
+    font-weight: 380;
+  }
+
+  ::selection {
+    background: var(--amber-soft);
+    color: var(--ink);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+  }
+
+  button,
+  [role="button"] {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  kbd {
+    font-family: var(--font-sans);
+  }
+}
+
+@layer utilities {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: var(--rule-strong) transparent;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 120ms;
+    animation-iteration-count: 1;
+    transition-duration: 120ms;
+    scroll-behavior: auto;
+  }
+}
+
+@theme inline {
+  --color-receipt-ink: var(--receipt-ink);
+  --color-receipt-muted: var(--receipt-muted);
+  --color-receipt-rule: var(--receipt-rule);
+  --color-receipt-hover: var(--receipt-hover);
+  --color-receipt-accent: var(--receipt-accent);
+}

@@ -1,0 +1,45 @@
+---
+title: Kérés
+description: A receipts.get() és a receipts.find() bemenete, a Számla Agent xmlnyugtaget XML elemeivel és alapértékekkel.
+official: https://docs.szamlazz.hu/hu/agent/querying_receipt/request
+---
+
+```ts
+kassza.receipts.get(input: string | GetReceiptInput, options?: { signal?: AbortSignal }): Promise<Receipt>
+kassza.receipts.find(input: string | GetReceiptInput, options?: { signal?: AbortSignal }): Promise<Receipt | null>
+```
+
+A két metódus ugyanazt a bemenetet fogadja, és ugyanazt az `xmlnyugtaget` XML-t küldi az `action-szamla_agent_nyugta_get` form mezőben. Ha csak a nyugtaszámod van meg, szövegként add át:
+
+```ts
+const nyugta = await kassza.receipts.get('NYGT-2026-1')
+```
+
+Rendelésszám alapján, vagy ha a PDF-re nincs szükséged, objektumot adj át:
+
+```ts
+const nyugta = await kassza.receipts.get({
+  orderNumber: 'PENZTAR-2026-0212',
+  downloadPdf: false,
+})
+```
+
+## Mezők
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `receiptNumber` | `fejlec/nyugtaszam` | – | A nyugta száma, amit a létrehozáskor kaptál. Szöveges bemenetnél ez kerül ide. |
+| `orderNumber` | `fejlec/rendelesSzam` | – | A nyugta létrehozásakor megadott rendelésszám. |
+| `callId` | `fejlec/hivasAzonosito` | – | Opcionális hívásazonosító. A nyugtát nem ez alapján keresi. |
+| `template` | `fejlec/pdfSablon` | – | A PDF sablonja: `A` (normál A4), `N` (80 mm), `J` (jegy), `L` (jegy logóval). |
+| `downloadPdf` | `beallitasok/pdfLetoltes` | `true` | Kérje-e a nyugta PDF-jét a válaszban. |
+
+A `receiptNumber` és az `orderNumber` közül pontosan az egyiket kell megadnod. A `beallitasok` blokkba a kassza az Agent kulcsot is beírja.
+
+## Szabályok
+
+- Ha egyik azonosítót sem adod meg, vagy mindkettőt megadod, a kassza küldés előtt `validation` hibát dob. A `GetReceiptInput` típus a két mező együttes megadását már fordításkor sem engedi.
+- A kassza a szöveges mezők elejéről és végéről levágja a szóközöket. Az üres vagy csak szóközből álló érték hiányzónak számít.
+- Ismeretlen `template` értékre szintén `validation` hiba jön, még a küldés előtt.
+- A rendelésszám csak akkor azonosít egyértelműen egy nyugtát, ha a fiókban tiltva van a rendelésszám ismétlődése.
+- A lekérdezés nem hoz létre semmit, ezért a kassza **magától újrapróbálja** karbantartás, hálózati hiba és időtúllépés után, alapból háromszor. Lásd [Amit a kassza újrapróbál](/docs/alapok/hibakezeles#amit-a-kassza-újrapróbál).

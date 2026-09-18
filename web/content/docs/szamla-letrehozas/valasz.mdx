@@ -1,0 +1,114 @@
+---
+title: Válasz
+description: A CreatedInvoice mezői, honnan jönnek a Számlázz.hu válaszából, a PDF mentése, és a számlakészítésnél jellemző hibák.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/response
+---
+
+Sikeres számlakészítés után a `create()` egy `CreatedInvoice` objektummal tér vissza:
+
+```ts
+const szamla = await kassza.invoices.create(adatok)
+
+await db.rendeles.update({
+  where: { id: rendelesId },
+  data: { szamlaszam: szamla.number, brutto: szamla.grossTotal },
+})
+```
+
+## CreatedInvoice
+
+| Mező | Típus | Forrás a válaszban | Leírás |
+| --- | --- | --- | --- |
+| `number` | `string` | `szamlaszam` | A kiállított számla száma, például `'WEB-2026-128'`. |
+| `netTotal` | `number` | `szamlanetto` | Nettó végösszeg. |
+| `grossTotal` | `number` | `szamlabrutto` | Bruttó végösszeg. |
+| `outstanding` | `number \| undefined` | `kintlevoseg` | Hátralék. `paid: true` esetén `0`. |
+| `buyerAccountUrl` | `string \| undefined` | `vevoifiokurl` | A vevői fiók linkje, ha a fiókban be van kapcsolva. Ezen keresztül a vevő online is fizethet. |
+| `pdf` | `Uint8Array \| undefined` | `pdf` | A számla PDF-je. `downloadPdf: false` esetén nincs. |
+| `items` | `CreatedInvoiceItem[]` | kassza | A tételek a kassza által számolt összegekkel. |
+
+Egy `CreatedInvoiceItem` a tétel nevét és a számolt értékeket tartalmazza: `name`, `quantity`, `vat`, `netUnitPrice`, `netAmount`, `vatAmount`, `grossAmount`. Ezeket el is mentheted a saját adatbázisodba, pontosan ezek kerültek a számlára.
+
+<Callout type="info" title="Hogyan olvassa a kassza a választ?">
+  A kassza XML választ kér (`valaszVerzio` 2), amelyben a számlaszám, az összegek és a Base64
+  kódolású PDF is benne van. A válasz `szlahu_*` fejléceit is feldolgozza, így ha egy mező az
+  XML-ből hiányzik, a fejlécből pótolja.
+</Callout>
+
+## A PDF mentése
+
+A `pdf` egy `Uint8Array`, amit közvetlenül fájlba írhatsz, feltölthetsz tárhelyre, vagy visszaadhatsz HTTP válaszként:
+
+<Tabs items={['Fájlba', 'Next.js route', 'S3 vagy R2']} groupId="pdf-mentes">
+  <Tab value="Fájlba">
+    ```ts
+    import { writeFile } from 'node:fs/promises'
+
+    if (szamla.pdf) await writeFile(`szamlak/${szamla.number}.pdf`, szamla.pdf)
+    ```
+  </Tab>
+  <Tab value="Next.js route">
+    ```ts title="app/szamlak/[szam]/route.ts"
+    import { kassza } from '@/lib/kassza'
+
+    export async function GET(_request: Request, { params }: RouteContext<'/szamlak/[szam]'>) {
+      const { szam } = await params
+      const { pdf } = await kassza.invoices.getPdf(szam)
+      return new Response(new Uint8Array(pdf), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="${szam}.pdf"`,
+        },
+      })
+    }
+    ```
+  </Tab>
+  <Tab value="S3 vagy R2">
+    ```ts
+    import { invoicePdfKey, s3FetchStorage, storePdf } from 'kassza/storage'
+
+    const tarhely = s3FetchStorage({
+      bucket: 'szamlak',
+      region: 'auto',
+      endpoint: process.env.R2_ENDPOINT,
+      accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
+    })
+
+    if (szamla.pdf) await storePdf(tarhely, invoicePdfKey({ number: szamla.number }), szamla.pdf)
+    ```
+  </Tab>
+</Tabs>
+
+A PDF később is lekérhető a [Bizonylat lekérése PDF-ben](/docs/bizonylat-pdf) művelettel, ezért nem kötelező azonnal eltárolni.
+
+## Előnézet válasza
+
+Az `invoices.preview()` ugyanazt a bemenetet fogadja, de nem állít ki számlát. `InvoicePreview` objektumot ad vissza, amelyben csak a `pdf`, a `netTotal`, a `grossTotal` és az `items` szerepel. Lásd az [Előnézet](/docs/szamla-letrehozas/beallitasok-es-szabalyok/elonezet) oldalt.
+
+## Hibák
+
+Ha a számla nem készült el, a `create()` `SzamlazzError`-t dob. A számlakészítésnél leggyakoribb hibák:
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | A kassza a küldés előtt hibát talált a bemenetben, lásd [Kérés](/docs/szamla-letrehozas/keres#amit-a-kassza-a-küldés-előtt-ellenőriz). |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 54, 55 | `account` | Az e-számla nincs engedélyezve, vagy az aláírás nem sikerült. |
+| 56 | `partial_success` | A számla elkészült, csak az értesítő e-mail nem ment ki. **Ne állítsd ki újra.** |
+| 57 | `validation` | Az XML nem felel meg az XSD-nek. |
+| 71, 152 | `duplicate` | A rendelésszámmal már készült számla, és a fiók tiltja az ismétlést. |
+| 136 | `account` | Lejárt előfizetés vagy rendezetlen díj. |
+| 202 | `validation` | A számlaszám előtag nincs rögzítve a fiókban. |
+| 259–264 | `validation` | Hibás tételösszeg. A kassza számolásával nem fordulhat elő, csak kézzel megadott összegeknél. |
+| 352, 396 | `validation` | Érvénytelen kelte vagy túl korai dátum. |
+| 537–539 | `validation`, `account` | Adattörlő kód hiba. |
+| 551–556 | `validation` | Az egyszerűsített számlakép szabályainak megsértése. |
+| – | `network`, `timeout` | Nem tudni, elkészült-e a számla. Kérdezd le rendelésszám alapján. |
+
+Az összes kódot a [Hibakezelés, hibakódok](/docs/alapok/hibakezeles#hibakódok) oldal sorolja fel.
+
+<Callout type="danger" title="Bizonytalan kimenet">
+  Hálózati hiba, időtúllépés, 56-os vagy 71/152-es hiba után a számla már létezhet. Mielőtt újra
+  kiállítanád, hívd meg a `kassza.invoices.find({ orderNumber })` metódust.
+</Callout>

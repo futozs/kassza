@@ -1,0 +1,52 @@
+---
+title: Kedvezmény feltüntetése a számlán
+description: Kedvezmény megadása negatív egységárú tételként, a hozzá tartozó áfakulccsal, százalékos kedvezmény kiszámolása a kasszával.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/discount
+---
+
+A Számla Agentben nincs külön kedvezmény mező. A kedvezményt egy újabb, **negatív egységárú tételként** adod meg:
+
+- a `name` a kedvezmény megnevezése vagy jogcíme,
+- a `netUnitPrice` vagy a `grossUnitPrice` negatív, a `quantity` pozitív marad,
+- a `vat` ugyanaz, mint annak a tételnek az áfakulcsa, amelyre a kedvezmény vonatkozik,
+- ha a kedvezmény egy tételhez tartozik, közvetlenül utána szerepeljen.
+
+```ts
+await kassza.invoices.create({
+  buyer,
+  items: [
+    { name: 'Minta termék', netUnitPrice: 20_000, vat: 27 },
+    { name: 'Kedvezmény: Minta termék', netUnitPrice: -2_000, vat: 27 },
+  ],
+})
+```
+
+A kassza a negatív tételt ugyanúgy számolja, mint a többit: a fenti kedvezmény nettó −2 000 Ft, áfa −540 Ft, bruttó −2 540 Ft lesz.
+
+## Százalékos és kosárkedvezmény
+
+Százalékos vagy végösszegből adott kedvezmény funkció a Számlázz.hu-ban nincs, az összeget neked kell kiszámolnod. Kosárkedvezménynél áfakulcsonként egy-egy kedvezménytételt adj meg, hogy az áfa is helyesen csökkenjen:
+
+```ts
+import type { InvoiceItemInput } from 'kassza'
+import { roundMoney } from 'kassza/money'
+
+function kedvezmennyel(tetelek: InvoiceItemInput[], szazalek: number): InvoiceItemInput[] {
+  const kulcsonkent = new Map<InvoiceItemInput['vat'], number>()
+  for (const tetel of tetelek) {
+    const brutto = (tetel.grossUnitPrice ?? 0) * (tetel.quantity ?? 1)
+    kulcsonkent.set(tetel.vat, (kulcsonkent.get(tetel.vat) ?? 0) + brutto)
+  }
+  const kedvezmenyek = [...kulcsonkent].map(([vat, brutto]) => ({
+    name: `Kuponkedvezmény ${szazalek}%`,
+    grossUnitPrice: -roundMoney((brutto * szazalek) / 100),
+    vat,
+  }))
+  return [...tetelek, ...kedvezmenyek]
+}
+```
+
+<Callout type="note">
+  A példa bruttó egységárú tételekkel számol. Nettó áras tételeknél ugyanígy a nettó összegből
+  számold a kedvezményt, és `netUnitPrice`-ként add meg.
+</Callout>

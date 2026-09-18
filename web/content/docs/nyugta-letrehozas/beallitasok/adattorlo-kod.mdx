@@ -1,0 +1,35 @@
+---
+title: Adattörlő kód
+description: A nyugtatételek dataDeletionCode mezője (torloKod), a szükséges fiókbeállítás, a korlátok és a kapcsolódó hibakódok.
+official: https://docs.szamlazz.hu/hu/agent/generating_receipt/settings_and_rules/data-erasure-code
+---
+
+Nyugtán is minden tételhez megadható adattörlő kód a `dataDeletionCode` mezőben (XML-ben a `tetel` elem `torloKod` eleme). Opcionális, az értéke 0 vagy annál nagyobb egész szám. A kassza küldés előtt ezt ellenőrzi, más értékre `validation` hibát dob.
+
+```ts
+await kassza.receipts.create({
+  callId: 'PENZTAR-2026-0301',
+  items: [
+    { name: 'Kávé', quantity: 2, grossUnitPrice: 890, vat: 27, dataDeletionCode: 123 },
+    { name: 'Kifli', grossUnitPrice: 250, vat: 5 },
+  ],
+})
+```
+
+Ha egy tételnél nem adod meg, a kérésbe nem kerül `torloKod` elem.
+
+## Feltételek és hibák
+
+| Feltétel | Ha nem teljesül |
+| --- | --- |
+| A Számlázz.hu fiók Beállítások menüjében be kell kapcsolni az adattörlő kód használatát | 539-es hiba (`account`) |
+| Egy tételhez legfeljebb 400 adattörlő kód tartozhat | 537-es hiba (`validation`) |
+| Demo- és tesztfiókban nem használható | 538-as hiba (`account`) |
+
+<Callout type="warning" title="A letölthető XSD-ben nem szerepel">
+  A hivatalos dokumentáció nyugtasémájában a `torloKod` szerepel, a letölthető
+  `xmlnyugtacreate.xsd` fájlban viszont nincs benne. Csak akkor használd, ha tényleg szükséged van
+  rá, és ha 57-es hibát (XML beolvasási hiba) kapsz, hagyd el.
+</Callout>
+
+Az adattörlő kód API-n keresztüli és tömeges használatáról a Számlázz.hu tudástára ír részletesen. Számlán ugyanez a mező működik, lásd [Adattörlő kód számlán](/docs/szamla-letrehozas/beallitasok-es-szabalyok/adattorlo-kod).

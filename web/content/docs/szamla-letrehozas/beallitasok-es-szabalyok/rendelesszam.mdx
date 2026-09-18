@@ -1,0 +1,67 @@
+---
+title: Rendelésszám és duplikáció-ellenőrzés
+description: Az orderNumber mező, a Számlázz.hu „Rendelésszám ismétlődés tiltása” beállítása, és hogyan véd a dupla számla ellen a kasszával.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/order-number
+---
+
+Az `orderNumber` (XML-ben `rendelesSzam`) a saját rendszered rendelésazonosítója. Opcionális, de **mindig add meg**: ezzel kérdezheted le később a számlát, és ez véd a dupla számla ellen.
+
+```ts
+await kassza.invoices.create({ orderNumber: `WEB-${rendeles.id}`, buyer, items })
+
+const szamla = await kassza.invoices.find({ orderNumber: `WEB-${rendeles.id}` })
+```
+
+## Rendelésszám ismétlődés tiltása
+
+A Számlázz.hu fiókban, a Beállítások → Fiók beállításai → Számlázás beállítások menüben a „Rendelésszám ismétlődés tiltása” kapcsolóval tilthatod, hogy ugyanaz a rendelésszám több számlán szerepeljen. Nyugtára külön kapcsoló vonatkozik.
+
+Bekapcsolt tiltásnál:
+
+- egy bizonylattípuson belül egy rendelésszám csak egyszer használható, az ismételt kérés 71-es vagy 152-es hibát (`duplicate`) kap,
+- az ellenőrzés típusonként történik, így egy számlán és egy nyugtán szerepelhet ugyanaz a rendelésszám,
+- a sztornó és a helyesbítő számla kivétel, és sztornózás után a rendelésszám újra felhasználható.
+
+## Véletlen dupla beküldés
+
+Bekapcsolt tiltás mellett a Számlázz.hu nem hibát ad, hanem **a korábbi számlát adja vissza sikeres válaszként**, ha az ismételt kérésben minden egyezik:
+
+- a vevő neve,
+- a bruttó végösszeg,
+- a kelte, a teljesítés dátuma és a fizetési határidő,
+- és a korábbi számla az elmúlt 2 napban készült.
+
+Ha bármelyik eltér, 71-es vagy 152-es hiba jön.
+
+## A kassza ajánlott mintája
+
+A fiók beállításától függetlenül működik, ha a számlakészítés előtt és bizonytalan hiba után is rákeresel a rendelésszámra:
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+async function szamlaz(rendeles: Rendeles) {
+  const orderNumber = `WEB-${rendeles.id}`
+  const meglevo = await kassza.invoices.find({ orderNumber })
+  if (meglevo) return meglevo.header.number
+
+  try {
+    return (await kassza.invoices.create({ orderNumber, buyer: rendeles.vevo, items: rendeles.tetelek })).number
+  } catch (error) {
+    if (isSzamlazzError(error) && ['network', 'timeout', 'partial_success', 'duplicate'].includes(error.category)) {
+      const letrejott = await kassza.invoices.find({ orderNumber })
+      if (letrejott) return letrejott.header.number
+    }
+    throw error
+  }
+}
+```
+
+<Example slug="hibakezeles-idempotens" />
+
+<Callout type="tip">
+  Ha egy rendeléshez szándékosan több számla készül (például részszállításnál), a tiltást
+  kapcsold ki, és a rendelésszámot egészítsd ki sorszámmal: `WEB-5001-1`, `WEB-5001-2`.
+</Callout>
+
+Ha több számla tartozik ugyanahhoz a rendelésszámhoz, a `find()` és a `get()` a legutóbbit adja vissza.

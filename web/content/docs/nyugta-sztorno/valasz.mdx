@@ -1,0 +1,68 @@
+---
+title: Válasz
+description: A sztornó nyugta Receipt objektuma, amelyet a receipts.reverse() visszaad, és a sztornózásnál jellemző hibák.
+official: https://docs.szamlazz.hu/hu/agent/reversing_receipt/response
+---
+
+Sikeres sztornó után a `reverse()` egy `Receipt` objektumot ad vissza, ugyanazt a típust, mint a [nyugta létrehozás](/docs/nyugta-letrehozas). A mezők a Számlázz.hu `xmlnyugtavalasz` válaszából jönnek, és a **sztornó nyugtát** írják le, nem az eredetit.
+
+| Mező | Típus | Forrás | Leírás |
+| --- | --- | --- | --- |
+| `number` | `string` | `alap/nyugtaszam` | A sztornó nyugta száma. |
+| `type` | `'receipt' \| 'reversal'` | `alap/tipus` | Sztornónál `'reversal'` (`SN`). |
+| `reversedReceiptNumber` | `string \| undefined` | `alap/stornozottNyugtaszam` | Az eredeti, sztornózott nyugta száma. |
+| `isReversed` | `boolean` | `alap/stornozott` | A sztornó nyugtán `false`. |
+| `callId` | `string \| undefined` | `alap/hivasAzonosito` | A sztornó kérés hívásazonosítója. |
+| `id` | `number` | `alap/id` | A sztornó nyugta belső azonosítója. |
+| `issueDate` | `string` | `alap/kelt` | A sztornó kelte, `YYYY-MM-DD` formában. |
+| `items` | `ReceiptItem[]` | `tetelek/tetel` | Az eredeti tételek, negatív mennyiséggel és összegekkel. |
+| `totals` | `ReceiptTotals` | `osszegek` | A sztornó nettó, áfa és bruttó végösszege, negatív értékekkel. |
+| `pdf` | `Uint8Array \| undefined` | `nyugtaPdf` | A sztornó nyugta PDF-je, ha a `downloadPdf` nem `false`. |
+
+A többi mező (`paymentMethod`, `currency`, `payments`, `comment`, `orderNumber`, `isTest` és a többi) ugyanazt jelenti, mint a nyugta létrehozásánál.
+
+```ts
+const sztorno = await kassza.receipts.reverse({
+  receiptNumber: 'NYGT-2026-107',
+  callId: 'PENZTAR-107-STORNO',
+})
+
+console.log(sztorno.reversedReceiptNumber, sztorno.totals.grossAmount)
+
+if (sztorno.pdf) await writeFile(`nyugtak/${sztorno.number}.pdf`, sztorno.pdf)
+```
+
+Hogy az eredeti nyugta sztornózva van-e, a [Nyugta lekérdezés](/docs/nyugta-lekerdezes) válaszának `isReversed` mezője mutatja.
+
+## Hibák
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | Üres nyugtaszám vagy ismeretlen PDF sablon. A kérés el sem indul. |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 7, 339 | `not_found` | A Számlázz.hu nem sztornózza a nyugtát: nincs ilyen nyugtaszám, a nyugtát már sztornózták, vagy maga is sztornó nyugta. Az okot a `message` tartalmazza. |
+| 338 | `duplicate` | A `callId` már létezik. Lehet, hogy egy korábbi próbálkozás már elkészítette a sztornót. |
+| 1 | `maintenance` | Karbantartás. `callId` megadásával a kassza újrapróbálja. |
+| – | `network`, `timeout` | Nem tudni, elkészült-e a sztornó. `callId` megadásával a kassza újrapróbálja, nélküle vagy az utolsó próbálkozás után ellenőrizd az eredeti nyugtát. |
+
+A `not_found` itt nem mindig jelenti, hogy a nyugta nem létezik. Ha a sztornó hibát ad, kérdezd le az eredeti nyugtát, és nézd meg, sztornózva van-e már:
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.receipts.reverse({ receiptNumber: nyugtaszam, callId: `${nyugtaszam}-STORNO` })
+} catch (error) {
+  if (
+    isSzamlazzError(error) &&
+    (error.isNotFound ||
+      error.isDuplicate ||
+      error.category === 'network' ||
+      error.category === 'timeout')
+  ) {
+    const eredeti = await kassza.receipts.find(nyugtaszam)
+    if (eredeti?.isReversed) return
+  }
+  throw error
+}
+```

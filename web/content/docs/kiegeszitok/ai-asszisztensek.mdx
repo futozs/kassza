@@ -1,0 +1,132 @@
+---
+title: AI asszisztensek
+description: A kassza csomagban szállított agents mappa és az llms.txt használata Claude Code, Cursor és GitHub Copilot mellett, hogy az AI jó Számlázz.hu integrációt írjon.
+---
+
+Az AI kódoló asszisztensek a Számlázz.hu integrációt gyakran a saját, elavult emlékeikből írják. Ilyenkor maguk számolják az áfát, ciklusban küldik újra a sikertelen számlát, vagy UTC dátumot adnak át. A kassza csomagban ezért van egy `agents/` mappa, amely az asszisztensnek szól. Pontosan a telepített verzió API-ját írja le, és felsorolja a buktatókat is.
+
+## Mi van a csomagban?
+
+Az npm csomag az `agents/` mappát és az `llms.txt` fájlt is tartalmazza, így telepítés után a projektedben is ott vannak. A fájlok angol nyelvűek.
+
+| Fájl | Tartalom |
+| --- | --- |
+| `node_modules/kassza/agents/README.md` | Áttekintés, olvasási sorrend, az öt legfontosabb szabály, egy minimális példa és egy magyar–angol szótár (számla → `invoice`, díjbekérő → `proforma`, rendelésszám → `orderNumber`). |
+| `node_modules/kassza/agents/pitfalls.md` | Kötelező szabályok, a gyakori helyzetek hibakódokkal és teendőkkel, a hibakategóriák. |
+| `node_modules/kassza/agents/api.md` | Minden metódus bemenete és kimenete, az alcsomagokkal együtt. |
+| `node_modules/kassza/agents/recipes.md` | Tíz kész minta: megosztott kliens, idempotens számlázás webhookból, díjbekérő és számla, IPN, nyugta, PDF mentése S3-ba vagy R2-be, serverless munkamenet, tesztek mock klienssel, vevő adatai adószámból, devizás számla EU-s vevőnek. |
+| `node_modules/kassza/agents/skills/kassza/SKILL.md` | Kész Claude Code skill a szabályokkal és egy ellenőrzőlistával. |
+| `node_modules/kassza/llms.txt` | Tartalomjegyzék [llms.txt](https://llmstxt.org) formátumban, linkekkel a fenti fájlokra. |
+
+Az `agents/README.md` öt szabálya, amit a generált kódban érdemes ellenőrizni:
+
+1. A kliens egyszer jön létre, csak szerveren: `createKassza()`, a kulcs a `SZAMLAZZ_AGENT_KEY` változóból.
+2. Minden számlán van `orderNumber`, minden nyugtán `callId`, a rendelés azonosítójából képezve.
+3. Az árak `netUnitPrice` vagy `grossUnitPrice` mezőben vannak a `vat` mellett, a nettó, áfa és bruttó értéket nem a kód számolja.
+4. A `create` soha nem fut ciklusban. `network`, `timeout`, `partial_success` vagy `duplicate` hiba után `invoices.find({ orderNumber })` következik.
+5. A tesztek a `kassza/testing` `createMockKassza()` függvényét használják.
+
+## Claude Code
+
+A csomagban lévő skillt másold a projekted `.claude/skills/` mappájába:
+
+```bash
+mkdir -p .claude/skills
+cp -r node_modules/kassza/agents/skills/kassza .claude/skills/
+```
+
+A skill leírása alapján a Claude Code magától betölti, ha a kód számlát, díjbekérőt vagy nyugtát állít ki, sztornóz, lekérdez vagy e-mailben kiküld, Számlázz.hu IPN webhookot kezel, adószámot kérdez le, vagy szóba kerül a `szamlazz.hu`, a Számla Agent vagy a `SZAMLAZZ_AGENT_KEY`. A skill előírja, hogy kódírás előtt olvassa el a `node_modules/kassza/agents/` fájljait, és a végén ellenőrzőlistán menjen végig.
+
+<Callout type="info" title="Frissítés után másold újra">
+  A skill a `node_modules`-ból olvassa az aktuális dokumentációt, maga a `SKILL.md` viszont a
+  másoláskor rögzül. A kassza frissítése után futtasd újra a `cp` parancsot.
+</Callout>
+
+Skill nélkül is elég egy mondat a feladat elején:
+
+```text
+Használd a kassza csomagot, és előbb olvasd el a node_modules/kassza/agents/README.md-t.
+```
+
+## Cursor
+
+Cursorban egy projektszabály mondja meg az asszisztensnek, hol találja a leírást:
+
+```text title=".cursor/rules/kassza.mdc"
+---
+description: Számlázz.hu számlák, díjbekérők és nyugták a kassza csomaggal
+alwaysApply: false
+---
+
+A Számlázz.hu integrációhoz a kassza csomagot használjuk.
+Kód írása előtt olvasd el ezeket, ebben a sorrendben:
+- node_modules/kassza/agents/pitfalls.md
+- node_modules/kassza/agents/api.md
+- node_modules/kassza/agents/recipes.md
+```
+
+A szabály törzsébe a `SKILL.md` szabályait és ellenőrzőlistáját is bemásolhatod. Ha az asszisztensed nem olvas a `node_modules` mappából, a `pitfalls.md` tartalmát másold be a szabályba.
+
+## GitHub Copilot
+
+Copilotnál a tároló szintű utasításokat a `.github/copilot-instructions.md` fájlba írod:
+
+```text title=".github/copilot-instructions.md"
+## Számlázás
+
+A Számlázz.hu integrációhoz a kassza csomagot használjuk. Kód írása előtt olvasd el a
+node_modules/kassza/agents/pitfalls.md, api.md és recipes.md fájlt.
+Számlát soha ne küldj újra ciklusban, és a tesztekben a kassza/testing mock kliensét használd.
+```
+
+## Az llms.txt
+
+A repó gyökerében lévő `llms.txt` rövid leírás a csomagról, és linkeket tartalmaz az `agents/` fájljaira, a README-re és a hivatalos Számlázz.hu dokumentációra. Az `agents/` fájlokra és a README-re mutató linkek relatívak, így mindig a fájl melletti példányra mutatnak, akár a telepített csomagban, akár a GitHubon.
+
+Ha az asszisztens nem látja a projektedet, például egy böngészős chatben, add meg neki a fájl címét:
+
+```text
+https://raw.githubusercontent.com/futozs/kassza/main/llms.txt
+```
+
+Ennél a címnél a relatív linkek is a GitHubon lévő fájlokra mutatnak. A GitHub `main` ágán a fejlesztés alatti állapot van, a telepített csomagban pedig a nálad futó verzió dokumentációja.
+
+Ha egy konkrét dokumentációs oldalt adnál át, használd az oldalon lévő **Oldal másolása Markdownként** gombot, és illeszd be a chatbe.
+
+## A dokumentáció gépi változatai
+
+Ez a weboldal a teljes dokumentációt AI számára könnyen olvasható formában is kiszolgálja:
+
+| Cím | Tartalom |
+| --- | --- |
+| `/llms.txt` | Az összes dokumentációs oldal listája rövid leírással. |
+| `/llms-full.txt` | Az összes oldal teljes szövege egyetlen Markdown fájlban. |
+| `/docs/<oldal>.md` | Egy oldal Markdownként, például `/docs/alapok/hibakezeles.md`. |
+
+Az `/llms-full.txt` akkor jó, ha az asszisztens egyszerre lássa a teljes dokumentációt. Egy konkrét kérdéshez elég a vonatkozó oldal `.md` változata.
+
+## Ellenőrzőlista a generált kódhoz
+
+A `SKILL.md` és a `pitfalls.md` alapján ezeket nézd át, mielőtt elfogadod az AI kódját:
+
+- A számlát kiállító webhook vagy háttérfeladat idempotens: előbb `find`-dal keres, vagy a `duplicate` hibát kezeli.
+- Nincs saját újrapróbáló ciklus az `invoices.create` vagy a `receipts.create` körül.
+- A dátumok nem `new Date().toISOString().slice(0, 10)` alakban készülnek, mert éjfél és hajnali 2 óra között ez a budapesti tegnapot adja.
+- A PDF a `kassza/storage` modullal tárhelyre kerül, vagy az `invoices.getPdf()` hívással újra lekérhető, és nincs base64-ként az adatbázisban.
+- Az IPN végpont `ipnOkResponse()`-szal, HTTP 200-zal válaszol, és a feldolgozás idempotens.
+- Serverless vagy edge környezetben közös `cookieStore` van beállítva a `kassza/cookie-stores` modulból.
+- Van unit teszt a `createMockKassza()` klienssel, és egyik teszt sem használ valódi Agent kulcsot.
+- A `createKassza()` csak szerveroldali kódban szerepel, a kulcs nem kerül a böngészőbe.
+
+## Ha a kassza kódján dolgozol
+
+A repó gyökerében lévő `AGENTS.md` nem a csomag felhasználóinak szól, hanem azoknak az asszisztenseknek, amelyek magán a kassza forráskódján dolgoznak. Leírja a parancsokat, a mappaszerkezetet és a konvenciókat, például hogy a kódban nincs komment, a hibaüzenetek magyarok, nincs futásidejű függőség, és a kérés XML elemeinek sorrendje az XSD-t követi. Ez a fájl nem része az npm csomagnak.
+
+<Cards>
+  <Card title="Tesztelés" href="/docs/kiegeszitok/teszteles">
+    A mock kliens, amellyel az AI által írt számlázó kód hálózat nélkül tesztelhető.
+  </Card>
+  <Card title="Hibakezelés, hibakódok" href="/docs/alapok/hibakezeles">
+    A bizonytalan kimenetű hibák és a teljes hibakód táblázat.
+  </Card>
+</Cards>

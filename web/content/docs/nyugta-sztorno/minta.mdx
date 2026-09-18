@@ -1,0 +1,17 @@
+---
+title: Minta
+description: Nyugta kiállítása és sztornózása hívásazonosítóval, a ténylegesen elküldött xmlnyugtast XML-lel.
+official: https://docs.szamlazz.hu/hu/agent/reversing_receipt/xml
+---
+
+A példa kiállít egy nyugtát két mozijegyről, majd saját `callId`-val sztornózza. A konzolon látod az eredeti és a sztornó nyugta számát, a `reversal` típust, a hivatkozást és a negatív bruttó végösszeget. Az **Elküldött XML** fülön mindkét kérés ott van, köztük a sztornó `xmlnyugtast` dokumentuma.
+
+<Example slug="nyugta-sztorno" />
+
+## XSD séma
+
+Az XML elemeinek sorrendje kötött, a kassza az XSD sorrendjében írja őket.
+
+```text
+https://www.szamlazz.hu/szamla/docs/xsds/nyugtast/xmlnyugtast.xsd
+```

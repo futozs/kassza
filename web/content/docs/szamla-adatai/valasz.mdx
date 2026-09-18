@@ -1,0 +1,263 @@
+---
+title: Válasz
+description: Az InvoiceDetails teljes szerkezete, amelyet az invoices.get() visszaad, a Számlázz.hu szamla XML elemeivel, és a lekérésnél előforduló hibák.
+official: https://docs.szamlazz.hu/hu/agent/querying_xml/response
+---
+
+Sikeres lekérésnél a Számlázz.hu egy `szamla` gyökérelemű XML-t küld (séma: `szamla.xsd`), amelyből a `get()` és a `find()` egy `InvoiceDetails` objektumot épít. Hiba esetén `xmlszamlavalasz` XML jön, abból `SzamlazzError` lesz.
+
+A kassza a válaszon néhány egységesítést végez:
+
+- az üres XML elemekből `undefined` lesz,
+- a számokat `number`-ré alakítja, a tizedesvesszőt is kezeli,
+- a `true`/`false` és az `1`/`0` értékekből `boolean` lesz,
+- a hiányzó listákból (tételek, pénzügyi tételek, címkék, befizetések) üres tömb lesz.
+
+```ts
+const szamla = await kassza.invoices.get({ orderNumber: 'REND-1001' })
+
+for (const tetel of szamla.items) console.log(tetel.name, tetel.quantity, tetel.grossAmount)
+console.log(szamla.totals.grossAmount, szamla.payments.length)
+```
+
+<Callout type="info" title="Típusok importálása">
+  Az `InvoiceDetails`, `InvoiceDetailsSeller`, `InvoiceDetailsHeader`, `InvoiceDetailsBuyer`,
+  `InvoiceDetailsItem`, `InvoiceDetailsTotals`, `InvoiceDetailsPayment` és `InvoiceDocumentType`
+  típust a `kassza` csomagból importálhatod. A többi altípust indexeléssel éred el, például
+  `InvoiceDetails['financialItems'][number]`.
+</Callout>
+
+## InvoiceDetails
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `seller` | `InvoiceDetailsSeller` | `szallito` | Az eladó, vagyis a te céged adatai. |
+| `header` | `InvoiceDetailsHeader` | `alap` | Számlaszám, típus, dátumok, fizetési mód, pénznem, állapot. |
+| `buyer` | `InvoiceDetailsBuyer` | `vevo` | A vevő adatai. |
+| `items` | `InvoiceDetailsItem[]` | `tetelek/tetel` | A számla tételei. |
+| `financialItems` | `InvoiceDetailsFinancialItem[]` | `qutetek/qutet` | Pénzügyi tételek. |
+| `labels` | `string[]` | `cimkek/cimke` | A számla címkéi. Az üres címkéket a kassza kihagyja. |
+| `totals` | `InvoiceDetailsTotals` | `osszegek` | Végösszegek, áfakulcsonként is. |
+| `payments` | `InvoiceDetailsPayment[]` | `kifizetesek/kifizetes` | A számlán rögzített befizetések. |
+| `pdf` | `Uint8Array \| undefined` | `pdf` | A számla PDF-je Base64-ből dekódolva. Csak `includePdf: true` esetén van. |
+
+## Eladó (seller)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `id` | `number \| undefined` | `id` | Az eladó azonosítója a Számlázz.hu-ban. |
+| `name` | `string` | `nev` | Az eladó neve. |
+| `address` | `InvoiceDetailsAddress \| undefined` | `cim` | Az eladó címe, lásd [Cím](#cím). |
+| `postalAddress` | `InvoiceDetailsAddress \| undefined` | `postacim` | Postázási cím. |
+| `taxNumber` | `string \| undefined` | `adoszam` | Adószám. |
+| `groupTaxNumber` | `string \| undefined` | `csoportazonosito` | Csoportos adószám (csoportazonosító). |
+| `euTaxNumber` | `string \| undefined` | `adoszameu` | Közösségi adószám. |
+| `bank.name` | `string \| undefined` | `bank/nev` | A bank neve. |
+| `bank.accountNumber` | `string \| undefined` | `bank/bankszamla` | Bankszámlaszám. |
+
+A `bank` maga is `undefined`, ha a válaszban nincs `bank` elem.
+
+## Cím
+
+Az `address` és a `postalAddress` szerkezete az eladónál és a vevőnél is ugyanaz. Minden mezője `string | undefined`.
+
+| Mező | XML elem | Leírás |
+| --- | --- | --- |
+| `name` | `nev` | Név, jellemzően a postázási címnél. |
+| `country` | `orszag` | Ország. |
+| `zip` | `irsz` | Irányítószám. |
+| `city` | `telepules` | Település. |
+| `address` | `cim` | Utca, házszám. |
+
+## Fejléc (header)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `id` | `number \| undefined` | `id` | A bizonylat azonosítója a Számlázz.hu-ban. |
+| `number` | `string` | `szamlaszam` | A bizonylat száma. |
+| `economicEventId` | `number \| undefined` | `gazdEsemAzon` | Gazdasági esemény azonosító. |
+| `sourceSystem` | `number \| undefined` | `forras` | A bizonylat forrásának kódja. |
+| `registrationNumber` | `string \| undefined` | `iktatoszam` | Iktatószám. |
+| `type` | `InvoiceDocumentType` | `tipus` | A bizonylat típusa, lásd [Bizonylattípus](#bizonylattípus). |
+| `typeCode` | `string` | `tipus` | A nyers típuskód, például `'SZ'`. |
+| `eInvoice` | `boolean` | `eszamla` | `true`, ha az `eszamla` kód `2` vagy `3`. |
+| `appearanceCode` | `number \| undefined` | `eszamla` | A nyers `eszamla` kód. |
+| `referencedInvoiceNumber` | `string \| undefined` | `hivszamlaszam` | A hivatkozott számla száma. |
+| `referencedProformaNumber` | `string \| undefined` | `hivdijbekszam` | A hivatkozott díjbekérő száma. |
+| `issueDate` | `string` | `kelt` | A kelte, `'YYYY-MM-DD'` formában. |
+| `fulfillmentDate` | `string \| undefined` | `telj` | A teljesítés dátuma. |
+| `dueDate` | `string \| undefined` | `fizh` | A fizetési határidő. |
+| `paymentMethod` | `string \| undefined` | `fizmod` | Fizetési mód. |
+| `unifiedPaymentMethod` | `string \| undefined` | `fizmodunified` | Egységesített fizetési mód. |
+| `cash` | `boolean \| undefined` | `keszpenz` | Készpénzes fizetés jelölése. |
+| `orderNumber` | `string \| undefined` | `rendelesszam` | Rendelésszám. |
+| `language` | `string \| undefined` | `nyelv` | A számla nyelve, például `'hu'`. |
+| `currency` | `string \| undefined` | `devizanem` | Pénznem, például `'HUF'`. |
+| `exchangeBank` | `string \| undefined` | `devizabank` | Az árfolyamot jegyző bank. |
+| `exchangeRate` | `number \| undefined` | `devizaarf` | Árfolyam. |
+| `comment` | `string \| undefined` | `megjegyzes` | A számla megjegyzése. |
+| `vatType` | `string \| undefined` | `afatipus` | Áfatípus jelölése. |
+| `cashAccounting` | `boolean \| undefined` | `penzforg` | Pénzforgalmi elszámolás. |
+| `kata` | `boolean \| undefined` | `kata` | KATA jelölés. |
+| `kataLedger` | `boolean \| undefined` | `katafokonyv` | KATA főkönyvi jelölés. |
+| `email` | `string \| undefined` | `email` | A számlához tartozó e-mail cím. |
+| `test` | `boolean \| undefined` | `teszt` | `true` teszt cégnél, `false` éles cégnél. |
+| `reversed` | `boolean \| undefined` | `sztornozott` | `true`, ha a számlát már sztornózták. |
+
+### Bizonylattípus
+
+| `type` | `typeCode` | Bizonylat |
+| --- | --- | --- |
+| `'invoice'` | `SZ` | Számla |
+| `'proforma'` | `D` | Díjbekérő |
+| `'advance'` | `ES` | Előlegszámla |
+| `'final'` | `VS` | Végszámla |
+| `'corrective'` | `HS` | Helyesbítő számla |
+| `'reversal'` | `SS` | Sztornó számla |
+| `'deliveryNote'` | `SL` | Szállítólevél |
+| `'unknown'` | bármi más | Ismeretlen kód. A nyers értéket a `typeCode` tartalmazza. |
+
+```ts
+const szamla = await kassza.invoices.get('WEB-2026-128')
+const ervenyes = szamla.header.type === 'invoice' && szamla.header.reversed !== true
+```
+
+## Vevő (buyer)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `id` | `number \| undefined` | `id` | A vevő azonosítója a Számlázz.hu-ban. |
+| `name` | `string` | `nev` | A vevő neve. |
+| `identifier` | `string \| undefined` | `azonosito` | Partner azonosító a fiók partnertörzsében. |
+| `address` | `InvoiceDetailsAddress \| undefined` | `cim` | Számlázási cím, lásd [Cím](#cím). |
+| `postalAddress` | `InvoiceDetailsAddress \| undefined` | `postacim` | Postázási cím. |
+| `email` | `string \| undefined` | `email` | E-mail cím. |
+| `taxNumber` | `string \| undefined` | `adoszam` | Magyar adószám. |
+| `groupTaxNumber` | `string \| undefined` | `csoportazonosito` | Csoportos adószám (csoportazonosító). |
+| `euTaxNumber` | `string \| undefined` | `adoszameu` | Közösségi adószám. |
+| `location` | `number \| undefined` | `lokacio` | A vevő lokáció kódja. |
+| `privatePerson` | `boolean \| undefined` | `privatePersonIndicator` | Magánszemély jelölése. |
+| `ledger` | `InvoiceDetailsBuyerLedger \| undefined` | `fokonyv` | Könyvelési adatok, lásd lent. |
+
+### Vevő könyvelési adatai (buyer.ledger)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `ledgerAccount` | `string \| undefined` | `vevo` | Vevő főkönyvi száma. |
+| `buyerId` | `string \| undefined` | `vevoazon` | Vevő azonosító a könyvelésben. |
+| `bookingDate` | `string \| undefined` | `datum` | Könyvelés dátuma. |
+| `continuousFulfillment` | `boolean \| undefined` | `folyamatostelj` | Folyamatos teljesítés. |
+| `settlementPeriodStart` | `string \| undefined` | `elszDatTol` | Elszámolási időszak kezdete. |
+| `settlementPeriodEnd` | `string \| undefined` | `elszDatIg` | Elszámolási időszak vége. |
+
+## Tételek (items)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `name` | `string` | `nev` | A tétel megnevezése. |
+| `identifier` | `string \| undefined` | `azonosito` | Cikkszám vagy termékazonosító. |
+| `quantity` | `number` | `mennyiseg` | Mennyiség. |
+| `unit` | `string \| undefined` | `mennyisegiegyseg` | Mennyiségi egység. |
+| `netUnitPrice` | `number` | `nettoegysegar` | Nettó egységár. |
+| `vat` | `number` | `afakulcs` | Áfakulcs számként, például `27`. |
+| `vatCode` | `string \| undefined` | `afatipus` | Szöveges áfatípus. |
+| `netAmount` | `number` | `netto` | Nettó érték. |
+| `marginVatBase` | `number \| undefined` | `arresafaalap` | Különbözeti adózásnál az árrés áfa alapja. |
+| `vatAmount` | `number` | `afa` | Áfa érték. |
+| `grossAmount` | `number` | `brutto` | Bruttó érték. |
+| `comment` | `string \| undefined` | `megjegyzes` | A tétel megjegyzése. |
+| `position` | `number \| undefined` | `sztetordering` | A tétel sorrendje a számlán. |
+| `ledger` | `InvoiceDetailsItemLedger \| undefined` | `fokonyv` | Könyvelési adatok, lásd lent. |
+
+### Tétel könyvelési adatai (items[].ledger)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `revenueLedgerAccount` | `string \| undefined` | `arbevetel` | Árbevétel főkönyvi szám. |
+| `vatLedgerAccount` | `string \| undefined` | `afa` | Áfa főkönyvi szám. |
+| `economicEvent` | `string \| undefined` | `gazdasagiesemeny` | Gazdasági esemény. |
+| `vatEconomicEvent` | `string \| undefined` | `gazdasagiesemenyafa` | Áfa gazdasági esemény. |
+| `settlementPeriodStart` | `string \| undefined` | `elszdattol` | Elszámolási időszak kezdete. |
+| `settlementPeriodEnd` | `string \| undefined` | `elszdatig` | Elszámolási időszak vége. |
+
+## Pénzügyi tételek (financialItems)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `name` | `string` | `nev` | A tétel megnevezése. |
+| `vat` | `number` | `afakulcs` | Áfakulcs számként. |
+| `vatCode` | `string \| undefined` | `afatipus` | Szöveges áfatípus. |
+| `netAmount` | `number` | `netto` | Nettó érték. |
+| `vatAmount` | `number` | `afa` | Áfa érték. |
+| `grossAmount` | `number` | `brutto` | Bruttó érték. |
+| `settlementPeriodStart` | `string \| undefined` | `elszdattol` | Elszámolási időszak kezdete. |
+| `settlementPeriodEnd` | `string \| undefined` | `elszdatig` | Elszámolási időszak vége. |
+| `vatDeduction` | `number \| undefined` | `afalevon` | Áfalevonás jelölése. |
+| `labels` | `string[]` | `cimkek/cimke` | A tétel címkéi. |
+
+## Összegek (totals)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `netAmount` | `number` | `totalossz/netto` | Nettó végösszeg. |
+| `vatAmount` | `number` | `totalossz/afa` | Áfa végösszeg. |
+| `grossAmount` | `number` | `totalossz/brutto` | Bruttó végösszeg. |
+| `byVat` | `InvoiceDetailsVatTotal[]` | `afakulcsossz` | Összesítés áfakulcsonként, lásd lent. |
+
+### Áfakulcsonkénti összesítés (totals.byVat)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `vat` | `number` | `afakulcs` | Áfakulcs számként. |
+| `vatCode` | `string \| undefined` | `afatipus` | Szöveges áfatípus. |
+| `netAmount` | `number` | `netto` | Nettó összeg ezzel a kulccsal. |
+| `vatAmount` | `number` | `afa` | Áfa összeg ezzel a kulccsal. |
+| `grossAmount` | `number` | `brutto` | Bruttó összeg ezzel a kulccsal. |
+
+## Befizetések (payments)
+
+| Mező | Típus | XML elem | Leírás |
+| --- | --- | --- | --- |
+| `date` | `string` | `datum` | A befizetés dátuma. |
+| `method` | `string` | `jogcim` | A befizetés módja, ugyanaz, mint a [Befizetés rögzítése](/docs/befizetes-rogzitese) `method` mezője. |
+| `amount` | `number` | `osszeg` | A befizetett összeg. |
+| `comment` | `string \| undefined` | `megjegyzes` | Megjegyzés. |
+| `bankAccountNumber` | `string \| undefined` | `bankszamlaszam` | Bankszámlaszám. |
+| `bankTransactionId` | `number \| undefined` | `banktranzid` | Banki tranzakció azonosító. |
+| `exchangeRate` | `number \| undefined` | `devizaarf` | Árfolyam. |
+
+## Kötelező elemek
+
+A táblázatokban a nem `undefined` típusú mezőkre számíthatsz. A kassza ezeket az elemeket kötelezőnek veszi:
+
+- `szallito/nev`, `alap/szamlaszam`, `alap/tipus`, `alap/kelt`, `vevo/nev`,
+- `osszegek/totalossz` és benne a `netto`, `afa`, `brutto`,
+- minden tételnél, pénzügyi tételnél és áfakulcsonkénti összesítésnél a `nev` (ahol van), az `afakulcs`, a `netto`, az `afa` és a `brutto`, a tételeknél a `mennyiseg` és a `nettoegysegar` is,
+- minden befizetésnél a `datum`, a `jogcim` és az `osszeg`.
+
+Ha ezek közül valamelyik hiányzik, vagy a gyökérelem nem `szamla`, a kassza nem ad vissza félkész objektumot, hanem `unexpected_response` hibát dob, amelynek az üzenete megnevezi a hiányzó elemet.
+
+## Hibák
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | Üres hivatkozás, vagy nem pontosan egy kulcs a hivatkozásban. Kérés nem megy ki. |
+| 1 | `maintenance` | Karbantartás. A kassza magától újrapróbálja. |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 7 | `not_found` | Nincs ilyen számlaszám, rendelésszám vagy külső azonosító. A `find()` ilyenkor `null`-t ad. |
+| – | `network`, `timeout` | Hálózati hiba vagy időtúllépés. A kassza magától újrapróbálja, és csak az utolsó sikertelen próbálkozás után dob. |
+| – | `unexpected_response` | A válasz nem `szamla` XML, hiányzik belőle egy kötelező elem, vagy a PDF nem érvényes Base64. |
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  const szamla = await kassza.invoices.get(szamlaszam)
+  console.log(szamla.header.reversed)
+} catch (error) {
+  if (isSzamlazzError(error) && error.isNotFound) console.warn(`Nincs ilyen számla: ${szamlaszam}`)
+  else throw error
+}
+```
+
+Az összes kódot a [Hibakezelés, hibakódok](/docs/alapok/hibakezeles#hibakódok) oldal sorolja fel.

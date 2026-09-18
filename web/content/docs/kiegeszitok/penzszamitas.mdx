@@ -1,0 +1,160 @@
+---
+title: Pénzszámítás
+description: A kassza/money modul. Tételösszegek számla és nyugta kerekítési szabályai szerint, áfabontás, kosár végösszeg, pénzügyi kerekítés és áfakulcs ellenőrzés.
+---
+
+A kassza a számla tételeinek nettó, áfa és bruttó értékét maga számolja ki az egységárból és az áfakulcsból. Ugyanezek a függvények a `kassza/money` modulból is elérhetők, így a kosárban, a rendelés-összesítőben vagy a visszaigazoló e-mailben pontosan azt az összeget mutathatod, ami a számlára kerül. A modul nem hív hálózatot és nem kell hozzá Agent kulcs, ezért böngészőben is futtatható.
+
+<RoundingCalculator />
+
+## Az összes export
+
+| Export | Mire való? |
+| --- | --- |
+| `calculateInvoiceItem(input, currency?)` | Egy számlatétel összegei a számla kerekítési szabályai szerint |
+| `calculateReceiptItem(input, currency?)` | Egy nyugtatétel összegei a nyugta kerekítési szabályai szerint |
+| `calculateItemAmounts(input, { kind, currency? })` | Ugyanez, a bizonylat fajtája (`'invoice'` vagy `'receipt'`) paraméterben |
+| `summarizeItems(items)` | Végösszeg és áfakulcsonkénti bontás a kiszámolt tételekből |
+| `roundMoney(value, decimals?)` | Kereskedelmi kerekítés, alapból egészre |
+| `addMoney(...values)` | Összeadás lebegőpontos zaj nélkül |
+| `decimalPlaces(value)` | Egy szám tizedesjegyeinek száma |
+| `isVatRate(value)` | Típusőr: a Számlázz.hu által elfogadott áfakulcs-e |
+| `vatPercentage(rate)` | Az áfakulcs százalékban, a szöveges kódoknál `0` |
+| `formatVatRate(rate)` | Az áfakulcs szövegként, ahogy az XML-be kerül |
+| `NUMERIC_VAT_RATES` | A 36 számmal megadható áfakulcs |
+| `SPECIAL_VAT_CODES` | A 16 szöveges áfakód, például `AAM`, `TAM`, `EUFAD37` |
+| `isHuf(currency)` | Forintnak számít-e a megadott pénznem |
+
+A típusok is innen importálhatók: `ItemPriceInput`, `ItemAmounts`, `DocumentKind`, `DocumentTotals`, `VatBreakdown`, `VatRate`, `NumericVatRate` és `SpecialVatCode`.
+
+## Egy tétel kiszámolása
+
+```ts
+import { calculateInvoiceItem, calculateReceiptItem } from 'kassza/money'
+
+const b2b = calculateInvoiceItem({ quantity: 3, netUnitPrice: 500, vat: 27 })
+const b2c = calculateInvoiceItem({ quantity: 3, grossUnitPrice: 500, vat: 27 })
+const euro = calculateInvoiceItem({ quantity: 7, netUnitPrice: 12.35, vat: 27 }, 'EUR')
+const nyugta = calculateReceiptItem({ grossUnitPrice: 1_000, vat: 27 })
+```
+
+| Változó | `netUnitPrice` | `netAmount` | `vatAmount` | `grossAmount` |
+| --- | --- | --- | --- | --- |
+| `b2b` | 500 | 1 500 | 405 | 1 905 |
+| `b2c` | 393,67 | 1 181 | 319 | 1 500 |
+| `euro` | 12,35 | 86,45 | 23,34 | 109,79 |
+| `nyugta` | 787,4 | 787,4 | 212,6 | 1 000 |
+
+A bemenet (`ItemPriceInput`) mezői:
+
+| Mező | Leírás |
+| --- | --- |
+| `vat` | Áfakulcs, számmal (`27`) vagy kóddal (`'AAM'`). Kötelező. |
+| `quantity` | Mennyiség, alapból `1`. Nem lehet `0`, negatív lehet. |
+| `netUnitPrice` | Nettó egységár, nettó alapú számításhoz. |
+| `grossUnitPrice` | Bruttó egységár, bruttó alapú számításhoz. A kettő közül pontosan egyet adj meg. |
+| `netAmount`, `vatAmount`, `grossAmount` | Saját összegek. Ha bármelyiket megadod, mindhármat meg kell adnod, és a függvény nem számol. |
+
+Az eredmény (`ItemAmounts`) a `quantity`, `vat`, `netUnitPrice`, `netAmount`, `vatAmount` és `grossAmount` mezőt tartalmazza. Bruttó alapú számításnál a `netUnitPrice` a nettó értékből visszaszámolt egységár.
+
+A második paraméter a pénznem. Ha elhagyod, vagy az `isHuf()` szerint forint, a forintos szabályok érvényesek, minden más pénznemnél a devizásak:
+
+| Bizonylat | Nettó érték | Áfa érték | Bruttó érték |
+| --- | --- | --- | --- |
+| Forintos számla | egész | egész | egész |
+| Forintos nyugta | 2 tizedes | 2 tizedes | egész |
+| Devizás számla vagy nyugta | 2 tizedes | 2 tizedes | 2 tizedes |
+
+A lépések sorrendjét és a bruttó alapú visszaszámolást a [Kerekítés](/docs/szamla-letrehozas/beallitasok-es-szabalyok/kerekites) oldal, a nyugta szabályait a [Tételösszegek](/docs/nyugta-letrehozas/beallitasok/tetelosszegek) oldal írja le.
+
+<Callout type="info" title="Hibás bemenet">
+  Nulla mennyiségnél, ismeretlen áfakulcsnál, nem véges számnál, két egységárnál, egységár
+  hiányában és hiányos saját összegeknél a függvények `validation` kategóriájú `SzamlazzError`-t
+  dobnak magyar üzenettel, például: `A netUnitPrice és a grossUnitPrice közül csak az egyiket add
+  meg.` A számla kiállításakor ugyanez a hiba jön, a tétel sorszámával és nevével kiegészítve.
+</Callout>
+
+## Kosár végösszege
+
+A kerekítés tételenként történik, ezért a végösszeget is a kiszámolt tételekből kell összeadni. Ezt csinálja a `summarizeItems()`:
+
+```ts
+import { calculateInvoiceItem, summarizeItems } from 'kassza/money'
+
+const kosar = [
+  { name: 'Társasjáték', quantity: 2, grossUnitPrice: 5_990, vat: 27 },
+  { name: 'Szakácskönyv', quantity: 1, grossUnitPrice: 3_500, vat: 5 },
+  { name: 'Házhoz szállítás', quantity: 1, grossUnitPrice: 1_490, vat: 27 },
+]
+
+const tetelek = kosar.map((sor) => calculateInvoiceItem(sor))
+const { netAmount, vatAmount, grossAmount, byVat } = summarizeItems(tetelek)
+```
+
+| Áfakulcs | Nettó | Áfa | Bruttó |
+| --- | --- | --- | --- |
+| 27% | 10 606 Ft | 2 864 Ft | 13 470 Ft |
+| 5% | 3 333 Ft | 167 Ft | 3 500 Ft |
+| **Összesen** | **13 939 Ft** | **3 031 Ft** | **16 970 Ft** |
+
+A `byVat` tömb az áfakulcsokat a tételekben való első előfordulásuk sorrendjében tartalmazza. Az összegeket a függvény 6 tizedesjegyre kerekíti, így a devizás tételek összeadásakor sem marad lebegőpontos zaj a végén.
+
+Ha ugyanezekkel a tételekkel állítod ki a számlát, a `kassza.invoices.create()` válaszában a `netTotal` 13 939, a `grossTotal` 16 970 lesz, vagyis a kosárban mutatott összeg és a számla fillérre egyezik:
+
+```ts
+const szamla = await kassza.invoices.create({
+  orderNumber: 'REND-2042',
+  buyer: { name: 'Nagy Péter', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+  items: kosar,
+})
+```
+
+<Callout type="warning" title="Ne számolj áfát a végösszegből">
+  Ha a bruttó végösszegből vagy a nettó összegből egyben számolod az áfát, a tételenkénti kerekítés
+  miatt egy-két forint eltérés lehet a számlához képest. Mindig a `summarizeItems()` eredményét
+  mutasd.
+</Callout>
+
+<Example slug="kerekites" />
+
+## Kerekítés és összeadás
+
+A JavaScript beépített kerekítése pénzösszegeknél meglepetéseket okoz. A `roundMoney()` kereskedelmi kerekítést használ (a fél érték nulláról elfelé kerekedik), és a lebegőpontos pontatlanságot 15 értékes jegyre normalizálja. Az `addMoney()` összead, és az eredményt a bemenetek közül a legtöbb tizedesjegyre kerekíti.
+
+```ts
+import { addMoney, decimalPlaces, roundMoney } from 'kassza/money'
+
+const ketTizedes = roundMoney(1.005, 2)
+const negativ = roundMoney(-2.5)
+const osszeg = addMoney(0.1, 0.2)
+const tizedesek = decimalPlaces(12.35)
+```
+
+| Változó | kassza | Beépített megoldással |
+| --- | --- | --- |
+| `ketTizedes` | `1.01` | `Math.round(1.005 * 100) / 100` eredménye `1` |
+| `negativ` | `-3` | `Math.round(-2.5)` eredménye `-2` |
+| `osszeg` | `0.3` | `0.1 + 0.2` eredménye `0.30000000000000004` |
+| `tizedesek` | `2` | – |
+
+A `roundMoney()` második paramétere a tizedesjegyek száma, alapból `0`. `NaN` vagy végtelen értékre `RangeError`-t dob.
+
+## Áfakulcsok és pénznem
+
+Az `isVatRate()` típusőr megmondja, hogy egy érték a Számlázz.hu által elfogadott áfakulcs-e: szám a `NUMERIC_VAT_RATES` listából, vagy szöveg a `SPECIAL_VAT_CODES` listából. Számot tartalmazó szövegre (`'27'`) `false`-t ad, ezért adatbázisból vagy CSV-ből olvasott értéket előbb alakíts át:
+
+```ts
+import { isVatRate, type VatRate } from 'kassza/money'
+
+export function afakulcs(ertek: string): VatRate {
+  const szoveg = ertek.trim()
+  const szam = Number(szoveg)
+  const jelolt = szoveg !== '' && Number.isFinite(szam) ? szam : szoveg
+  if (!isVatRate(jelolt)) throw new Error(`Ismeretlen áfakulcs: ${ertek}`)
+  return jelolt
+}
+```
+
+Ezzel a `'27'` és az `' 5.5 '` számmá, az `'AAM'` kóddá alakul, a `'28'` pedig hibát dob. A kulcsok jelentését és a szöveges kódokat az [Áfakulcsok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/afakulcsok) oldal sorolja fel.
+
+A `vatPercentage()` a számmal megadott kulcsot adja vissza, a szöveges kódoknál `0`-t, és a kassza ezzel a százalékkal számolja a tétel áfáját. Az `isHuf()` akkor ad `true`-t, ha a pénznem hiányzik, vagy a szóközök levágása után `HUF`, `huf`, `Ft`, `FT` vagy `ft`. Más írásmódot, például `Huf`-ot, devizának vesz.

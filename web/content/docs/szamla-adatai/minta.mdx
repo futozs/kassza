@@ -1,0 +1,19 @@
+---
+title: Minta
+description: Számla kiállítása, az adatai lekérése rendelésszám alapján, és a find egy nem létező rendelésre, a ténylegesen elküldött xmlszamlaxml XML-lel.
+official: https://docs.szamlazz.hu/hu/agent/querying_xml/xml
+---
+
+A példa kiállít egy kártyával kifizetett számlát két tétellel, majd a rendelésszám alapján lekéri az adatait, és kiírja a fejlécet, az összegeket és a befizetéseket. Végül a `find()` egy nem létező rendelésszámra `null`-t ad hiba helyett. Az **Elküldött XML** fülön a számlakészítés mellett mindkét `xmlszamlaxml` kérést látod, a **Válasz** fülön pedig a `szamla` XML-t és a nem létező rendelésre kapott 7-es hibát.
+
+<Example slug="szamla-adatai" />
+
+## XSD séma
+
+A kérés XML sémája, a mezők sorrendje kötött:
+
+```text
+https://www.szamlazz.hu/szamla/docs/xsds/agentxml/xmlszamlaxml.xsd
+```
+
+A kassza a `szamlaszam`, `rendelesSzam`, `pdf` és `szamlaKulsoAzon` elemet ebben a sorrendben írja ki, és csak azt, amelyiket megadtad. A válasz szerkezetét a [Válasz](/docs/szamla-adatai/valasz) oldal írja le mezőről mezőre.

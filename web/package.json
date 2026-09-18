@@ -1,0 +1,54 @@
+{
+  "name": "kassza-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "npm run sandbox:build && next dev",
+    "dev:next": "next dev",
+    "build": "npm run sandbox:build && next build",
+    "start": "next start",
+    "sandbox:build": "node scripts/build-sandbox.mjs",
+    "typecheck": "npm run sandbox:build && next typegen && tsc --noEmit",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "vitest run",
+    "ci": "npm run lint && npm run typecheck && npm run test && npm run build"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@monaco-editor/react": "4.7.0",
+    "clsx": "^2.1.1",
+    "fumadocs-core": "16.15.11",
+    "fumadocs-mdx": "15.4.1",
+    "fumadocs-twoslash": "4.0.1",
+    "kassza": "0.2.0",
+    "lucide-react": "^1.47.0",
+    "lz-string": "1.5.0",
+    "monaco-editor": "0.56.0",
+    "next": "16.3.5",
+    "next-themes": "0.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "shiki": "4.4.3",
+    "sucrase": "3.35.1",
+    "tailwind-merge": "^3.4.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.5.13",
+    "@tailwindcss/postcss": "4.3.3",
+    "@types/mdx": "^2.0.14",
+    "@types/node": "^26.6.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "^19.2.7",
+    "esbuild": "^0.28.2",
+    "postcss": "^8.5.28",
+    "tailwindcss": "4.3.3",
+    "typescript": "7.0.2",
+    "vitest": "^5.0.1"
+  }
+}

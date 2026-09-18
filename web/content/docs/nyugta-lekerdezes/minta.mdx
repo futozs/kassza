@@ -1,0 +1,19 @@
+---
+title: Minta
+description: Nyugta kiállítása és lekérdezése nyugtaszám és rendelésszám alapján, a find() nem létező nyugtára, a ténylegesen elküldött xmlnyugtaget XML-lel.
+official: https://docs.szamlazz.hu/hu/agent/querying_receipt/xml
+---
+
+A példa a [sandboxban](/sandbox) fut. Kiállít egy nyugtát rendelésszámmal, lekérdezi a nyugtaszám alapján, majd a rendelésszám alapján PDF nélkül. Végül a `find()` egy nem létező nyugtaszámot keres, amire `null` jön. Az **Elküldött XML** fülön az `xmlnyugtaget` kéréseket is látod.
+
+<Example slug="nyugta-lekerdezes" />
+
+## XSD séma
+
+A kassza az XML-t a Számlázz.hu `xmlnyugtaget.xsd` sémája szerint építi fel:
+
+```text
+https://www.szamlazz.hu/szamla/docs/xsds/nyugtaget/xmlnyugtaget.xsd
+```
+
+A letölthető sémában a `rendelesSzam` elem még nem szerepel, a hivatalos dokumentáció sémájában viszont igen. A kassza a dokumentáció szerint küldi, ezért a rendelésszámos kérés a letölthető XSD-vel validálva hibát jelezne.

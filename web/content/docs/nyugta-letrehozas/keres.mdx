@@ -1,0 +1,213 @@
+---
+title: Kérés
+description: A receipts.create() bemenete mezőről mezőre, az xmlnyugtacreate XML elemeivel, alapértékekkel, a hívásazonosító szerepével és a kassza által ellenőrzött szabályokkal.
+official: https://docs.szamlazz.hu/hu/agent/generating_receipt/request
+---
+
+```ts
+interface ReceiptsApi {
+  create(input: CreateReceiptInput, options?: { signal?: AbortSignal }): Promise<Receipt>
+}
+```
+
+A kassza a bemenetből `xmlnyugtacreate` XML-t épít, és `multipart/form-data` POST kérésben, az `action-szamla_agent_nyugta_create` form mezőben küldi el a `https://www.szamlazz.hu/szamla/` címre.
+
+Kötelező az **előtag** (`prefix`), a **fizetési mód** (`paymentMethod`) és legalább egy **tétel** (`items`). Az előtagot és a fizetési módot a kliens alapbeállításaiban is megadhatod. Vevőt, eladót és dátumot a nyugtán nem adhatsz meg, a keltét a Számlázz.hu adja.
+
+<Callout type="tip">
+  Az alábbi táblázatokban az **XML elem** oszlop a Számla Agent mezőjét mutatja, így a hivatalos
+  dokumentáció bármelyik mezőjét megtalálod a kasszában. A kassza az elemeket az XSD által előírt
+  sorrendben írja ki, az üres opcionális elemeket pedig kihagyja.
+</Callout>
+
+## Fejléc
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `callId` | `hivasAzonosito` | – | Egyedi hívásazonosító, a dupla nyugta elleni védelem, lásd [lent](#hívásazonosító-callid). |
+| `prefix` | `elotag` | – | **Kötelező.** Nyugtaszám előtag, csak nagybetű és szám, például `'NYGT'`. Lásd [Előtag](#előtag-prefix). |
+| `paymentMethod` | `fizmod` | – | **Kötelező.** Fizetési mód, szabad szöveg, például `'készpénz'` vagy `'bankkártya'`. A számlával ellentétben nincs beépített alapértéke. |
+| `currency` | `penznem` | `'HUF'` | Pénznem. A `'HUF'`, `'Ft'`, `'FT'`, `'huf'` és `'ft'` forintnak számít. |
+| `exchangeRate` | `devizaarf` | – | Devizás nyugtán kötelező, pozitív szám. Forintos nyugtán a kassza nem küldi el. |
+| `exchangeBank` | `devizabank` | – | Devizás nyugtán kötelező, az árfolyamot jegyző bank, például `'MNB'`. Forintos nyugtán a kassza nem küldi el. |
+| `comment` | `megjegyzes` | – | Szabad szöveges megjegyzés, a nyugtán megjelenik. |
+| `template` | `pdfSablon` | normál A4 | PDF sablon: `'A'` (normál A4), `'N'` (80 mm), `'J'` (jegy) vagy `'L'` (jegy logóval). Lásd [PDF sablon](/docs/nyugta-letrehozas/beallitasok/pdf-sablon). |
+| `customerLedgerId` | `fokonyvVevo` | – | A vevő főkönyvi azonosítója a könyveléshez. |
+| `orderNumber` | `rendelesSzam` | – | Rendelésszám a nyugtán. Ez alapján később le is kérdezheted a nyugtát, lásd [Rendelésszám](/docs/nyugta-letrehozas/beallitasok/rendelesszam). |
+| `downloadPdf` | `pdfLetoltes` | `true` | Kérje-e a PDF-et a válaszban. A `beallitasok` blokkba kerül, a hitelesítés mellé. |
+
+## Előtag (prefix)
+
+Az előtag csak nagybetűt és számot tartalmazhat, kötőjelet, szóközt és kisbetűt nem. A kassza a hibás formátumot a küldés előtt elutasítja, így a Számlázz.hu 337-es hibája nem fordul elő.
+
+<Callout type="warning" title="Külön előtag a nyugtákhoz">
+  Olyan előtag nem használható nyugtán, amelyet a fiókban már számlákhoz használsz. Ilyenkor a
+  Számlázz.hu 336-os hibát ad, és ezt a kassza nem tudja előre ellenőrizni. Használj külön
+  előtagot, például `NYGT`-t.
+</Callout>
+
+## Tételek (items)
+
+Minden tételnél a `name`, a `vat` és pontosan egy ár kell: `netUnitPrice` vagy `grossUnitPrice`. A nettó, áfa és bruttó értéket a kassza számolja ki. Forintos nyugtán a bruttó egész szám, a nettó és az áfa legfeljebb 2 tizedesjegy, és a nettó és az áfa összege pontosan kiadja a bruttót. A részleteket a [Tételösszegek és kerekítés](/docs/nyugta-letrehozas/beallitasok/tetelosszegek) oldal írja le.
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `name` | `megnevezes` | – | **Kötelező.** A tétel megnevezése. |
+| `identifier` | `azonosito` | – | Cikkszám vagy termékazonosító. |
+| `quantity` | `mennyiseg` | `1` | Mennyiség. Nem lehet 0. |
+| `unit` | `mennyisegiEgyseg` | `defaults.receipt.unit`, különben `'db'` | Mennyiségi egység. |
+| `netUnitPrice` | `nettoEgysegar` | – | Nettó egységár, nettó alapú számításhoz. |
+| `grossUnitPrice` | – | – | Bruttó egységár, pénztári árakhoz. A kassza ebből számolja a nettó egységárat. |
+| `vat` | `afakulcs` | – | **Kötelező.** Áfakulcs, például `27`, `'AAM'`, vagy a csak nyugtán használt `'ÁKK'`, `'MAA'`, `'EU'`, `'EUK'`. |
+| `netAmount`, `vatAmount`, `grossAmount` | `netto`, `afa`, `brutto` | számolt | Saját összegek. Mindhármat egyszerre kell megadni. |
+| `ledger` | `fokonyv` | – | Főkönyvi adatok: `revenue` (`arbevetel`) és `vat` (`afa`). Üres objektumnál a blokk kimarad. |
+| `comment` | `megjegyzes` | – | A tétel megjegyzése. |
+| `dataDeletionCode` | `torloKod` | – | Adattörlő kód, nemnegatív egész szám. Lásd [Adattörlő kód](/docs/nyugta-letrehozas/beallitasok/adattorlo-kod). |
+
+A kódos áfakulcsokat (például `'AAM'` vagy `'ÁKK'`) a kassza 0%-kal számolja, a bruttó így megegyezik a nettóval. Az összes számszerű kulcsot és kódot az [Áfakulcsok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/afakulcsok) oldal sorolja fel.
+
+Az alábbi példák a `defaults.receipt`-ben megadott előtagot és fizetési módot használják:
+
+<Tabs items={['Bruttó egységár', 'Nettó egységár', 'Saját összegek']} groupId="nyugta-tetel">
+  <Tab value="Bruttó egységár">
+    ```ts
+    await kassza.receipts.create({
+      callId: 'PENZTAR-2026-0001',
+      items: [
+        { name: 'Kávé', quantity: 2, grossUnitPrice: 890, vat: 27 },
+        { name: 'Kifli', grossUnitPrice: 250, vat: 5 },
+      ],
+    })
+    ```
+
+    A Kávé tétel így `1401.57` nettó és `378.43` áfa, összesen `1780` bruttó lesz, `700.785` nettó egységárral.
+
+  </Tab>
+  <Tab value="Nettó egységár">
+    ```ts
+    await kassza.receipts.create({
+      callId: 'IRODA-2026-0042',
+      items: [{ name: 'Tanácsadás', quantity: 2, unit: 'óra', netUnitPrice: 10_000, vat: 27 }],
+    })
+    ```
+
+    A tétel `20000.00` nettó és `5400.00` áfa, összesen `25400` bruttó. Nettó alapnál a kassza a nettót két tizedesjegyre, a bruttót egészre kerekíti, és az áfa a kettő különbsége.
+
+  </Tab>
+  <Tab value="Saját összegek">
+    ```ts
+    await kassza.receipts.create({
+      callId: 'ERP-2026-0815',
+      items: [{ name: 'Lábtörlő', vat: 27, netAmount: 787.4, vatAmount: 212.6, grossAmount: 1000 }],
+    })
+    ```
+
+    Forintos nyugtán a kassza a saját összegeket is ellenőrzi a küldés előtt, és a nettót és az áfát két tizedesjeggyel küldi: `787.40`, `212.60`, `1000`.
+
+  </Tab>
+</Tabs>
+
+## Kifizetések (payments)
+
+Vegyes fizetésnél, például ha a vevő részben SZÉP kártyával, részben bankkártyával fizet, a `payments` tömbben sorolod fel a fizetési eszközöket. A mező opcionális. Ha megadod, a kifizetések összegének két tizedesjegyre kerekítve pontosan egyeznie kell a nyugta bruttó végösszegével, különben a kassza a küldés előtt hibát dob. A Számlázz.hu ugyanezt 340-es hibával jelezné.
+
+| Mező | XML elem | Leírás |
+| --- | --- | --- |
+| `method` | `fizetoeszkoz` | **Kötelező.** A fizetési eszköz, például `'bankkártya'` vagy `'utalvány'`. |
+| `amount` | `osszeg` | **Kötelező.** Az ezzel az eszközzel fizetett összeg. |
+| `description` | `leiras` | A fizetési eszköz leírása, például `'OTP SZÉP kártya'`. |
+
+```ts
+await kassza.receipts.create({
+  callId: 'PENZTAR-2026-0002',
+  items: [
+    { name: 'Kávé', quantity: 2, grossUnitPrice: 890, vat: 27 },
+    { name: 'Kifli', grossUnitPrice: 250, vat: 5 },
+  ],
+  payments: [
+    { method: 'utalvány', amount: 1_000, description: 'OTP SZÉP kártya' },
+    { method: 'bankkártya', amount: 1_030 },
+  ],
+})
+```
+
+A nyugta bruttó végösszege `1780 + 250 = 2030`, a két kifizetés együtt pontosan ennyi.
+
+## Hívásazonosító (callId)
+
+A `callId` a hívás egyedi azonosítója. Ha ugyanazzal a `callId`-val újra beküldöd a nyugtát, a Számlázz.hu nem készít második nyugtát, hanem 338-as hibát ad. Ez teszi a nyugtakészítést idempotenssé.
+
+- **Újrapróbálás:** a kassza csak `callId` mellett próbálja újra a nyugtakészítést, és csak `network`, `timeout` vagy `maintenance` hibánál. A próbálkozások száma alapból 3, a `maxAttempts` opcióval legfeljebb 5, lásd [Amit a kassza újrapróbál](/docs/alapok/hibakezeles#amit-a-kassza-újrapróbál). Hívásazonosító nélkül a kérés egyszer megy ki.
+- **Ha az első kérés mégis célba ért:** előfordulhat, hogy egy időtúllépéses kérés után a nyugta elkészült, és az újrapróbálás 338-as hibát kap. Ez `duplicate` kategóriájú hiba, a nyugta ilyenkor már létezik.
+- **Honnan legyen:** a saját rendelésazonosítódból képezd, és ugyanezt add meg `orderNumber`-nek is. A Számla Agent hívásazonosító alapján nem kérdez le, rendelésszám alapján viszont igen.
+
+```ts
+import { type CreateReceiptInput, isSzamlazzError, type Receipt } from 'kassza'
+
+async function nyugtaz(rendelesId: string, items: CreateReceiptInput['items']): Promise<Receipt> {
+  const azonosito = `WEB-${rendelesId}`
+  try {
+    return await kassza.receipts.create({ callId: azonosito, orderNumber: azonosito, items })
+  } catch (error) {
+    if (isSzamlazzError(error) && error.isDuplicate) {
+      const meglevo = await kassza.receipts.find({ orderNumber: azonosito })
+      if (meglevo) return meglevo
+    }
+    throw error
+  }
+}
+```
+
+A `find()` `null`-t ad, ha nincs ilyen nyugta. Ha a fiókban engedélyezed, hogy egy rendelésszám több nyugtán is szerepeljen, a rendelésszám nem azonosít egyértelműen egy nyugtát, ezért ehhez a mintához tartsd egyedinek.
+
+## Devizás nyugta
+
+Ha a `currency` nem forint, az `exchangeRate` és az `exchangeBank` is kötelező. A számlával ellentétben nyugtánál nincs `'MNB'` alapértelmezés a bankra.
+
+```ts
+await kassza.receipts.create({
+  callId: 'MUZEUM-2026-0077',
+  currency: 'EUR',
+  exchangeRate: 395.5,
+  exchangeBank: 'MNB',
+  items: [{ name: 'Múzeumi belépő', quantity: 2, grossUnitPrice: 12.5, vat: 27 }],
+})
+```
+
+Devizás nyugtán a nettó, az áfa és a bruttó is két tizedesjegyre kerekedik, a forintos szabályok (egész bruttó, pontos összegegyezés) nem vonatkoznak rá. A pénznemkódokat a [Támogatott devizanemek](/docs/szamla-letrehozas/beallitasok-es-szabalyok/penznemek) oldal sorolja fel.
+
+## Amit a kassza a küldés előtt ellenőriz
+
+Ezeknél a hibáknál `validation` kategóriájú `SzamlazzError` jön, és kérés nem megy a Számlázz.hu-hoz:
+
+- hiányzik az előtag, vagy nem csak nagybetűből és számból áll (337),
+- hiányzik a fizetési mód,
+- nincs tétel, egy tételnek nincs neve, a mennyisége 0, vagy egy összege nem érvényes szám,
+- ismeretlen áfakulcs, vagy a `netUnitPrice` és a `grossUnitPrice` egyszerre, vagy egyik sincs megadva,
+- saját összegeknél nincs meg mindhárom érték,
+- forintos nyugtán a bruttó nem egész (363), a nettó vagy az áfa 2-nél több tizedesjegyet tartalmaz (364, 365), a nettó és az áfa összege nem pontosan a bruttó (261), vagy a nettó egységár × mennyiség a nettótól, illetve a nettó × áfakulcs / 100 az áfától 2-nél többel eltér (259, 260),
+- devizás nyugtán hiányzik vagy nem pozitív az árfolyam, vagy hiányzik a bank,
+- ismeretlen PDF sablon,
+- az adattörlő kód nem nemnegatív egész szám,
+- egy kifizetésnek nincs fizetési eszköze, érvénytelen az összege, vagy a kifizetések összege eltér a bruttó végösszegtől (340).
+
+A zárójeles szám azt a Számlázz.hu hibakódot jelzi, amelyet a kassza ellenőrzése nélkül kapnál. Tételhibánál az üzenet a tétel sorszámát és nevét is tartalmazza.
+
+## Alapértékek a kliensben
+
+A gyakran ismétlődő mezőket nem kell minden hívásnál megadni. A `createKassza({ defaults: { receipt } })` alapértékei akkor érvényesülnek, ha a hívásban az adott mező hiányzik:
+
+```ts
+const kassza = createKassza({
+  defaults: {
+    receipt: {
+      prefix: 'NYGT',
+      paymentMethod: 'bankkártya',
+      template: 'N',
+      unit: 'db',
+    },
+  },
+})
+```
+
+Alapértelmezhető a `prefix`, a `paymentMethod`, a `currency`, az `exchangeRate`, az `exchangeBank`, a `downloadPdf`, a `template`, a `unit` és a `customerLedgerId`. A `callId`, az `orderNumber`, a `comment` és a `payments` minden nyugtánál más, ezeknek nincs alapértéke. A táblázatot a [Kliens beállítása](/docs/alapok/kliens-beallitasa#alapértelmezések-nyugtára) oldal is tartalmazza.

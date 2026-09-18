@@ -1,0 +1,60 @@
+---
+title: Kérés
+description: A receipts.send() bemenete, a Számla Agent xmlnyugtasend XML elemeivel, alapértékekkel és a kliensoldali ellenőrzéssel.
+official: https://docs.szamlazz.hu/hu/agent/sending_receipt/request
+---
+
+```ts
+kassza.receipts.send(input: SendReceiptInput, options?: { signal?: AbortSignal }): Promise<void>
+```
+
+A kassza `xmlnyugtasend` XML-t küld az `action-szamla_agent_nyugta_send` form mezőben. Csak már kiállított nyugtát küldhetsz ki, ezért a nyugtaszámot a `receipts.create()` vagy a `receipts.get()` válaszából veszed:
+
+```ts
+await kassza.receipts.send({ receiptNumber: nyugta.number, emails: 'vevo@example.hu' })
+```
+
+Több címzettnek, saját tárggyal és szöveggel:
+
+```ts
+await kassza.receipts.send({
+  receiptNumber: 'NYGT-2026-1',
+  emails: ['vevo@example.hu', 'konyveles@example.hu'],
+  replyTo: 'bolt@example.hu',
+  subject: 'A nyugtád',
+  text: 'Kedves Vásárló!\n\nCsatoltuk a nyugtát.',
+})
+```
+
+## Mezők
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `receiptNumber` | `fejlec/nyugtaszam` | – | **Kötelező.** A kiküldendő nyugta száma. |
+| `emails` | `emailKuldes/email` | – | **Kötelező.** A címzett, címek tömbje, vagy vesszővel, pontosvesszővel elválasztott lista. |
+| `replyTo` | `emailKuldes/emailReplyto` | – | Válaszcím: ha a vevő válaszol a levélre, ide érkezik. |
+| `subject` | `emailKuldes/emailTargy` | `Nyugta <nyugtaszám>` | A levél tárgya. |
+| `text` | `emailKuldes/emailSzoveg` | – | A levél szövege. A sortöréseket változatlanul küldi. |
+
+A címzetteket a kassza egyetlen `email` elembe fűzi, vesszővel elválasztva. A tárgyban és a szövegben nyugodtan használhatsz `&` vagy `<` karaktert, az XML escape-elést a kassza végzi.
+
+## Szabályok
+
+- Az `emails` mező nem hagyható el, legalább egy címzett kell. A Számla Agent címzett nélkül az előző levelet küldené újra, a kassza ezt a módot nem használja.
+- Tárgyat a kassza mindig küld: ha a `subject` hiányzik vagy üres, `Nyugta <nyugtaszám>` lesz. A hivatalos hibaminta szerint tárgy nélkül 7-es hibát kapnál.
+- Ha a `text` üres vagy csak szóközből áll, az `emailSzoveg` elem kimarad.
+- A `receiptNumber`, a címek, a `replyTo` és a `subject` elejéről és végéről a szóközöket levágja. A `text` szövegét nem módosítja.
+- A kassza a kiküldést **nem próbálja újra** magától, mert egy második kérés újabb levelet küldhet a vevőnek.
+
+## Kliensoldali ellenőrzés
+
+Ezek a hibák még a kérés elküldése előtt keletkeznek, `validation` kategóriával és hibakód nélkül.
+
+| Eset | Hibaüzenet |
+| --- | --- |
+| Üres `receiptNumber` | Add meg a nyugtaszámot (receiptNumber). |
+| Nincs egyetlen cím sem, például `[]` vagy `' , '` | Adj meg legalább egy címzett e-mail címet (emails). |
+| Hibás cím az `emails` listában | Érvénytelen e-mail cím a(z) emails mezőben: … |
+| Hibás `replyTo` | Érvénytelen e-mail cím a(z) replyTo mezőben: … |
+
+A kassza csak az egyszerű `nev@domain.hu` alakot fogadja el: a címben nem lehet szóköz, vessző, pontosvessző, `<` vagy `>`, és a domainben kell pont. A `Kovács Anna <anna@example.hu>` alak és az `admin@localhost` cím ezért hibát ad.

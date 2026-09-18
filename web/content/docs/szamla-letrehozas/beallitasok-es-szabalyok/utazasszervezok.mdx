@@ -1,0 +1,73 @@
+---
+title: Egyszerűsített számlakép utazásszervezőknek
+description: A simpleItems mező, amellyel az utazásszervezők ár- és áfaadatok nélküli számlaképet állíthatnak ki, a korlátaival és hibakódjaival.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/travel-agency
+---
+
+A 2026. január 1-jén hatályba lépett szabály szerint az utazásszervezőknek nem kell feltüntetniük a számlaképen a különbözeti áfa alapját és összegét. A Számla Agent ezt a `simpleItems` mezővel támogatja: a számla egyszerűsített képpel készül el, a NAV-nak küldött adatszolgáltatás viszont teljes marad.
+
+<Callout type="danger" title="Csak utazásszervezőknek">
+  Az egyszerűsített számlakép kizárólag az Áfa tv. 210/A. §-a szerinti utazásszervezési
+  szolgáltatásra használható. Más tevékenységhez jogszerűtlen.
+</Callout>
+
+## Bekapcsolás
+
+A Számlázz.hu felületén ez fiókszintű beállítás, az Agenten keresztül viszont bizonylatonként kapcsolható. Ha minden számlád ilyen, tedd a kliens alapbeállításai közé:
+
+```ts
+const szamla = await kassza.invoices.create({
+  simpleItems: true,
+  buyer,
+  items: [{ name: 'Horvát tengerparti út, 7 éj', grossUnitPrice: 389_000, vat: 'K.AFA' }],
+})
+
+const utazasiKassza = createKassza({ defaults: { invoice: { simpleItems: true } } })
+```
+
+A kassza a mezőt pontosan `simpleItems` néven írja az XML-be. Ez fontos, mert az elgépelt (`simpleitems`) mezőnevet a Számlázz.hu figyelmen kívül hagyhatja, és a számla normál képpel készülne el.
+
+## Mi látszik a számlán?
+
+| Megjelenik | Nem jelenik meg |
+| --- | --- |
+| a tétel neve és megjegyzése | az egységár |
+| a mennyiség | a nettó érték |
+| a bruttó végösszeg | az áfakulcs és az áfa összege |
+| a számla megjegyzése | az áfaösszesítő táblázat |
+
+A különbözeti adózásra vonatkozó tájékoztató szöveg automatikusan rákerül a számlára. Kivétel a `'K.AFA'` áfakód: ekkor a tájékoztatót neked kell a számla `comment` mezőjébe írnod.
+
+## Korlátok
+
+A kassza ezeket a szabályokat a küldés előtt ellenőrzi, és `validation` hibát ad, ha valamelyik sérül:
+
+| Szabály | Számlázz.hu hibakód |
+| --- | --- |
+| Legfeljebb 2 tétel, végszámlán legfeljebb 4 (2 levonó és 2 új tétel) | 552 |
+| Csak `0`, `5`, `18`, `27`, `'TAM'`, `'AAM'`, `'K.AFA'` vagy `'F.AFA'` áfakulcs | 553 |
+| Helyesbítő számlán és szállítólevélen nem használható | 556 |
+
+Ezeket csak a Számlázz.hu tudja ellenőrizni:
+
+| Szabály | Hibakód |
+| --- | --- |
+| A fiókban nem lehet bekapcsolva az OSS adózás, és az eladónak magyar adószám kell | 551 |
+| Egyszerűsített képpel kiállított számla nem helyesbíthető | 554 |
+| A végszámla tételeinek áfakulcsa meg kell egyezzen az előlegszámláéval | 555 |
+
+A `template` mező egyszerűsített számlaképnél hatástalan, a számla mindig az egyszerűsített nézettel készül.
+
+## Bizonylattípusonként
+
+| Bizonylat | Egyszerűsített kép |
+| --- | --- |
+| Számla, díjbekérő, díjbekérőből készült számla | Bizonylatonként bekapcsolható |
+| Előlegszámla | Bizonylatonként bekapcsolható |
+| Végszámla | Az előlegszámla beállítását örökli |
+| Sztornó számla | Az eredeti számla beállítását örökli |
+| Helyesbítő számla, szállítólevél | Nem használható |
+
+## NAV adatszolgáltatás
+
+A `simpleItems` csak a számlaképet változtatja meg. A NAV Online Számla rendszerébe mindig a teljes tételadat kerül, adóalappal és áfaösszeggel, ezért a számlakép és a NAV-nál látható adat eltérhet. Ez a funkció rendeltetésszerű működése.

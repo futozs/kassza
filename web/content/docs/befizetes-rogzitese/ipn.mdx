@@ -1,0 +1,189 @@
+---
+title: IPN fizetési értesítés
+description: A Számlázz.hu kifizetési értesítésének (IPN) fogadása a kassza/ipn modullal, a beállítással, az újraküldés szabályaival, idempotens feldolgozással és a küldő IP-címek ellenőrzésével.
+official: https://docs.szamlazz.hu/hu/agent/credit_entry/other
+---
+
+Az IPN (Instant Payment Notification) a Számlázz.hu webhookja. Ha egy bizonylat (számla vagy díjbekérő) kifizetett összege megváltozik, például részleges vagy teljes befizetés után, a Számlázz.hu HTTP POST kérést küld a megadott címre. A kérés törzse `application/x-www-form-urlencoded` formátumú, és a számla számát, a végösszeget és a kifizetett összeget tartalmazza.
+
+Értesítés csak akkor készül, ha a változás a számla kiállítójának oldalán történik, és a fiókban be van állítva az IPN cím. A `kassza/ipn` modul beolvassa és típusos objektummá alakítja az értesítést, és segít ellenőrizni, hogy a kérés tényleg a Számlázz.hu-tól jött-e.
+
+## Beállítás
+
+1. A Számlázz.hu fiókban nyisd meg a **Fiók beállítások → Számlázás alapadatok** oldalt, és az oldal alján lévő mezőbe írd be a végpontod címét, például `https://webshop.example.hu/api/szamlazz/ipn`.
+2. A végpont a sikeres feldolgozás után HTTP 200 státusszal válaszoljon. A válasz törzse nem számít, csak a státuszkód.
+3. Ha a végpontot IP-cím alapján korlátozod, engedélyezd a [küldő IP-címeket](#küldő-ip-címek).
+
+<Callout type="info" title="Kifizetés dátuma">
+  A kifizetés dátumát (`szlahu_kifizdat`) a Számlázz.hu alapból nem küldi. Ha szükséged van rá,
+  az ügyfélszolgálaton kérheted a bekapcsolását. Addig a `paymentDate` mező `undefined`.
+</Callout>
+
+## Next.js route
+
+```ts title="app/api/szamlazz/ipn/route.ts"
+import { ipnOkResponse, isSzamlazzIp, readIpnNotification } from 'kassza/ipn'
+import { db } from '@/lib/db'
+import { rendelesVisszaigazolas } from '@/lib/rendeles'
+
+export async function POST(request: Request) {
+  if (!isSzamlazzIp(request.headers.get('x-forwarded-for') ?? '')) {
+    return new Response('Tiltott', { status: 403 })
+  }
+
+  const ipn = await readIpnNotification(request)
+
+  if (ipn.isFullyPaid) {
+    const { count } = await db.rendeles.updateMany({
+      where: { szamlaszam: ipn.invoiceNumber, fizetve: false },
+      data: { fizetve: true, fizetettOsszeg: ipn.paidAmount },
+    })
+    if (count > 0) await rendelesVisszaigazolas(ipn.invoiceNumber)
+  }
+
+  return ipnOkResponse()
+}
+```
+
+A route csak akkor jelöli fizetettnek a rendelést, és csak akkor küld visszaigazolást, ha a rendelés még nem volt fizetett. Így egy ismételten beérkező értesítés nem küld második e-mailt. Ha a feldolgozás hibát dob, a Next.js 500-as státusszal válaszol, és a Számlázz.hu később újraküldi az értesítést.
+
+Az `x-forwarded-for` fejléc csak megbízható proxy mögött használható. Vercelen ez teljesül, más környezetben olvasd el [lent](#az-x-forwarded-for-fejléc), melyik fejlécet használd.
+
+## Más keretrendszerben
+
+<Tabs items={['Hono', 'Express']}>
+  <Tab value="Hono">
+    A `readIpnNotification()` szabványos `Request` objektumot vár, így Hono, Cloudflare Workers, Bun és Deno alatt is közvetlenül használható:
+
+    ```ts
+    import { Hono } from 'hono'
+    import { ipnOkResponse, isSzamlazzIp, readIpnNotification } from 'kassza/ipn'
+
+    const app = new Hono()
+
+    app.post('/szamlazz/ipn', async (c) => {
+      if (!isSzamlazzIp(c.req.header('cf-connecting-ip') ?? '')) return c.text('Tiltott', 403)
+
+      const ipn = await readIpnNotification(c.req.raw)
+      if (ipn.isFullyPaid) await rendelesFizetve(ipn)
+
+      return ipnOkResponse()
+    })
+    ```
+  </Tab>
+  <Tab value="Express">
+    Ha a törzset már egy middleware beolvasta, a `parseIpnNotification()` az objektumból dolgozik:
+
+    ```ts
+    import express from 'express'
+    import { isSzamlazzIp, parseIpnNotification } from 'kassza/ipn'
+
+    const app = express()
+    app.set('trust proxy', 1)
+
+    app.post('/szamlazz/ipn', express.urlencoded({ extended: false }), async (req, res) => {
+      if (!isSzamlazzIp(req.ip ?? '')) {
+        res.status(403).send('Tiltott')
+        return
+      }
+
+      const ipn = parseIpnNotification(req.body)
+      if (ipn.isFullyPaid) await rendelesFizetve(ipn)
+
+      res.status(200).send('OK')
+    })
+    ```
+  </Tab>
+</Tabs>
+
+## A kassza/ipn exportjai
+
+| Export | Leírás |
+| --- | --- |
+| `readIpnNotification(request: Request)` | Beolvassa a kérést, és `Promise<IpnNotification>`-t ad. `multipart/form-data` törzset is kezel, üres törzsnél az URL query paramétereit olvassa. |
+| `parseIpnNotification(input)` | Ugyanez már beolvasott adatból: szövegből, `URLSearchParams`-ból, `FormData`-ból vagy `Record<string, string>` objektumból. |
+| `ipnOkResponse()` | HTTP 200 `Response`, `OK` törzzsel. |
+| `isSzamlazzIp(ip: string)` | `true`, ha a cím a Számlázz.hu egyik küldő címe. |
+| `SZAMLAZZ_OUTBOUND_IPS` | A küldő IP-címek listája. |
+| `IPN_FIELDS` | Az `IpnNotification` mezőneveit a Számlázz.hu paraméterneveire képezi. |
+| `parseIpnAmount(value: string)` | Egy IPN összeget alakít számmá, értelmezhetetlen szövegnél `undefined`. |
+
+## IpnNotification
+
+| Mező | Típus | IPN paraméter | Leírás |
+| --- | --- | --- | --- |
+| `invoiceNumber` | `string` | `szlahu_szamlaszam` | **Kötelező.** A számla száma. |
+| `proformaNumber` | `string \| undefined` | `szlahu_dijbekero_szama` | A díjbekérő száma, ha a számla díjbekérőből készült. |
+| `orderNumber` | `string \| undefined` | `szlahu_rendelesszam` | A rendelésszám, ha szerepelt a számlán. |
+| `grossTotal` | `number` | `szlahu_bruttovegosszeg` | **Kötelező.** A számla bruttó végösszege. |
+| `paidAmount` | `number` | `szlahu_kifizetettbrutto` | **Kötelező.** A kifizetett bruttó összeg. |
+| `paymentMethod` | `string \| undefined` | `szlahu_fizetesmod` | A fizetés módja, például `'átutalás'` vagy `'bankkártya'`. |
+| `paymentDate` | `string \| undefined` | `szlahu_kifizdat` | A kifizetés dátuma `'YYYY-MM-DD'` alakban, ha be van kapcsolva. |
+| `isFullyPaid` | `boolean` | számolt | `true`, ha a kifizetett összeg eléri a végösszeget. |
+| `raw` | `Readonly<Record<string, string>>` | minden paraméter | Az összes kapott paraméter szövegként, a fel nem dolgozottak is. |
+
+Az üres opcionális mező `undefined` lesz. Ha egy kötelező mező hiányzik, vagy egy összeg nem értelmezhető, a kassza `validation` kategóriájú `SzamlazzError`-t dob. Az összegeknél a szóközös ezres tagolást (`'19 470'`), a tizedesvesszőt (`'12 700,50'`) és a tizedespontot (`'12700.5'`) is kezeli.
+
+Az `isFullyPaid` a két összeg abszolút értékét hasonlítja össze, 0,005-ös tűréssel:
+
+```ts
+const isFullyPaid = Math.abs(paidAmount) + 0.005 >= Math.abs(grossTotal)
+```
+
+Így a túlfizetés is teljes kifizetésnek számít, és negatív végösszegnél, például helyesbítő számlánál is helyes az eredmény. Részfizetésnél `false`, a hátralék ilyenkor `grossTotal - paidAmount`.
+
+## Kipróbálás
+
+A példa egy értesítést állít össze `Request` objektumként, ellenőrzi a küldő címét, beolvassa az értesítést, és kiírja a kapott `IpnNotification` objektumot és a 200-as választ.
+
+<Example slug="ipn" />
+
+## Újraküldés és sorrend
+
+A Számlázz.hu nem azonnal küldi ki az értesítéseket, hanem sorba teszi őket:
+
+- Ha nem 200-as válasz jön, vagy a kérés időtúllépéssel ér véget, 3 percenként újrapróbálja, legfeljebb 10-szer. Utána az értesítést eldobja.
+- Nagy forgalomnál az értesítések felgyűlhetnek a küldési sorban, és csak később érkeznek meg.
+- Számlánként egyszerre csak egy értesítés vár kiküldésre. Ha közben újabb változás történik, csak a legfrissebb megy ki, a korábbiak törlődnek.
+
+Ebből három szabály következik:
+
+1. **Ne add össze az értesítéseket.** Egy részfizetésről lehet, hogy soha nem kapsz külön értesítést. Mindig a legutóbbi `paidAmount` és `grossTotal` alapján dönts, vagy az `isFullyPaid` mezőt használd.
+2. **Válaszolj gyorsan.** A lassú munkát (e-mail, raktári rendelés) tedd háttérfeladatba, és azonnal küldd a 200-as választ. Egy lassú válasz után ugyanaz az értesítés újra megérkezhet.
+3. **Legyen tartalék.** Ha a végpontod 10 próbálkozásnál tovább nem volt elérhető, az értesítés elveszett. Ilyenkor a nyitott rendelések számláit kérdezd le a [Számla adatainak lekérése](/docs/szamla-adatai) művelettel.
+
+## Idempotens feldolgozás
+
+Ugyanaz az értesítés többször is megérkezhet, ezért a feldolgozásnak ismételve is ugyanazt az eredményt kell adnia. A gyakorlatban:
+
+- Az állapotot feltételesen frissítsd (a rendelés csak akkor legyen fizetett, ha még nem az), és a mellékhatásokat (visszaigazoló e-mail, szállítás indítása) csak akkor indítsd, ha a frissítés tényleg változtatott valamit, ahogy a fenti route teszi.
+- A rendelést a `invoiceNumber` vagy az `orderNumber` alapján keresd, ne az értesítés beérkezési sorrendje alapján.
+- Ha a számlára a saját kódod is rögzít befizetést a `registerPayment()` metódussal, az is a kiállító oldali változás, ezért értesítést válthat ki. Az IPN kezelőből ne rögzíts újra befizetést ugyanarra a számlára.
+
+## Küldő IP-címek
+
+A Számlázz.hu az értesítéseket 2025. augusztus 1. óta az alábbi címekről küldi. A korábbi címeket (`18.153.1.171`, `3.73.114.72`, `52.59.28.5`) már nem használja, ha még szerepelnek a tűzfalszabályaid között, cseréld le őket.
+
+<OutboundIpTable />
+
+Az `isSzamlazzIp()` a vizsgálat előtt egységes alakra hozza a címet: vesszővel elválasztott listából az első elemet veszi, levágja a szóközöket és a portot, és kezeli a `[...]:port` alakot és az IPv4-et IPv6-ba ágyazó `::ffff:` előtagot.
+
+### Az x-forwarded-for fejléc
+
+<Callout type="warning" title="A kliens is írhat bele">
+  Az `x-forwarded-for` fejlécet bárki beállíthatja a kérésében. Az `isSzamlazzIp()` a fejléc
+  első címét vizsgálja, ezért ha a proxyd nem felülírja, hanem kiegészíti a fejlécet, egy támadó
+  a Számlázz.hu címével hamis értesítést küldhet. Csak akkor használd, ha biztosan tudod, hogy a
+  proxyd felülírja.
+</Callout>
+
+| Környezet | Honnan olvasd a kliens címét? |
+| --- | --- |
+| Vercel | `x-forwarded-for` vagy `x-real-ip`: a Vercel felülírja őket. |
+| Cloudflare (Workers vagy proxy) | `cf-connecting-ip`. Az `x-forwarded-for` elején a kliens által küldött érték maradhat. |
+| Saját nginx | `proxy_set_header X-Real-IP $remote_addr;` után az `x-real-ip`. A `$proxy_add_x_forwarded_for` csak hozzáfűz, így az első címet a kliens adja. |
+| Express | `app.set('trust proxy', ...)` beállítás után a `req.ip`, a proxyk számának megfelelő értékkel. |
+
+A Számlázz.hu dokumentációja az értesítéshez nem ír le aláírást, így a küldő címén kívül nincs mivel ellenőrizned a hitelességét. Ha egy értesítés alapján nagy értékű műveletet indítasz (például kiszállítást), előtte kérdezd le a számlát a `kassza.invoices.get()` metódussal, és a `payments` lista alapján dönts.
+
+A kimenő és bejövő forgalom többi szabályát a [Hálózat és biztonság](/docs/alapok/halozat-es-biztonsag) oldal foglalja össze.

@@ -1,0 +1,205 @@
+---
+title: Fizetett rendelés számlája
+description: Idempotens számlázás rendelésszámmal. Egy rendelésről akkor is csak egy számla készül, ha a fizetési webhook többször érkezik, vagy a kérés időtúllépéssel ér véget.
+---
+
+A vevő kifizette a rendelést, a fizetési szolgáltató (Stripe, Barion, SimplePay) szól a szerverednek, és neked számlát kell kiállítanod. A gond az, hogy a webhook többször is megérkezhet, a Számlázz.hu pedig időtúllépés után is elkészíthette a számlát. Ez a recept egy újrahasznosítható függvényt ad, amely mindkét esetben pontosan egy számlát hagy maga után.
+
+A minta három lépésből áll:
+
+1. A rendelésszám a saját rendelésed azonosítójából készül, így mindig ugyanaz.
+2. Kiállítás előtt a kassza rendelésszám alapján megnézi, van-e már számla.
+3. Bizonytalan kimenetű hiba után újra megnézi, és ha a számla mégis elkészült, azt adja vissza.
+
+## A számlázó függvény
+
+```ts title="lib/szamlazas.ts"
+import {
+  type CreateInvoiceInput,
+  type InvoiceBuyer,
+  type InvoiceItemInput,
+  isSzamlazzError,
+  type Kassza,
+  type SzamlazzErrorCategory,
+} from 'kassza'
+import { kassza as alapKliens } from '@/lib/kassza'
+
+export type SzamlaRendelesszammal = CreateInvoiceInput & { readonly orderNumber: string }
+
+export interface FizetettRendeles {
+  readonly id: string
+  readonly fizetesiMod: string
+  readonly vevo: InvoiceBuyer
+  readonly tetelek: readonly InvoiceItemInput[]
+}
+
+const BIZONYTALAN = new Set<SzamlazzErrorCategory>([
+  'network',
+  'timeout',
+  'partial_success',
+  'duplicate',
+])
+
+async function meglevoBizonylat(
+  kliens: Kassza,
+  adatok: SzamlaRendelesszammal,
+): Promise<string | undefined> {
+  const talalat = await kliens.invoices.find({ orderNumber: adatok.orderNumber })
+  if (talalat && talalat.header.type === (adatok.type ?? 'invoice')) return talalat.header.number
+  return undefined
+}
+
+export async function egyszerSzamlaz(
+  adatok: SzamlaRendelesszammal,
+  kliens: Kassza = alapKliens,
+): Promise<string> {
+  const meglevo = await meglevoBizonylat(kliens, adatok)
+  if (meglevo) return meglevo
+
+  try {
+    const szamla = await kliens.invoices.create(adatok)
+    return szamla.number
+  } catch (error) {
+    if (!isSzamlazzError(error) || !BIZONYTALAN.has(error.category)) throw error
+    const letrejott = await meglevoBizonylat(kliens, adatok)
+    if (letrejott) return letrejott
+    throw error
+  }
+}
+
+export function szamlazFizetettRendelest(
+  rendeles: FizetettRendeles,
+  kliens: Kassza = alapKliens,
+): Promise<string> {
+  return egyszerSzamlaz(
+    {
+      orderNumber: `WEB-${rendeles.id}`,
+      paid: true,
+      paymentMethod: rendeles.fizetesiMod,
+      downloadPdf: false,
+      buyer: rendeles.vevo,
+      items: rendeles.tetelek,
+    },
+    kliens,
+  )
+}
+```
+
+Az `egyszerSzamlaz()` bármilyen bizonylattípussal működik, a [nevezéses](/docs/receptek/nevezes-dijbekerovel) és a [devizás](/docs/receptek/devizas-eu-szamla) recept is ezt használja. A második paraméterben kapott kliens miatt a függvény [mock klienssel tesztelhető](/docs/receptek/egysegtesztek).
+
+A tételeknél bruttó egységárat és áfakulcsot adj meg, az összegeket a kassza számolja ki a Számlázz.hu kerekítési szabályai szerint:
+
+```ts title="lib/rendeles-tetelek.ts"
+import type { InvoiceItemInput } from 'kassza'
+
+export interface KosarSor {
+  readonly termeknev: string
+  readonly darab: number
+  readonly bruttoEgysegar: number
+}
+
+export function szamlaTetelek(kosar: readonly KosarSor[]): InvoiceItemInput[] {
+  return kosar.map((sor) => ({
+    name: sor.termeknev,
+    quantity: sor.darab,
+    grossUnitPrice: sor.bruttoEgysegar,
+    vat: 27,
+  }))
+}
+```
+
+## Route handler
+
+Ezt a végpontot hívja a fizetési szolgáltató visszahívása után a saját kódod, vagy egy admin felület „Számla újrapróbálása” gombja. A `@/lib/rendelesek` a saját adatbázis-réteged: a `rendelesBetoltese()` a `FizetettRendeles` mezői mellett a `fizetve` és a `szamlaszam` mezőt is visszaadja.
+
+```ts title="app/api/rendelesek/[id]/szamla/route.ts"
+import { isSzamlazzError, type SzamlazzError } from 'kassza'
+import { rendelesBetoltese, szamlaszamMentese } from '@/lib/rendelesek'
+import { szamlazFizetettRendelest } from '@/lib/szamlazas'
+
+function hibaStatusz(error: SzamlazzError): number {
+  if (error.category === 'validation') return 422
+  if (error.retryable) return 503
+  return 502
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const token = process.env.BELSO_API_TOKEN
+  if (!token || request.headers.get('authorization') !== `Bearer ${token}`) {
+    return new Response('Nincs jogosultság', { status: 401 })
+  }
+
+  const { id } = await params
+  const rendeles = await rendelesBetoltese(id)
+  if (!rendeles) return Response.json({ hiba: 'Nincs ilyen rendelés.' }, { status: 404 })
+  if (!rendeles.fizetve) {
+    return Response.json({ hiba: 'A rendelés még nincs kifizetve.' }, { status: 409 })
+  }
+  if (rendeles.szamlaszam) return Response.json({ szamlaszam: rendeles.szamlaszam })
+
+  try {
+    const szamlaszam = await szamlazFizetettRendelest(rendeles)
+    await szamlaszamMentese(rendeles.id, szamlaszam)
+    return Response.json({ szamlaszam })
+  } catch (error) {
+    if (!isSzamlazzError(error)) throw error
+    return Response.json(
+      { hiba: error.message, tipp: error.hint, kategoria: error.category },
+      { status: hibaStatusz(error) },
+    )
+  }
+}
+```
+
+A saját adatbázisban tárolt számlaszám az első védvonal: ha már megvan, a végpont a Számlázz.hu-t sem hívja. A rendelésszámos lekérdezés a második, arra az esetre, ha a számla elkészült, de a mentés már nem.
+
+<Example slug="hibakezeles-idempotens" />
+
+## Buktatók
+
+<Callout type="danger" title="Soha ne küldd újra ciklusban">
+  Ne tedd az `invoices.create()` hívást saját újrapróbáló ciklusba. Egy kérést legfeljebb ötször
+  szabad elküldeni, a sok felesleges kérés a fiók kitiltásához vezethet. A kassza a számlakészítést
+  szándékosan soha nem próbálja újra.
+</Callout>
+
+<Callout type="warning" title="A rendelésszám legyen állandó">
+  A rendelésszám csak a rendelés azonosítójából készüljön. Időbélyeg vagy véletlen érték mellett a
+  lekérdezés soha nem találja meg a korábbi számlát, és minden webhook új számlát állít ki.
+</Callout>
+
+<Callout type="info" title="A find() a legutóbbi bizonylatot adja vissza">
+  Ha egy rendelésszámhoz több bizonylat tartozik, például díjbekérő és számla, a `find()` a
+  legutóbbit adja vissza. Ezért ellenőrzi a függvény a `header.type` mezőt is. Ha egy számlát
+  sztornózol, és a rendelést újra számlázni kell, adj új rendelésszámot, például `WEB-5001-2`.
+</Callout>
+
+<Callout type="note" title="E-mail és PDF">
+  Ha a vevőnek van e-mail címe, a Számlázz.hu alapból elküldi neki a számlát. Ezt a
+  `buyer.sendEmail: false` kapcsolja ki. A `downloadPdf: false` miatt a válaszban nem jön PDF, így
+  a webhook gyorsabban végez. Ha a PDF-et magad is tárolod, lásd a [PDF mentése](/docs/receptek/pdf-mentes-s3-r2)
+  receptet.
+</Callout>
+
+<Callout type="tip" title="Dátumot ne adj meg">
+  A kelt és a teljesítés dátuma alapból a mai nap `Europe/Budapest` időzónában. A
+  `new Date().toISOString().slice(0, 10)` éjfél és hajnali 2 óra között a tegnapi napot adja, ami
+  352-es hibát okoz.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Hibakezelés, hibakódok" href="/docs/alapok/hibakezeles">
+    A bizonytalan kimenetű hibák és az összes hibakategória.
+  </Card>
+  <Card title="Rendelésszám és duplikáció" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok/rendelesszam">
+    A rendelésszám ismétlődés tiltása és a véletlen dupla beküldés.
+  </Card>
+  <Card title="Stripe webhook" href="/docs/receptek/stripe-webhook">
+    Ugyanez a függvény egy Stripe Checkout webhookból hívva.
+  </Card>
+  <Card title="Egységtesztek" href="/docs/receptek/egysegtesztek">
+    A függvény tesztjei mock klienssel.
+  </Card>
+</Cards>

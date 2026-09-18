@@ -1,0 +1,29 @@
+---
+title: Adattörlő kód
+description: A tételek dataDeletionCode mezője (torloKod), a fiókbeállítás, a korlátok és a kapcsolódó hibakódok.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/data-erasure-code
+---
+
+Minden tételhez megadható egy adattörlő kód a `dataDeletionCode` mezőben (XML-ben `torloKod`). Értéke 0 vagy annál nagyobb egész szám, a kassza a küldés előtt ezt ellenőrzi.
+
+```ts
+items: [
+  { name: 'Minta termék', quantity: 2, netUnitPrice: 10_000, vat: 27, dataDeletionCode: 123 },
+]
+```
+
+## Feltételek és hibák
+
+| Feltétel | Ha nem teljesül |
+| --- | --- |
+| A Számlázz.hu fiók beállításaiban be kell kapcsolni az adattörlő kód használatát | 539-es hiba (`account`) |
+| Egy tételhez legfeljebb 400 adattörlő kód tartozhat | 537-es hiba (`validation`) |
+| Demo- és tesztfiókban nem használható | 538-as hiba (`account`) |
+
+<Callout type="warning" title="Az XSD-ben nem szerepel">
+  A `torloKod` a hivatalos dokumentációban szerepel, de a letölthető `xmlszamla.xsd` sémában
+  (és a nyugta sémájában) nincs benne. Csak akkor használd, ha tényleg szükséged van rá, és ha
+  57-es hibát kapsz, hagyd el.
+</Callout>
+
+Nyugtán ugyanígy, a tételek `dataDeletionCode` mezőjével adhatod meg.

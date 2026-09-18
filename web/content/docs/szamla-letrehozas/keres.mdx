@@ -1,0 +1,206 @@
+---
+title: Kérés
+description: Az invoices.create() bemenete mezőről mezőre, a Számla Agent XML elemeivel, alapértékekkel és a kassza által ellenőrzött szabályokkal.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/request
+---
+
+```ts
+kassza.invoices.create(input: CreateInvoiceInput, options?: { signal?: AbortSignal }): Promise<CreatedInvoice>
+```
+
+A kassza a bemenetből `xmlszamla` XML-t épít, és `multipart/form-data` POST kérésben, az `action-xmlagentxmlfile` form mezőben küldi el a `https://www.szamlazz.hu/szamla/` címre. A mellékletek az `attachfile1` … `attachfile5` mezőkbe kerülnek.
+
+Kötelező csak a **vevő** (`buyer`) és legalább egy **tétel** (`items`). Minden más mezőnek van alapértéke, vagy elhagyható.
+
+<Callout type="tip">
+  Az alábbi táblázatokban az **XML elem** oszlop a Számla Agent mezőjét mutatja, így a hivatalos
+  dokumentáció bármelyik mezőjét megtalálod a kasszában. A kassza az elemeket az XSD által előírt
+  sorrendben írja ki.
+</Callout>
+
+## Fejléc
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `type` | `elolegszamla`, `vegszamla`, `helyesbitoszamla`, `dijbekero`, `szallitolevel` | `'invoice'` | A bizonylat típusa, lásd [Bizonylattípusok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok). |
+| `advanceInvoiceNumber` | `elolegSzamlaszam` | – | Végszámlánál az előlegszámla száma. |
+| `correctedInvoiceNumber` | `helyesbitettSzamlaszam` | – | Helyesbítő számlánál kötelező. |
+| `issueDate` | `keltDatum` | ma | A számla kelte. `Date` vagy `'YYYY-MM-DD'`. |
+| `fulfillmentDate` | `teljesitesDatum` | a kelte | A teljesítés dátuma. |
+| `dueDate` | `fizetesiHataridoDatum` | kelte + `paymentDueInDays` | A fizetési határidő. |
+| `paymentDueInDays` | – | `0` | Határidő napokban a keltétől. A `dueDate`-tel együtt nem adható meg. |
+| `paymentMethod` | `fizmod` | `'Átutalás'` | Fizetési mód, szabad szöveg, például `'bankkártya'`. |
+| `paid` | `fizetve` | – | `true` esetén a számla kifizetettként jelenik meg. |
+| `currency` | `penznem` | `'HUF'` | Pénznem, lásd [Támogatott devizanemek](/docs/szamla-letrehozas/beallitasok-es-szabalyok/penznemek). |
+| `exchangeRate` | `arfolyam` | – | Devizás számla árfolyama. MNB árfolyamnál elhagyható. |
+| `exchangeBank` | `arfolyamBank` | `'MNB'` devizánál | Az árfolyamot jegyző bank. |
+| `language` | `szamlaNyelve` | `'hu'` | A számla nyelve, lásd [Számlasablon és nyelvek](/docs/szamla-letrehozas/beallitasok-es-szabalyok/szamlasablon-es-nyelvek). |
+| `comment` | `megjegyzes` | – | A számla megjegyzése. |
+| `orderNumber` | `rendelesSzam` | – | A saját rendelésazonosítód. Mindig add meg, lásd [Rendelésszám](/docs/szamla-letrehozas/beallitasok-es-szabalyok/rendelesszam). |
+| `proformaNumber` | `dijbekeroSzamlaszam` | – | A díjbekérő száma, amelyből a számla készül. |
+| `externalId` | `szamlaKulsoAzon` | – | Külső azonosító, amellyel később lekérdezheted a számlát. |
+| `prefix` | `szamlaszamElotag` | – | Számlaszám előtag. Csak a fiókban rögzített előtag használható (202-es hiba). |
+| `template` | `szamlaSablon` | fiók alapértelmezés | Számlakép, például `'SzlaMost'`. |
+| `eInvoice` | `eszamla` | `false` | `true` esetén e-számla készül. |
+| `downloadPdf` | `szamlaLetoltes` | `true` | Kérje-e a PDF-et a válaszban. |
+
+## Vevő (buyer)
+
+| Mező | XML elem | Leírás |
+| --- | --- | --- |
+| `name` | `nev` | **Kötelező.** A vevő neve. |
+| `zip` | `irsz` | **Kötelező.** Irányítószám. |
+| `city` | `telepules` | **Kötelező.** Település. |
+| `address` | `cim` | **Kötelező.** Utca, házszám. |
+| `country` | `orszag` | Ország, külföldi vevőnél. |
+| `email` | `email` | E-mail cím. Ha megadod, a Számlázz.hu elküldi a számlát. Több címet vesszővel választhatsz el. |
+| `sendEmail` | `sendEmail` | `false` esetén nem megy értesítő. Alapból `true`, ha van e-mail cím. |
+| `taxpayerType` | `adoalany` | `'hungarianTaxNumber'`, `'euBusiness'`, `'nonEuBusiness'`, `'noTaxNumber'` vagy `'unknown'`. |
+| `taxNumber` | `adoszam` | Magyar adószám, például `'12345678-1-42'`. |
+| `groupTaxNumber` | `csoportazonosito` | Csoportos adószám (csoportazonosító). |
+| `euTaxNumber` | `adoszamEU` | Közösségi adószám, például `'DE123456789'`. |
+| `postal` | `postazasiNev`, `postazasiOrszag`, `postazasiIrsz`, `postazasiTelepules`, `postazasiCim` | Postázási cím, ha eltér a számlázási címtől. |
+| `ledger` | `vevoFokonyv` | Könyvelési adatok, lásd lent. |
+| `identifier` | `azonosito` | Partner azonosító a fiók partnertörzsében. |
+| `signatoryName` | `alairoNeve` | A vevő aláírójának neve. |
+| `phone` | `telefonszam` | Telefonszám. |
+| `comment` | `megjegyzes` | Megjegyzés a vevőhöz. |
+
+<Callout type="warning" title="Ne használd más vevő azonosítóját">
+  Az `identifier` alapján a Számlázz.hu összekapcsolja a vevőt a partnertörzs bejegyzésével, és
+  frissíti annak adatait. Ha egy azonosító két vevőhöz tartozik, a vevői fiók linkjével az egyik
+  vevő a másik bizonylatait is láthatja. Egy azonosító mindig csak egy vevőé legyen.
+</Callout>
+
+## Tételek (items)
+
+Minden tételnél a `name`, a `vat` és pontosan egy ár kell: `netUnitPrice` vagy `grossUnitPrice`. A nettó, áfa és bruttó értéket a kassza számolja ki a [kerekítési szabályok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/kerekites) szerint.
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `name` | `megnevezes` | – | **Kötelező.** A tétel megnevezése. |
+| `vat` | `afakulcs` | – | **Kötelező.** Áfakulcs, például `27` vagy `'AAM'`, lásd [Áfakulcsok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/afakulcsok). |
+| `netUnitPrice` | `nettoEgysegar` | – | Nettó egységár, nettó alapú (B2B) számításhoz. |
+| `grossUnitPrice` | – | – | Bruttó egységár, bruttó alapú (B2C) számításhoz. A kassza ebből számolja a nettó egységárat. |
+| `quantity` | `mennyiseg` | `1` | Mennyiség. Nem lehet 0, végszámlán és helyesbítőn negatív is lehet. |
+| `unit` | `mennyisegiEgyseg` | `'db'` | Mennyiségi egység. |
+| `netAmount`, `vatAmount`, `grossAmount` | `nettoErtek`, `afaErtek`, `bruttoErtek` | számolt | Csak akkor add meg, ha pontosan tudod, mit csinálsz. Mindhármat egyszerre kell megadni. |
+| `identifier` | `azonosito` | – | Cikkszám vagy termékazonosító. |
+| `comment` | `megjegyzes` | – | A tétel megjegyzése. |
+| `ledger` | `tetelFokonyv` | – | Könyvelési adatok, lásd lent. |
+| `dataDeletionCode` | `torloKod` | – | Adattörlő kód, lásd [Adattörlő kód](/docs/szamla-letrehozas/beallitasok-es-szabalyok/adattorlo-kod). |
+| `marginVatBase` | `arresAfaAlap` | – | Különbözeti adózásnál az árrés áfa alapja. |
+
+```ts
+items: [
+  { name: 'Webfejlesztés', quantity: 10, unit: 'óra', netUnitPrice: 15_000, vat: 27 },
+  { name: 'Szakácskönyv', grossUnitPrice: 3_500, vat: 5 },
+  { name: 'Kedvezmény', netUnitPrice: -5_000, vat: 27 },
+]
+```
+
+## Eladó (seller)
+
+Az eladó cégadatai a Számlázz.hu fiókból jönnek, a kérésben csak az alábbiakat írhatod felül. Ha minden számlán ugyanaz, tedd a `defaults.invoice.seller`-be.
+
+| Mező | XML elem | Leírás |
+| --- | --- | --- |
+| `bank` | `bank` | A bank neve. |
+| `bankAccount` | `bankszamlaszam` | Bankszámlaszám. |
+| `emailReplyTo` | `emailReplyto` | Az értesítő e-mail válaszcíme. |
+| `emailSubject` | `emailTargy` | Az értesítő e-mail tárgya. |
+| `emailText` | `emailSzoveg` | Az értesítő e-mail szövege, lásd [Számlaértesítő](/docs/szamla-letrehozas/beallitasok-es-szabalyok/ertesito-email). |
+| `signatoryName` | `alairoNeve` | Az eladó aláírójának neve. |
+
+## Mellékletek (attachments)
+
+Az értesítő e-mailhez legfeljebb 5 fájlt csatolhatsz, fájlonként legfeljebb 2 MB-ot. A mellékletek csak e-mailben mennek ki, ezért a vevőnek kell e-mail cím, és a `sendEmail` nem lehet `false`.
+
+```ts
+attachments: [
+  { filename: 'aszf.pdf', content: aszfPdf, contentType: 'application/pdf' },
+  { filename: 'garancia.txt', content: 'A termékre 2 év garancia vonatkozik.' },
+]
+```
+
+A `content` lehet `Uint8Array`, `ArrayBuffer`, `Blob` vagy szöveg.
+
+## Fuvarlevél (waybill)
+
+Szállítólevélnél vagy fuvarleveles számlaképnél (`template: 'SzlaFuvarlevelesAlap'`) a `waybill` mező a `fuvarlevel` blokkot tölti ki.
+
+| Mező | XML elem | Leírás |
+| --- | --- | --- |
+| `courier` | `futarSzolgalat` | `'TOF'`, `'PPP'`, `'SPRINTER'`, `'FOXPOST'`, `'MPL'`, `'GLS'` vagy `'EMPTY'`. |
+| `barcode` | `vonalkod` | Általános vonalkód, ha a futárszolgálat saját adatai hiányoznak. |
+| `comment` | `megjegyzes` | Megjegyzés a fuvarlevélen. |
+| `transOFlex` | `tof` | Trans-o-flex adatok: `id`, `shipmentId`, `packageCount`, `countryCode`, `zip`, `service`. |
+| `pickPackPoint` | `ppp` | Pick Pack Pont: `barcodePrefix`, `barcodePostfix`. |
+| `sprinter` | `sprinter` | Sprinter: `id`, `senderCode`, `directionCode`, `packageCount`, `barcodePostfix`, `deliveryTime`. |
+| `mpl` | `mpl` | MPL: `customerCode`, `barcode`, `weight` kötelező, `services`, `declaredValue` opcionális. |
+
+## Könyvelési adatok (ledger)
+
+A könyvelő programba exportált számlákhoz a vevőnél és a tételeknél főkönyvi adatokat is megadhatsz.
+
+| Mező | XML elem | Leírás |
+| --- | --- | --- |
+| `buyer.ledger.bookingDate` | `konyvelesDatum` | Könyvelés dátuma. |
+| `buyer.ledger.buyerId` | `vevoAzonosito` | Vevő azonosító a könyvelésben. |
+| `buyer.ledger.ledgerAccount` | `vevoFokonyviSzam` | Vevő főkönyvi száma. |
+| `buyer.ledger.continuousFulfillment` | `folyamatosTelj` | Folyamatos teljesítés. |
+| `buyer.ledger.settlementPeriodStart`, `settlementPeriodEnd` | `elszDatumTol`, `elszDatumIg` | Elszámolási időszak. |
+| `items[].ledger.economicEvent` | `gazdasagiEsem` | Gazdasági esemény. |
+| `items[].ledger.vatEconomicEvent` | `gazdasagiEsemAfa` | Áfa gazdasági esemény. |
+| `items[].ledger.revenueLedgerAccount` | `arbevetelFokonyviSzam` | Árbevétel főkönyvi szám. |
+| `items[].ledger.vatLedgerAccount` | `afaFokonyviSzam` | Áfa főkönyvi szám. |
+| `items[].ledger.settlementPeriodStart`, `settlementPeriodEnd` | `elszDatumTol`, `elszDatumIg` | A tétel elszámolási időszaka. |
+
+## Speciális mezők
+
+Ezekre a legtöbb integrációnak nincs szüksége. Csak akkor használd őket, ha a könyvelőd vagy a Számlázz.hu ügyfélszolgálata kifejezetten kéri.
+
+| Mező | XML elem | Leírás |
+| --- | --- | --- |
+| `simpleItems` | `simpleItems` | Egyszerűsített számlakép utazásszervezőknek, lásd [Utazásszervezők](/docs/szamla-letrehozas/beallitasok-es-szabalyok/utazasszervezok). |
+| `euVat` | `eusAfa` | A számla nem tartalmaz magyar áfát, lásd [Áfakulcsok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/afakulcsok#közösségi-áfa-euvat). |
+| `marginVat` | `arresAfa` | Árrés alapú (különbözeti) áfa jelölése. |
+| `paymentCorrection` | `fizetendoKorrekcio` | A fizetendő végösszeg korrekciója. |
+| `logoExtra` | `logoExtra` | A fiókba feltöltött további logó neve. |
+| `aggregator` | `aggregator` | Közvetítő (aggregátor) partner azonosítója. |
+| `guardian` | `guardian` | Partneri integrációkhoz használt jelző. |
+| `articleIdentifierInvoice` | `cikkazoninvoice` | Cikkazonosító alapú számlázás jelzője. |
+
+## Amit a kassza a küldés előtt ellenőriz
+
+Ezeknél a hibáknál `validation` kategóriájú `SzamlazzError` jön, és kérés nem megy a Számlázz.hu-hoz:
+
+- hiányzik a vevő neve, irányítószáma, települése vagy címe,
+- nincs tétel, egy tételnek nincs neve vagy mennyiségi egysége, vagy a mennyisége 0,
+- ismeretlen áfakulcs, vagy a `netUnitPrice` és a `grossUnitPrice` egyszerre, vagy egyik sincs megadva,
+- a `dueDate` és a `paymentDueInDays` egyszerre szerepel, vagy egy dátum érvénytelen,
+- forintos számlán árfolyam, devizás számlán árfolyam nélkül nem MNB bank,
+- helyesbítő számla a helyesbített számla száma nélkül, végszámla előlegszámla-szám és rendelésszám nélkül,
+- ismeretlen típus, nyelv vagy számlasablon,
+- `sendEmail: true` e-mail cím nélkül, melléklet e-mail értesítő nélkül, 5-nél több vagy 2 MB-nál nagyobb melléklet,
+- az egyszerűsített számlakép (`simpleItems`) szabályainak megsértése,
+- hiányos MPL fuvarlevél adatok.
+
+## Alapértékek a kliensben
+
+A gyakran ismétlődő mezőket nem kell minden hívásnál megadni. A `createKassza({ defaults: { invoice } })` alapértékei akkor érvényesülnek, ha a hívásban az adott mező hiányzik:
+
+```ts
+const kassza = createKassza({
+  defaults: {
+    invoice: {
+      prefix: 'WEB',
+      paymentDueInDays: 8,
+      language: 'hu',
+      seller: { bankAccount: '11773016-11111018-00000000', emailReplyTo: 'penzugy@example.hu' },
+    },
+  },
+})
+```
+
+Az összes alapértelmezhető mezőt a [Kliens beállítása](/docs/alapok/kliens-beallitasa#alapértelmezések-számlára) oldal sorolja fel.

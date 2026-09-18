@@ -1,0 +1,42 @@
+---
+title: Előnézet
+description: Számla PDF előnézet kiállítás nélkül az invoices.preview() metódussal, például megrendelés jóváhagyásához vagy sablon teszteléséhez.
+---
+
+Az `invoices.preview()` ugyanazt a bemenetet fogadja, mint a `create()`, de **nem állít ki számlát**: a Számlázz.hu elkészíti a PDF-et, a fiókban viszont nem jön létre bizonylat, számlaszám nem fogy, és a NAV-hoz sem megy adat.
+
+```ts title="app/api/elonezet/route.ts"
+import { kassza } from '@/lib/kassza'
+
+export async function POST(request: Request) {
+  const rendeles = await request.json()
+  const elonezet = await kassza.invoices.preview({
+    buyer: rendeles.vevo,
+    items: rendeles.tetelek,
+  })
+  return new Response(new Uint8Array(elonezet.pdf), {
+    headers: { 'Content-Type': 'application/pdf' },
+  })
+}
+```
+
+<Example slug="elonezet" />
+
+## Mire jó?
+
+- A vevő a megrendelés elküldése előtt megnézheti, pontosan milyen számlát kap.
+- Új számlasablont, nyelvet vagy e-mail beállítást próbálhatsz ki anélkül, hogy számlát kellene sztornóznod.
+- Adminfelületen a könyvelő jóváhagyhatja a tételeket a kiállítás előtt.
+
+## Különbségek a create()-hez képest
+
+| | `create()` | `preview()` |
+| --- | --- | --- |
+| Bizonylat a fiókban | Igen | Nem |
+| Visszaadott típus | `CreatedInvoice` | `InvoicePreview` |
+| Számlaszám | Van | Nincs |
+| PDF | Ha `downloadPdf` nem `false` | Mindig |
+| E-mail értesítő és mellékletek | Igen | Nem, a mellékleteket el sem küldi |
+| Validáció és kerekítés | Igen | Ugyanaz |
+
+A kassza előnézetnél az `elonezetpdf` elemet teszi a kérés fejlécébe, és mindig kéri a PDF-et. Az előnézetet sem próbálja újra magától, mert ugyanazt a műveletet hívja, mint a számlakészítés.

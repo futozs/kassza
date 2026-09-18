@@ -1,0 +1,96 @@
+---
+title: Kliens beállítása
+description: A createKassza() összes opciója, az alapértelmezések, az időkorlát, az újrapróbálás és a hookok.
+---
+
+A kasszát a `createKassza()` függvénnyel hozod létre. Egy folyamatban (process) elég egyszer létrehozni és újrahasznosítani, így a session cookie is megmarad a hívások között.
+
+```ts title="lib/kassza.ts"
+import { createKassza } from 'kassza'
+
+export const kassza = createKassza({
+  defaults: {
+    invoice: {
+      prefix: 'WEB',
+      paymentDueInDays: 8,
+      seller: { emailReplyTo: 'penzugy@example.hu', emailSubject: 'Elkészült a számlád' },
+    },
+    receipt: { prefix: 'NYGT', paymentMethod: 'bankkártya' },
+  },
+})
+```
+
+## Opciók
+
+| Opció | Típus | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `agentKey` | `string` | `SZAMLAZZ_AGENT_KEY` | Az Agent kulcs. Csak kisbetűs lehet. |
+| `username`, `password` | `string` | – | Régi hitelesítés Agent kulcs helyett. |
+| `defaults.invoice` | `InvoiceDefaults` | `{}` | Minden számlára érvényes alapértékek. |
+| `defaults.receipt` | `ReceiptDefaults` | `{}` | Minden nyugtára érvényes alapértékek. |
+| `cookieStore` | `CookieStore \| false` | memóriában | A session cookie tárolója. `false` kikapcsolja. |
+| `timeoutMs` | `number` | `60000` | Egy kérés időkorlátja milliszekundumban. |
+| `maxAttempts` | `number` | `3` | Próbálkozások száma biztonságos műveleteknél, legfeljebb `5`. |
+| `retryDelayMs` | `number` | `1000` | Az első újrapróbálás előtti várakozás, utána duplázódik. |
+| `fetch` | `typeof fetch` | `globalThis.fetch` | Egyedi fetch, például proxyhoz vagy teszthez. |
+| `endpoint` | `string` | `https://www.szamlazz.hu/szamla/` | Az Agent címe. |
+| `hooks` | `SzamlazzHooks` | – | Naplózási események, lásd lent. |
+
+## Alapértelmezések számlára
+
+A `defaults.invoice` mezői akkor érvényesülnek, ha a hívásban nem adod meg őket. A hívásban megadott érték mindig felülírja az alapértéket.
+
+| Mező | Leírás |
+| --- | --- |
+| `prefix` | Számlaszám előtag, például `WEB` |
+| `paymentDueInDays` | Fizetési határidő napokban a kelttől |
+| `paymentMethod` | Fizetési mód, például `átutalás` |
+| `currency`, `exchangeBank` | Pénznem és árfolyamot jegyző bank |
+| `language` | A számla nyelve |
+| `template` | Számlasablon |
+| `eInvoice`, `downloadPdf` | E-számla és PDF letöltés |
+| `sendEmail` | Küldjön-e értesítőt, ha a vevőnek van e-mail címe |
+| `seller` | Bank, bankszámla, válaszcím, e-mail tárgy és szöveg, aláíró |
+| `simpleItems`, `euVat`, `logoExtra`, `aggregator`, `guardian`, `articleIdentifierInvoice` | Speciális beállítások |
+
+## Alapértelmezések nyugtára
+
+| Mező | Leírás |
+| --- | --- |
+| `prefix` | Nyugta előtag, csak nagybetű és szám |
+| `paymentMethod` | Fizetési mód, nyugtánál nincs beépített alapértéke |
+| `currency`, `exchangeRate`, `exchangeBank` | Pénznem és árfolyam |
+| `downloadPdf`, `template` | PDF letöltés és PDF sablon |
+| `unit` | Alapértelmezett mennyiségi egység |
+| `customerLedgerId` | Vevő főkönyvi azonosító |
+
+## Időkorlát és megszakítás
+
+Minden metódus utolsó, opcionális paramétere egy `{ signal }` objektum. A saját `AbortSignal`-od és a kliens `timeoutMs` beállítása közül az hat, amelyik előbb lejár.
+
+```ts
+const { pdf } = await kassza.invoices.getPdf('WEB-2026-12', {
+  signal: AbortSignal.timeout(5_000),
+})
+```
+
+Időtúllépésnél `timeout` kategóriájú hibát kapsz. Ha te szakítod meg a kérést, a signal eredeti oka dobódik tovább.
+
+## Hookok
+
+A hookokkal naplózhatod és mérheted a Számla Agent hívásokat. A hookok soha nem kapják meg az Agent kulcsot és az XML tartalmát. Futtatható példát a [Hálózat és biztonság](/docs/alapok/halozat-es-biztonsag#újrapróbálás-és-naplózás) oldalon találsz.
+
+```ts
+const kassza = createKassza({
+  hooks: {
+    onRequest: ({ action, attempt }) => logger.debug({ action, attempt }),
+    onResponse: ({ action, status, durationMs }) => logger.info({ action, status, durationMs }),
+    onError: ({ action, error, willRetry }) =>
+      logger.warn({ action, code: error.code, category: error.category, willRetry }),
+  },
+})
+```
+
+## Serverless és edge
+
+Serverless függvényekben minden hideg indítás új memóriát kap, ezért a memóriában tárolt session cookie elveszhet. Ilyenkor adj meg közös tárolót a `cookieStore` opcióval, lásd a [Munkamenet](/docs/alapok/munkamenet) oldalt.

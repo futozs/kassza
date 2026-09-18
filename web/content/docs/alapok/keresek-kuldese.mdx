@@ -1,0 +1,112 @@
+---
+title: Kérések küldése
+description: A Számla Agent egyetlen végpontja, a műveletek form mezői, a multipart kérés felépítése és amit a kassza ebből elvégez helyetted.
+official: https://docs.szamlazz.hu/hu/agent/basics/sending-requests
+---
+
+A Számla Agent minden művelete ugyanarra a címre érkezik: `https://www.szamlazz.hu/szamla/`. Hogy melyik műveletet kéred, azt nem az URL, hanem a `multipart/form-data` kérésben küldött XML fájl form mezőjének neve dönti el.
+
+## Műveletek és form mezők
+
+A kasszában nem kell form mezőkkel foglalkoznod, minden műveletnek saját metódusa van. A táblázat azt is mutatja, melyik hívást próbálja újra a kassza hálózati hiba esetén.
+
+<ActionTable />
+
+## Mit küld el a kassza?
+
+Egy számlakészítés a hálózaton nagyjából így néz ki. Az XML fájlként megy, nem szöveges mezőként. Ha szöveges mezőként küldenéd, a Számlázz.hu 53-as hibával válaszolna.
+
+```http
+POST /szamla/ HTTP/1.1
+Host: www.szamlazz.hu
+Accept: application/xml, application/pdf, text/plain, */*
+Cookie: JSESSIONID=…
+Content-Type: multipart/form-data; boundary=----kassza
+
+------kassza
+Content-Disposition: form-data; name="action-xmlagentxmlfile"; filename="request.xml"
+Content-Type: text/xml; charset=UTF-8
+
+<?xml version="1.0" encoding="UTF-8"?>
+<xmlszamla xmlns="http://www.szamlazz.hu/xmlszamla" …>
+  <beallitasok>…</beallitasok>
+  <fejlec>…</fejlec>
+  <elado>…</elado>
+  <vevo>…</vevo>
+  <tetelek>…</tetelek>
+</xmlszamla>
+------kassza--
+```
+
+Mellékletnél a fájlok `attachfile1`, `attachfile2` és így tovább nevű mezőkben mennek, legfeljebb 5 darab, darabonként legfeljebb 2 MB.
+
+<Callout type="tip">
+  A [sandboxban](/sandbox) minden futtatás után a Hálózat fülön látod a ténylegesen elküldött XML-t
+  és a szimulált választ.
+</Callout>
+
+## Egy XML, egy bizonylat
+
+Egy kérés pontosan egy számlát vagy nyugtát hoz létre. Több bizonylatot egymás után, külön hívásokkal állíts ki. Tömeges számlázásnál ne indíts egyszerre sok párhuzamos kérést, mert a Számlázz.hu a túlzott terhelést kitiltással büntetheti.
+
+```ts
+for (const rendeles of kiszamlazando) {
+  await szamlaz(rendeles)
+}
+```
+
+## Elgépelt mezőnevek
+
+Az Agent XML elemnevei kis- és nagybetűérzékenyek, és a sorrendjük is kötött. Egy elgépelt elemnév 57-es hibát okoz, vagy ami rosszabb, a számla elkészül, de a kért beállítás csendben elmarad. A kasszában ilyen hiba nem fordulhat elő: az XML-t típusos objektumból, az XSD szerinti sorrendben építi fel, az elgépelt mezőnevet pedig már a TypeScript jelzi.
+
+```ts twoslash
+// @errors: 2561
+import { createKassza } from 'kassza'
+
+const kassza = createKassza({ agentKey: 'kulcs' })
+
+await kassza.invoices.create({
+  buyer: { name: 'Vevő Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+  items: [{ name: 'Tanácsadás', netUnitPrice: 20_000, vat: 27 }],
+  simpleitems: true,
+})
+```
+
+## Válaszformátum
+
+A Számla Agent a kérés `valaszVerzio` értékétől függően szöveggel, PDF-fel vagy XML-lel válaszol. A kassza mindig az XML választ kéri, mert abban a számlaszám, az összegek és, ha kérted, a Base64 kódolású PDF is benne van. Te ebből típusos objektumot kapsz, a PDF pedig `Uint8Array` lesz.
+
+## Tesztelés
+
+Tesztfiókban 10 percenként legfeljebb 500 számlát készíthetsz. Fejlesztés közben ez bőven elég, automata tesztekhez viszont a [`kassza/testing`](/docs/kiegeszitok/teszteles) mock kliensét használd.
+
+## Több webshop egy fiókban
+
+Ha ugyanabból a Számlázz.hu fiókból több webshop számláz, adj mindegyiknek saját számlaszám előtagot. Az előtagot előbb a Számlázz.hu felületén, a Beállítások / Előtagok menüpontban kell rögzíteni, különben 202-es hibát kapsz.
+
+```ts
+export const webshopKassza = createKassza({ defaults: { invoice: { prefix: 'WEB' } } })
+export const piaciKassza = createKassza({ defaults: { invoice: { prefix: 'PIAC' } } })
+```
+
+## Alacsony szintű konstansok
+
+Saját eszközökhöz a kassza a nyers értékeket is exportálja a `kassza` csomagból:
+
+| Konstans | Érték |
+| --- | --- |
+| `SZAMLAZZ_AGENT_URL` | `'https://www.szamlazz.hu/szamla/'` |
+| `AGENT_ACTIONS` | A művelet és a form mező párjai, például `createInvoice: 'action-xmlagentxmlfile'` |
+| `MAX_INVOICE_ATTACHMENTS` | `5` |
+| `AGENT_ERROR_CODES` | Az ismert hibakódok üzenettel, kategóriával és tippel |
+
+## Következő lépések
+
+<Cards>
+  <Card title="Számla létrehozás" href="/docs/szamla-letrehozas">
+    Az első számla minden mezővel és szabállyal.
+  </Card>
+  <Card title="Munkamenet (session cookie)" href="/docs/alapok/munkamenet">
+    Gyorsabb kérések a munkamenet újrahasznosításával.
+  </Card>
+</Cards>

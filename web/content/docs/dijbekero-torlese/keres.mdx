@@ -1,0 +1,47 @@
+---
+title: Kérés
+description: Az invoices.deleteProforma() bemenete, a díjbekérő három hivatkozási formája és a Számla Agent xmlszamladbkdel XML elemei.
+official: https://docs.szamlazz.hu/hu/agent/deleting_pro_forma_invoice/request
+---
+
+```ts
+kassza.invoices.deleteProforma(reference: ProformaReference, options?: { signal?: AbortSignal }): Promise<void>
+```
+
+A kassza `xmlszamladbkdel` XML-t küld az `action-szamla_agent_dijbekero_torlese` form mezőben. A díjbekérőt a számával vagy a rendelésszámával azonosítod:
+
+<Tabs items={['Díjbekérőszám', 'proformaNumber', 'orderNumber']} groupId="dijbekero-hivatkozas">
+  <Tab value="Díjbekérőszám">
+    ```ts
+    await kassza.invoices.deleteProforma('D-2026-77')
+    ```
+  </Tab>
+  <Tab value="proformaNumber">
+    ```ts
+    await kassza.invoices.deleteProforma({ proformaNumber: 'D-2026-77' })
+    ```
+  </Tab>
+  <Tab value="orderNumber">
+    ```ts
+    await kassza.invoices.deleteProforma({ orderNumber: 'NEV-2026-077' })
+    ```
+  </Tab>
+</Tabs>
+
+## Mezők
+
+| Hivatkozás | XML elem | Leírás |
+| --- | --- | --- |
+| `string` | `fejlec/szamlaszam` | A díjbekérő száma. |
+| `{ proformaNumber }` | `fejlec/szamlaszam` | Ugyanez objektumként. |
+| `{ orderNumber }` | `fejlec/rendelesszam` | A díjbekérő rendelésszáma. |
+
+A `beallitasok` blokkba a kassza a hitelesítési adatokat írja: az Agent kulcsot (`szamlaagentkulcs`), vagy a felhasználónevet és a jelszót (`felhasznalo`, `jelszo`), lásd [Hitelesítés](/docs/alapok/hitelesites). Más beállítása ennek a kérésnek nincs.
+
+## Szabályok
+
+- Pontosan egy azonosítót adj meg. Üres szövegre, üres objektumra, vagy ha a `proformaNumber` és az `orderNumber` is szerepel, a kassza `validation` hibát dob, és nem küld kérést.
+- Az értékek elejéről és végéről a kassza levágja a szóközöket.
+- Az XML elem itt kisbetűs `rendelesszam`, nem a számlakészítésnél használt `rendelesSzam`. A kassza ezt magától kezeli, csak a nyers XML összevetésénél számít.
+- Rendelésszám alapján a Számlázz.hu a fiók összes ilyen rendelésszámú díjbekérőjét törli.
+- A kassza a törlést **soha nem próbálja újra** magától, hálózati hiba vagy időtúllépés után sem. Hogy ilyenkor mit tegyél, a [Válasz](/docs/dijbekero-torlese/valasz#hálózati-hiba-után) oldal írja le.

@@ -1,0 +1,31 @@
+---
+title: Adószám lekérdezés
+description: Magyar adózó adatainak lekérdezése a NAV-tól törzsszám vagy adószám alapján, a kassza taxpayer.query() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/querying-taxpayer
+---
+
+A Számla Agenten keresztül a NAV Online Számla rendszerétől is kérdezhetsz: egy törzsszámról megtudod, hogy érvényes-e az adószám, és ha igen, megkapod az adózó nevét, teljes adószámát és címeit. A kasszában ezt a `taxpayer.query()` végzi. Akkor hasznos, ha a vevő csak az adószámát írja be, a számla többi adatát pedig a válaszból töltöd ki.
+
+```ts
+const ceg = await kassza.taxpayer.query('12345676-2-41')
+
+if (ceg.valid) console.log(ceg.name, ceg.address?.formatted)
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/adoszam-lekerdezes/keres">
+    Az elfogadott adószám formátumok, az xmltaxpayer XML és az előellenőrzés.
+  </Card>
+  <Card title="Válasz" href="/docs/adoszam-lekerdezes/valasz">
+    A TaxpayerInfo és a TaxpayerAddress mezői, a vevő kitöltése és a hibák.
+  </Card>
+  <Card title="Minta" href="/docs/adoszam-lekerdezes/minta">
+    Adószám lekérdezése és a vevő összerakása a sandboxban.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="A lekérdezés a szerveren fusson">
+  A `taxpayer.query()` az Agent kulcsoddal hív, ezért böngészőből ne használd. A böngészőben csak az
+  adószám formátumát ellenőrizd a `kassza/validators` modullal, lásd
+  [Előellenőrzés az űrlapon](/docs/adoszam-lekerdezes/keres#előellenőrzés-az-űrlapon).
+</Callout>
