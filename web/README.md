@@ -112,12 +112,12 @@ Egy sandbox példa a `<Example slug="szamla" />` komponenssel ágyazható be; ez
 
 Mindegyik statikusan, a build során készül. Az abszolút URL-ek alapja a `lib/site.ts`-ben dől el: `NEXT_PUBLIC_SITE_URL`, ennek hiányában Vercelen a `VERCEL_PROJECT_PRODUCTION_URL`, helyben `http://localhost:3000`. Az OG képek betűtípusait (Bricolage Grotesque, Geist, Geist Mono) a build a Google Fontsból tölti le.
 
-## Deploy (GitHub Pages)
+## Deploy (Vercel)
 
-A `main` ágra pusholt minden commit után a `.github/workflows/web.yml` lefuttatja a web lintet, típusellenőrzést, teszteket és statikus exportot, majd siker esetén automatikusan közzéteszi a `web/out` tartalmát a GitHub Pages-en.
+A `main` ágra pusholt minden commit után a `.github/workflows/nextjs.yml` lefuttatja a web lintet, típusellenőrzést és teszteket, majd natív Next.js SSR buildet készít és Vercelre telepít. A Next.js build részeként a sandbox runtime is elkészül.
 
-Az oldal címe: `https://futozs.github.io/kassza/`. Első alkalommal a repository `Settings > Pages` részén engedélyezd a GitHub Pages-t, majd a `Build and deployment > Source` értékét állítsd `GitHub Actions`-re. Ezt a repository `GITHUB_TOKEN`-je nem tudja automatikusan létrehozni. Ezután a workflow automatikusan telepít minden sikeres `main` buildet.
+A workflow-hoz a repository Settings > Secrets and variables > Actions részén ezeket a repository secret-eket kell felvenni: `VERCEL_TOKEN`, `VERCEL_ORG_ID` és `VERCEL_PROJECT_ID`. Ezek a Vercel projekt tokenjéből, szervezetazonosítójából és projektazonosítójából származnak.
 
-A GitHub Pages statikus hosting miatt a web Next.js export módban készül, `/kassza` base path-tal. A Markdown runtime route-ok nem részei ennek az exportnak. Az „Utoljára frissítve” dátumokat és a sitemap `lastModified` értékeit a build a git előzményből olvassa, ezért a CI teljes előzménnyel (`fetch-depth: 0`) klónoz.
+A GitHub Pages workflow (`web.yml`) szándékosan csak kézi indításra van állítva. A GitHub Pages nem futtat Node.js szervert, ezért natív SSR-rel és működő sandbox runtime-mal nem kompatibilis. Az „Utoljára frissítve” dátumokat és a sitemap `lastModified` értékeit a build a git előzményből olvassa, ezért a workflow teljes előzménnyel (`fetch-depth: 0`) klónoz.
 
 A csomag saját CI-ja (`ci.yml`) és kiadási folyamata (`release.yml`) a `web/` változásait figyelmen kívül hagyja.

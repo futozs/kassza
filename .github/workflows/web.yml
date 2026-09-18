@@ -1,18 +1,16 @@
 name: Web
 
 on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-    paths: ['web/**', '.github/workflows/web.yml']
+  workflow_dispatch:
 
 permissions:
   contents: read
+  pages: write
+  id-token: write
 
 concurrency:
-  group: web-${{ github.ref }}
-  cancel-in-progress: true
+  group: pages
+  cancel-in-progress: false
 
 jobs:
   check:
@@ -61,9 +59,6 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: check
     runs-on: ubuntu-24.04
-    permissions:
-      pages: write
-      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
