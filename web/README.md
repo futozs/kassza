@@ -112,11 +112,12 @@ Egy sandbox példa a `<Example slug="szamla" />` komponenssel ágyazható be; ez
 
 Mindegyik statikusan, a build során készül. Az abszolút URL-ek alapja a `lib/site.ts`-ben dől el: `NEXT_PUBLIC_SITE_URL`, ennek hiányában Vercelen a `VERCEL_PROJECT_PRODUCTION_URL`, helyben `http://localhost:3000`. Az OG képek betűtípusait (Bricolage Grotesque, Geist, Geist Mono) a build a Google Fontsból tölti le.
 
-## Deploy (Vercel)
+## Deploy (GitHub Pages)
 
-1. Importáld a repót a Vercelen, és a **Root Directory** legyen `web`.
-2. A keretrendszer Next.js, a build parancs az alapértelmezett `npm run build` (ez a sandboxot is legenerálja), a Node.js verzió 22 vagy újabb.
-3. Környezeti változó: `NEXT_PUBLIC_SITE_URL` a végleges domainnel, protokollal együtt (`https://<domain>`). Ha nincs megadva, a projekt Vercel production domainje (`VERCEL_PROJECT_PRODUCTION_URL`) lesz az alap; a változóval ez felülírható, ha a canonical URL-eknek más domainre kell mutatniuk.
-4. Az „Utoljára frissítve” dátumokat és a sitemap `lastModified` értékeit a build a git előzményből olvassa. Sekély klónnál egyes dátumok pontatlanok lehetnek, ezért a CI teljes előzménnyel (`fetch-depth: 0`) klónoz.
+A `main` ágra pusholt minden commit után a `.github/workflows/web.yml` lefuttatja a web lintet, típusellenőrzést, teszteket és statikus exportot, majd siker esetén automatikusan közzéteszi a `web/out` tartalmát a GitHub Pages-en.
 
-A `.github/workflows/web.yml` minden `web/**` változásnál lefuttatja a lintet, a típusellenőrzést, a teszteket és a buildet. A csomag saját CI-ja (`ci.yml`) és kiadási folyamata (`release.yml`) a `web/` változásait figyelmen kívül hagyja.
+Az oldal címe: `https://futozs.github.io/kassza/`. A workflow a repository Pages beállítását `GitHub Actions` forrásként használja; ezt a repository `Settings > Pages > Build and deployment` részén kell egyszer kiválasztani.
+
+A GitHub Pages statikus hosting miatt a web Next.js export módban készül, `/kassza` base path-tal. A Markdown runtime route-ok nem részei ennek az exportnak. Az „Utoljára frissítve” dátumokat és a sitemap `lastModified` értékeit a build a git előzményből olvassa, ezért a CI teljes előzménnyel (`fetch-depth: 0`) klónoz.
+
+A csomag saját CI-ja (`ci.yml`) és kiadási folyamata (`release.yml`) a `web/` változásait figyelmen kívül hagyja.
