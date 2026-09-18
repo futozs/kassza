@@ -68,11 +68,6 @@ jobs:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: GitHub Pages beállítása
-        uses: actions/configure-pages@v5
-        with:
-          enablement: true
-
       - name: GitHub Pages telepítése
         id: deployment
         uses: actions/deploy-pages@v4
