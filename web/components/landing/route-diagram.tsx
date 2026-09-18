@@ -1,3 +1,5 @@
+import type { CSSProperties, ReactNode } from 'react'
+import { InView } from './in-view'
 import {
   Arrow,
   BracesGlyph,
@@ -130,11 +132,19 @@ function CookieChip({ x, y }: { x: number; y: number }) {
   )
 }
 
-function KasszaChecklist({ x, y }: { x: number; y: number }) {
+function Step({ index, children }: { index: number; children: ReactNode }) {
+  return (
+    <g className="motion-rise" style={{ '--step': index } as CSSProperties}>
+      {children}
+    </g>
+  )
+}
+
+function KasszaChecklist({ x, y, step }: { x: number; y: number; step: number }) {
   return (
     <g>
-      {KASSZA_STEPS.map((step, index) => (
-        <g key={step}>
+      {KASSZA_STEPS.map((item, index) => (
+        <Step key={item} index={step + index}>
           <CheckMark x={x} y={y + index * 26 - 11} size={12} />
           <text
             x={x + 22}
@@ -143,9 +153,9 @@ function KasszaChecklist({ x, y }: { x: number; y: number }) {
             fontSize={13.5}
             fontFamily={svgFont.sans}
           >
-            {step}
+            {item}
           </text>
-        </g>
+        </Step>
       ))}
     </g>
   )
@@ -162,86 +172,106 @@ function WideRoute() {
       <title id="route-wide-title">{TITLE}</title>
       <desc id="route-wide-desc">{DESCRIPTION}</desc>
 
-      <path
-        d="M810 196 V288 H90 V205"
-        fill="none"
-        stroke={svgTone.accent}
-        strokeWidth={1.5}
-        strokeDasharray="5 5"
-      />
-      <Arrow x1={90} y1={214} x2={90} y2={198} color={svgTone.accent} />
-      <Label x={450} y={278} mono={false} size={13} tone={svgTone.ink2}>
-        fizetés után: IPN értesítés a szerverednek (kassza/ipn)
-      </Label>
+      <Step index={13}>
+        <path
+          d="M810 196 V288 H90 V205"
+          fill="none"
+          stroke={svgTone.accent}
+          strokeWidth={1.5}
+          strokeDasharray="5 5"
+        />
+        <Arrow x1={90} y1={214} x2={90} y2={198} color={svgTone.accent} />
+        <Label x={450} y={278} mono={false} size={13} tone={svgTone.ink2}>
+          fizetés után: IPN értesítés a szerverednek (kassza/ipn)
+        </Label>
+      </Step>
 
-      <Station x={0} y={64} width={180} height={132} />
-      <BracesGlyph x={20} y={84} size={22} />
-      <Title x={20} y={140}>
-        A kódod
-      </Title>
-      <Label x={20} y={163} anchor="start">
-        invoices.create()
-      </Label>
-      <Label x={20} y={182} anchor="start" tone={svgTone.muted} mono={false} size={12.5}>
-        típusos objektum
-      </Label>
+      <Step index={0}>
+        <Station x={0} y={64} width={180} height={132} />
+        <BracesGlyph x={20} y={84} size={22} />
+        <Title x={20} y={140}>
+          A kódod
+        </Title>
+        <Label x={20} y={163} anchor="start">
+          invoices.create()
+        </Label>
+        <Label x={20} y={182} anchor="start" tone={svgTone.muted} mono={false} size={12.5}>
+          típusos objektum
+        </Label>
+      </Step>
 
-      <Station x={290} y={40} width={260} height={180} emphasis />
-      <Title x={312} y={76} size={20}>
-        kassza
-      </Title>
-      <KasszaChecklist x={312} y={112} />
+      <Step index={2}>
+        <Station x={290} y={40} width={260} height={180} emphasis />
+        <Title x={312} y={76} size={20}>
+          kassza
+        </Title>
+      </Step>
+      <KasszaChecklist x={312} y={112} step={3} />
 
-      <Station x={700} y={64} width={220} height={132} external />
-      <Title x={720} y={100}>
-        Számlázz.hu
-      </Title>
-      <Label x={720} y={122} anchor="start" tone={svgTone.muted} mono={false} size={13}>
-        Számla Agent
-      </Label>
-      <Label x={720} y={156} anchor="start" mono={false} size={13}>
-        kiállítja a számlát
-      </Label>
-      <Label x={720} y={176} anchor="start" mono={false} size={13}>
-        XML választ és PDF-et ad
-      </Label>
+      <Step index={8}>
+        <Station x={700} y={64} width={220} height={132} external />
+        <Title x={720} y={100}>
+          Számlázz.hu
+        </Title>
+        <Label x={720} y={122} anchor="start" tone={svgTone.muted} mono={false} size={13}>
+          Számla Agent
+        </Label>
+        <Label x={720} y={156} anchor="start" mono={false} size={13}>
+          kiállítja a számlát
+        </Label>
+        <Label x={720} y={176} anchor="start" mono={false} size={13}>
+          XML választ és PDF-et ad
+        </Label>
+      </Step>
 
-      <Station x={1030} y={64} width={170} height={132} />
-      <EnvelopeGlyph x={1050} y={84} />
-      <Title x={1050} y={140}>
-        A vevő
-      </Title>
-      <Label x={1050} y={163} anchor="start" mono={false} size={13}>
-        e-mailben kapja
-      </Label>
-      <Label x={1050} y={182} anchor="start" tone={svgTone.muted} size={12}>
-        buyer.email
-      </Label>
+      <Step index={12}>
+        <Station x={1030} y={64} width={170} height={132} />
+        <EnvelopeGlyph x={1050} y={84} />
+        <Title x={1050} y={140}>
+          A vevő
+        </Title>
+        <Label x={1050} y={163} anchor="start" mono={false} size={13}>
+          e-mailben kapja
+        </Label>
+        <Label x={1050} y={182} anchor="start" tone={svgTone.muted} size={12}>
+          buyer.email
+        </Label>
+      </Step>
 
-      <Arrow x1={184} y1={104} x2={286} y2={104} color={svgTone.ink2} />
-      <Label x={235} y={94}>
-        objektum
-      </Label>
-      <Arrow x1={286} y1={164} x2={184} y2={164} />
-      <Label x={235} y={184} tone={svgTone.muted}>
-        eredmény
-      </Label>
+      <Step index={1}>
+        <Arrow x1={184} y1={104} x2={286} y2={104} color={svgTone.ink2} />
+        <Label x={235} y={94}>
+          objektum
+        </Label>
+      </Step>
+      <Step index={10}>
+        <Arrow x1={286} y1={164} x2={184} y2={164} />
+        <Label x={235} y={184} tone={svgTone.muted}>
+          eredmény
+        </Label>
+      </Step>
 
-      <Arrow x1={554} y1={104} x2={696} y2={104} color={svgTone.ink2} />
-      <Label x={625} y={94}>
-        POST · XML
-      </Label>
-      <CookieChip x={579} y={116} />
-      <Arrow x1={696} y1={164} x2={554} y2={164} />
-      <Label x={625} y={184} tone={svgTone.muted}>
-        XML + PDF
-      </Label>
+      <Step index={7}>
+        <Arrow x1={554} y1={104} x2={696} y2={104} color={svgTone.ink2} />
+        <Label x={625} y={94}>
+          POST · XML
+        </Label>
+        <CookieChip x={579} y={116} />
+      </Step>
+      <Step index={9}>
+        <Arrow x1={696} y1={164} x2={554} y2={164} />
+        <Label x={625} y={184} tone={svgTone.muted}>
+          XML + PDF
+        </Label>
+      </Step>
 
-      <Arrow x1={924} y1={130} x2={1026} y2={130} color={svgTone.ink2} />
-      <ReceiptGlyph x={961} y={78} width={28} height={36} />
-      <Label x={975} y={152} tone={svgTone.muted}>
-        e-mail
-      </Label>
+      <Step index={11}>
+        <Arrow x1={924} y1={130} x2={1026} y2={130} color={svgTone.ink2} />
+        <ReceiptGlyph x={961} y={78} width={28} height={36} />
+        <Label x={975} y={152} tone={svgTone.muted}>
+          e-mail
+        </Label>
+      </Step>
     </svg>
   )
 }
@@ -257,82 +287,102 @@ function NarrowRoute() {
       <title id="route-narrow-title">{TITLE}</title>
       <desc id="route-narrow-desc">{DESCRIPTION}</desc>
 
-      <path
-        d="M36 442 H12 V50 H26"
-        fill="none"
-        stroke={svgTone.accent}
-        strokeWidth={1.5}
-        strokeDasharray="5 5"
-      />
-      <Arrow x1={22} y1={50} x2={34} y2={50} color={svgTone.accent} />
-      <text
-        x={28}
-        y={246}
-        transform="rotate(-90 28 246)"
-        textAnchor="middle"
-        fill={svgTone.ink2}
-        fontSize={11.5}
-        fontFamily={svgFont.sans}
-      >
-        IPN értesítés fizetéskor
-      </text>
+      <Step index={13}>
+        <path
+          d="M36 442 H12 V50 H26"
+          fill="none"
+          stroke={svgTone.accent}
+          strokeWidth={1.5}
+          strokeDasharray="5 5"
+        />
+        <Arrow x1={22} y1={50} x2={34} y2={50} color={svgTone.accent} />
+        <text
+          x={28}
+          y={246}
+          transform="rotate(-90 28 246)"
+          textAnchor="middle"
+          fill={svgTone.ink2}
+          fontSize={11.5}
+          fontFamily={svgFont.sans}
+        >
+          IPN értesítés fizetéskor
+        </text>
+      </Step>
 
-      <Station x={36} y={8} width={264} height={84} />
-      <Title x={54} y={44} size={16}>
-        A kódod
-      </Title>
-      <Label x={54} y={70} anchor="start">
-        invoices.create()
-      </Label>
-      <BracesGlyph x={258} y={30} size={20} />
+      <Step index={0}>
+        <Station x={36} y={8} width={264} height={84} />
+        <Title x={54} y={44} size={16}>
+          A kódod
+        </Title>
+        <Label x={54} y={70} anchor="start">
+          invoices.create()
+        </Label>
+        <BracesGlyph x={258} y={30} size={20} />
+      </Step>
 
-      <Arrow x1={150} y1={94} x2={150} y2={146} color={svgTone.ink2} />
-      <Label x={142} y={126} anchor="end">
-        objektum
-      </Label>
-      <Arrow x1={214} y1={146} x2={214} y2={94} />
-      <Label x={222} y={126} anchor="start" tone={svgTone.muted}>
-        eredmény
-      </Label>
+      <Step index={1}>
+        <Arrow x1={150} y1={94} x2={150} y2={146} color={svgTone.ink2} />
+        <Label x={142} y={126} anchor="end">
+          objektum
+        </Label>
+      </Step>
+      <Step index={10}>
+        <Arrow x1={214} y1={146} x2={214} y2={94} />
+        <Label x={222} y={126} anchor="start" tone={svgTone.muted}>
+          eredmény
+        </Label>
+      </Step>
 
-      <Station x={36} y={150} width={264} height={172} emphasis />
-      <Title x={54} y={182} size={18}>
-        kassza
-      </Title>
-      <KasszaChecklist x={54} y={212} />
+      <Step index={2}>
+        <Station x={36} y={150} width={264} height={172} emphasis />
+        <Title x={54} y={182} size={18}>
+          kassza
+        </Title>
+      </Step>
+      <KasszaChecklist x={54} y={212} step={3} />
 
-      <Arrow x1={150} y1={324} x2={150} y2={396} color={svgTone.ink2} />
-      <Label x={142} y={348} anchor="end">
-        POST · XML
-      </Label>
-      <CookieChip x={48} y={360} />
-      <Arrow x1={214} y1={396} x2={214} y2={324} />
-      <Label x={222} y={366} anchor="start" tone={svgTone.muted}>
-        XML + PDF
-      </Label>
+      <Step index={7}>
+        <Arrow x1={150} y1={324} x2={150} y2={396} color={svgTone.ink2} />
+        <Label x={142} y={348} anchor="end">
+          POST · XML
+        </Label>
+        <CookieChip x={48} y={360} />
+      </Step>
+      <Step index={9}>
+        <Arrow x1={214} y1={396} x2={214} y2={324} />
+        <Label x={222} y={366} anchor="start" tone={svgTone.muted}>
+          XML + PDF
+        </Label>
+      </Step>
 
-      <Station x={36} y={400} width={264} height={84} external />
-      <Title x={54} y={432} size={16}>
-        Számlázz.hu
-      </Title>
-      <Label x={54} y={458} anchor="start" tone={svgTone.muted} mono={false} size={12.5}>
-        Számla Agent: kiállítja a számlát
-      </Label>
+      <Step index={8}>
+        <Station x={36} y={400} width={264} height={84} external />
+        <Title x={54} y={432} size={16}>
+          Számlázz.hu
+        </Title>
+        <Label x={54} y={458} anchor="start" tone={svgTone.muted} mono={false} size={12.5}>
+          Számla Agent: kiállítja a számlát
+        </Label>
+      </Step>
 
-      <Arrow x1={150} y1={486} x2={150} y2={556} color={svgTone.ink2} />
-      <ReceiptGlyph x={166} y={502} width={26} height={34} />
-      <Label x={142} y={526} anchor="end" tone={svgTone.muted}>
-        e-mail
-      </Label>
+      <Step index={11}>
+        <Arrow x1={150} y1={486} x2={150} y2={556} color={svgTone.ink2} />
+        <ReceiptGlyph x={166} y={502} width={26} height={34} />
+        <Label x={142} y={526} anchor="end" tone={svgTone.muted}>
+          e-mail
+        </Label>
+      </Step>
 
-      <Station x={36} y={560} width={264} height={84} />
-      <Title x={54} y={592} size={16}>
-        A vevő
-      </Title>
-      <Label x={54} y={618} anchor="start" mono={false} size={12.5}>
-        e-mailben megkapja a számlát
-      </Label>
-      <EnvelopeGlyph x={258} y={580} width={26} height={18} />
+      <Step index={12}>
+        <Station x={36} y={560} width={264} height={84} />
+        <Title x={54} y={592} size={16}>
+          A vevő
+        </Title>
+        <Label x={54} y={618} anchor="start" mono={false} size={12.5}>
+          e-mailben megkapja a számlát
+        </Label>
+        <EnvelopeGlyph x={258} y={580} width={26} height={18} />
+      </Step>
     </svg>
   )
 }
@@ -340,8 +390,10 @@ function NarrowRoute() {
 export function RouteDiagram() {
   return (
     <figure className="m-0 min-w-0">
-      <WideRoute />
-      <NarrowRoute />
+      <InView>
+        <WideRoute />
+        <NarrowRoute />
+      </InView>
       <figcaption className="mt-5 max-w-[68ch] text-sm leading-relaxed text-muted">
         A szaggatott vonal később jön: amikor a vevő fizet, a Számlázz.hu értesíti a szerveredet, a{' '}
         <code className="font-mono text-[0.85em] text-ink-2">kassza/ipn</code> pedig feldolgozza.

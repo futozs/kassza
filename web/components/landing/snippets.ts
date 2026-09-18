@@ -13,10 +13,15 @@ const szamla = await kassza.invoices.create({
     address: 'Fő utca 1.',
     email: 'peter@example.hu',
   },
-  items: [{ name: 'Póló', quantity: 3, grossUnitPrice: 5_990, vat: 27 }],
+  items: [{
+    name: 'Póló', // [!code highlight]
+    quantity: 3, // [!code highlight]
+    grossUnitPrice: 5_990, // [!code highlight]
+    vat: 27, // [!code highlight]
+  }],
 })
 
-console.log(szamla.number, szamla.grossTotal)`
+console.log(szamla.grossTotal)`
 
 export const mappingSnippets = {
   beallitasok: `const kassza = createKassza()`,

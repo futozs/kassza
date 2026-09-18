@@ -102,6 +102,18 @@
   --z-toast: 500;
   --z-tooltip: 600;
 
+  --dur-print: 1400ms;
+  --dur-stamp: 480ms;
+
+  --hero-dot: oklch(84% 0.012 95);
+  --hero-glow: oklch(90% 0.07 150 / 0.7);
+  --printer: oklch(23% 0.016 158);
+  --printer-rim: oklch(36% 0.016 158);
+  --printer-slot: oklch(12% 0.012 158);
+  --printer-ink: oklch(80% 0.02 150);
+  --led: oklch(78% 0.17 150);
+  --amber-tag-ink: oklch(26% 0.06 60);
+
   color-scheme: light;
 }
 
@@ -162,6 +174,15 @@
   --code-line-highlight: oklch(33% 0.06 75 / 0.55);
   --code-line-inserted: oklch(30% 0.06 150 / 0.6);
   --code-line-deleted: oklch(30% 0.06 25 / 0.6);
+
+  --hero-dot: oklch(31% 0.014 160);
+  --hero-glow: oklch(42% 0.09 150 / 0.35);
+  --printer: oklch(11.5% 0.01 160);
+  --printer-rim: oklch(30% 0.014 160);
+  --printer-slot: oklch(6% 0.008 160);
+  --printer-ink: oklch(74% 0.02 150);
+  --led: oklch(80% 0.17 150);
+  --amber-tag-ink: oklch(24% 0.06 60);
 
   color-scheme: dark;
 }

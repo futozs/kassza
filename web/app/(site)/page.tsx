@@ -4,7 +4,8 @@ import type { ReactNode } from 'react'
 import { ClosingSection } from '@/components/landing/closing-section'
 import { ComparisonSection, type MappingRow } from '@/components/landing/comparison-section'
 import { Hero } from '@/components/landing/hero'
-import { OperationsSection } from '@/components/landing/operations-section'
+import type { SiteStats } from '@/components/landing/hero-tape'
+import { OPERATION_COUNT, OperationsSection } from '@/components/landing/operations-section'
 import { PitfallsSection } from '@/components/landing/pitfalls-section'
 import { PlatformsSection } from '@/components/landing/platforms-section'
 import { RouteSection } from '@/components/landing/route-section'
@@ -27,8 +28,10 @@ import {
   mappingSnippets,
 } from '@/components/landing/snippets'
 import { type Step, StepsSection } from '@/components/landing/steps-section'
+import examples from '@/generated/examples.json'
 import { highlightCode } from '@/lib/highlight'
 import { site } from '@/lib/site'
+import { source } from '@/lib/source'
 
 export const metadata: Metadata = {
   title: { absolute: 'kassza: Számlázz.hu Számla Agent kliens TypeScripthez' },
@@ -91,6 +94,18 @@ const MAPPING_ROWS: readonly {
     ),
   },
 ]
+
+const RECIPES_PREFIX = '/docs/receptek/'
+
+function siteStats(): SiteStats {
+  const pages = source.getPages()
+  return {
+    operations: OPERATION_COUNT,
+    pages: pages.length,
+    examples: examples.length,
+    recipes: pages.filter((page) => page.url.startsWith(RECIPES_PREFIX)).length,
+  }
+}
 
 async function buildMappingRows(xml: string): Promise<MappingRow[]> {
   return Promise.all(
@@ -185,7 +200,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <Hero code={heroCode} sample={sample} version={site.version} />
+      <Hero code={heroCode} sample={sample} version={site.version} stats={siteStats()} />
       <RouteSection />
       <ComparisonSection rows={mappingRows} />
       <PitfallsSection sample={sample} error={xmlErrorSample()} />

@@ -1,0 +1,261 @@
+.hero-backdrop {
+  background:
+    radial-gradient(ellipse 55% 60% at 74% 44%, var(--hero-glow), transparent 72%),
+    radial-gradient(circle, var(--hero-dot) 1.1px, transparent 1.5px) 0 0 / 22px 22px;
+  mask-image: radial-gradient(ellipse 90% 80% at 60% 42%, #000 35%, transparent 100%);
+}
+
+.hero-code .codeblock {
+  margin: 0;
+  box-shadow: var(--shadow-lift);
+}
+
+.hero-code pre {
+  font-size: 0.8rem;
+}
+
+.hero-code .codeblock .line {
+  min-height: 1.6em;
+}
+
+.hero-printer {
+  position: relative;
+  width: min(100%, 16rem);
+  margin: -0.75rem 0.75rem 0 auto;
+  filter: drop-shadow(0 22px 24px var(--receipt-shadow));
+}
+
+.hero-printer-head {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 1.75rem;
+  padding: 0 0.8rem 0.3rem;
+  border-radius: 0.6rem;
+  background: var(--printer);
+  box-shadow: inset 0 1px 0 var(--printer-rim);
+  color: var(--printer-ink);
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.hero-printer-head::after {
+  content: "";
+  position: absolute;
+  right: 0.7rem;
+  bottom: 0.3rem;
+  left: 0.7rem;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--printer-slot);
+}
+
+.hero-printer-led {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--led);
+  box-shadow: 0 0 0.45rem var(--led);
+}
+
+.hero-printer-mouth {
+  margin: -0.5rem 0.65rem 0;
+  overflow: hidden;
+}
+
+.hero-receipt {
+  --tooth: 0.75rem;
+  position: relative;
+  padding: 1.4rem 1rem 3.6rem;
+  background: linear-gradient(var(--receipt), var(--receipt-edge));
+  color: var(--receipt-ink);
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  line-height: 1.6;
+  mask:
+    conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / var(--tooth)
+    100%;
+}
+
+.hero-receipt-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.32em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.hero-receipt-meta {
+  color: var(--receipt-muted);
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+.hero-receipt-rule {
+  margin: 0.65rem 0;
+  border-top: 1px dashed var(--receipt-rule);
+}
+
+.hero-receipt-rule[data-double] {
+  border-top: 3px double var(--receipt-rule);
+}
+
+.hero-receipt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  white-space: nowrap;
+}
+
+.hero-receipt-total {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.hero-receipt-total span:first-child {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.hero-stamp {
+  position: absolute;
+  right: 0.9rem;
+  bottom: 1.5rem;
+  padding: 0.15rem 0.55rem;
+  border: 2px solid var(--receipt-accent);
+  border-radius: 0.3rem;
+  outline: 1px solid var(--receipt-accent);
+  outline-offset: 2px;
+  color: var(--receipt-accent);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  opacity: 0.9;
+  transform: rotate(-9deg);
+}
+
+.motion-bar {
+  transform-origin: left center;
+}
+
+@keyframes receipt-feed {
+  from {
+    transform: translateY(-100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes stamp-press {
+  from {
+    opacity: 0;
+    transform: rotate(-9deg) scale(1.4);
+  }
+  to {
+    opacity: 0.9;
+    transform: rotate(-9deg) scale(1);
+  }
+}
+
+@keyframes led-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes bar-grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-receipt {
+    animation: receipt-feed var(--dur-print) var(--ease-out) 300ms both;
+  }
+
+  .hero-stamp {
+    animation: stamp-press var(--dur-stamp) var(--ease-out) calc(var(--dur-print) + 250ms) both;
+  }
+
+  .hero-printer-led {
+    animation: led-blink 240ms steps(1) 300ms 6;
+  }
+
+  [data-motion="armed"] .motion-rise {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  [data-motion="play"] .motion-rise {
+    animation: rise-in var(--dur-long) var(--ease-out) calc(var(--step, 0) * 110ms) both;
+  }
+
+  [data-motion="armed"] .motion-bar {
+    transform: scaleX(0);
+  }
+
+  [data-motion="play"] .motion-bar {
+    animation: bar-grow 900ms var(--ease-out) calc(var(--step, 0) * 90ms) both;
+  }
+}
+
+@media (max-width: 39.99rem) {
+  .hero-code pre {
+    font-size: 0.7rem;
+  }
+}
+
+@media (min-width: 40rem) {
+  .hero-code {
+    width: calc(100% - 5.5rem);
+  }
+
+  .hero-printer {
+    position: absolute;
+    top: 10.5rem;
+    right: 0;
+    width: 13.5rem;
+    margin: 0;
+  }
+}
+
+@media (min-width: 80rem) {
+  .hero-code {
+    width: calc(100% - 8.5rem);
+  }
+
+  .hero-printer {
+    width: 16rem;
+  }
+}
+
+@media (min-width: 64rem) and (max-height: 50rem) {
+  .hero-code pre {
+    font-size: 0.72rem;
+  }
+
+  .hero-code .codeblock .line {
+    min-height: 1.5em;
+  }
+}

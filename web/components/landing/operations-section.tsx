@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ButtonLink } from './button-link'
+import { CoverageBars } from './coverage-bars'
 import { LandingContainer, SectionHeading } from './section-heading'
 
 interface Operation {
@@ -50,7 +51,10 @@ const GROUPS: readonly OperationGroup[] = [
   },
 ]
 
-const OPERATION_COUNT = GROUPS.reduce((sum, group) => sum + group.operations.length, 0)
+export const OPERATION_COUNT: number = GROUPS.reduce(
+  (sum, group) => sum + group.operations.length,
+  0,
+)
 
 function TornEdge({ position }: { position: 'top' | 'bottom' }) {
   const id = `receipt-teeth-${position}`
@@ -136,6 +140,7 @@ export function OperationsSection() {
             sztornó, befizetés, PDF, számlaadatok és adószám a NAV-tól. Minden műveletnél megvan a
             kérés, a válasz és egy minta a kóddal meg a ténylegesen elküldött XML-lel.
           </SectionHeading>
+          <CoverageBars total={OPERATION_COUNT} />
           <div className="mt-8">
             <ButtonLink href="/docs" variant="secondary">
               Dokumentáció

@@ -1,6 +1,7 @@
 import { AGENT_ERROR_CODES, type CreateInvoiceInput, createKassza } from 'kassza'
 import { calculateInvoiceItem } from 'kassza/money'
 
+export const SAMPLE_ITEM_NAME = 'Póló'
 const SAMPLE_UNIT_PRICE = 5_990
 const SAMPLE_QUANTITY = 3
 const SAMPLE_VAT = 27
@@ -21,7 +22,12 @@ export const sampleInvoice = {
     email: 'peter@example.hu',
   },
   items: [
-    { name: 'Póló', quantity: SAMPLE_QUANTITY, grossUnitPrice: SAMPLE_UNIT_PRICE, vat: SAMPLE_VAT },
+    {
+      name: SAMPLE_ITEM_NAME,
+      quantity: SAMPLE_QUANTITY,
+      grossUnitPrice: SAMPLE_UNIT_PRICE,
+      vat: SAMPLE_VAT,
+    },
   ],
 } satisfies CreateInvoiceInput
 

@@ -6,6 +6,9 @@ import { fileURLToPath } from 'node:url'
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const packagePath = join(root, 'package.json')
 const changelogPath = join(root, 'CHANGELOG.md')
+const webRoot = join(root, 'web')
+const WEB_SYNC_ATTEMPTS = 6
+const WEB_SYNC_DELAY_MS = 10_000
 
 const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
@@ -61,6 +64,51 @@ function isPublished(name, version) {
 function run(command, commandArgs) {
   const result = spawnSync(command, commandArgs, { cwd: root, stdio: 'inherit' })
   return result.status === 0
+}
+
+function runInWeb(command, commandArgs) {
+  return spawnSync(command, commandArgs, { cwd: webRoot, stdio: 'inherit' }).status === 0
+}
+
+function commandExists(command) {
+  return spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0
+}
+
+function pause(ms) {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
+}
+
+function syncWebsite(name, version) {
+  if (!existsSync(join(webRoot, 'package.json'))) return []
+  log(`Weboldal: ${name}@${version} a web/package.json-ba és a lockfájlokba`)
+  const install = [
+    'install',
+    `${name}@${version}`,
+    '--save-exact',
+    '--package-lock-only',
+    '--ignore-scripts',
+    '--no-audit',
+    '--no-fund',
+  ]
+  for (let attempt = 1; attempt <= WEB_SYNC_ATTEMPTS; attempt++) {
+    if (runInWeb('npm', install)) {
+      const files = ['web/package.json', 'web/package-lock.json']
+      if (commandExists('bun') && runInWeb('bun', ['install', '--lockfile-only'])) {
+        files.push('web/bun.lock')
+      } else {
+        log('A bun nem érhető el, a web/bun.lock a következő bun install-nál frissül.')
+      }
+      return files
+    }
+    if (attempt < WEB_SYNC_ATTEMPTS) {
+      log(`Az npm registry még nem adja a ${version}-t, ${WEB_SYNC_DELAY_MS / 1000} mp múlva újra.`)
+      pause(WEB_SYNC_DELAY_MS)
+    }
+  }
+  log(
+    `A weboldal függőségét nem sikerült frissíteni, futtasd kézzel: npm install ${name}@${version} --save-exact --prefix web`,
+  )
+  return []
 }
 
 function lastTag() {
@@ -217,7 +265,7 @@ if (!run('npm', ['publish', '--ignore-scripts'])) {
 process.removeListener('SIGINT', abort)
 process.removeListener('SIGTERM', abort)
 
-git('add', 'package.json', 'CHANGELOG.md')
+git('add', 'package.json', 'CHANGELOG.md', ...syncWebsite(pkg.name, version))
 git('commit', '-m', `release: v${version}`)
 git('tag', '-a', `v${version}`, '-m', `v${version}`)
 log(`Kész: https://www.npmjs.com/package/${pkg.name}/v/${version}`)

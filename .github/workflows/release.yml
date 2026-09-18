@@ -37,6 +37,9 @@ jobs:
       - name: npm frissítése (Trusted Publishing >=11.5.1-et igényel)
         run: npm install -g npm@latest
 
+      - name: Bun beállítása (a web/bun.lock frissítéséhez)
+        uses: oven-sh/setup-bun@v2
+
       - name: Git szerző beállítása
         run: |
           git config user.name "futozs"
