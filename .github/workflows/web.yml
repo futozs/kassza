@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     env:
       NEXT_OUTPUT: export
       NEXT_PUBLIC_BASE_PATH: /kassza
@@ -59,9 +59,8 @@ jobs:
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    continue-on-error: true
     needs: check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       pages: write
       id-token: write
