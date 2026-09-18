@@ -16,7 +16,7 @@ export function GET() {
     summary: site.description,
     details: [
       `A kassza nem hivatalos, nyílt forráskódú projekt, a Számlázz.hu (KBOSS.hu Kft.) nem áll mögötte. Telepítés: \`npm install kassza\`. A Számla Agent hivatalos leírása: ${site.officialDocs}`,
-      `Minden dokumentációs oldal Markdownként is elérhető, ha az oldal URL-jéhez hozzáadod a \`.md\` kiterjesztést (a kezdőlapé \`/docs/index.md\`). A teljes dokumentáció egyetlen fájlban: ${absoluteUrl('/llms-full.txt', site.url)}`,
+      `A teljes dokumentáció egyetlen fájlban is elérhető: ${absoluteUrl('/llms-full.txt', site.url)}`,
     ],
     sections,
     optional: [

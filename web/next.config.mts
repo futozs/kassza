@@ -21,18 +21,28 @@ const sandboxRuntimeHeaders = [
   { key: 'Cache-Control', value: 'public, max-age=0, must-revalidate' },
 ]
 
+const isStaticExport = process.env.NEXT_OUTPUT === 'export'
+
 const config: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  output: isStaticExport ? 'export' : undefined,
+  basePath: process.env.NEXT_PUBLIC_BASE_PATH ?? '',
+  trailingSlash: isStaticExport,
+  images: { unoptimized: isStaticExport },
   turbopack: { root: import.meta.dirname },
   outputFileTracingRoot: import.meta.dirname,
   serverExternalPackages: ['typescript', 'shiki'],
-  async headers() {
-    return [
-      { source: '/:path*', headers: securityHeaders },
-      { source: '/sandbox-runtime/:file*', headers: sandboxRuntimeHeaders },
-    ]
-  },
+  ...(isStaticExport
+    ? {}
+    : {
+        async headers() {
+          return [
+            { source: '/:path*', headers: securityHeaders },
+            { source: '/sandbox-runtime/:file*', headers: sandboxRuntimeHeaders },
+          ]
+        },
+      }),
 }
 
 const withMDX = createMDX()

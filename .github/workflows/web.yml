@@ -3,7 +3,6 @@ name: Web
 on:
   push:
     branches: [main]
-    paths: ['web/**', '.github/workflows/web.yml']
   pull_request:
     branches: [main]
     paths: ['web/**', '.github/workflows/web.yml']
@@ -18,6 +17,10 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    env:
+      NEXT_OUTPUT: export
+      NEXT_PUBLIC_BASE_PATH: /kassza
+      NEXT_PUBLIC_SITE_URL: https://futozs.github.io/kassza
     defaults:
       run:
         working-directory: web
@@ -48,3 +51,23 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Pages artifact feltöltése
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: web/out
+
+  deploy:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: GitHub Pages telepítése
+        id: deployment
+        uses: actions/deploy-pages@v4
