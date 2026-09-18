@@ -1,5 +1,36 @@
 # Változásnapló
 
+## 0.5.0 (2026-09-18)
+
+### Újdonságok
+
+- enable GitHub Pages in workflow and update README for automatic setup (4e7b910)
+
+### Javítások
+
+- pontosítás a README bevezető mondatában (7de106f)
+- release workflow commits as futozs instead of github-actions[bot] (1b9215c)
+- resolve biome lint/format errors breaking CI (6f36d25)
+- correct the title text in Hero component (46103ff)
+- update deployment workflows for Vercel integration and improve README documentation (bf972fa)
+- update GitHub Pages setup instructions in README for clarity and accuracy (d3cd24e)
+- update GitHub Pages setup instructions in README and remove redundant configuration step in workflow (ae35418)
+- configure GitHub Pages before deploy (3333ad3)
+
+### Egyéb
+
+- asd (7b88b06)
+- n (8eb15bf)
+- add vercel configuration for Next.js deployment (3978405)
+- asd (810ab5c)
+- asd (cefe99a)
+- asd (9ab4859)
+- aasd (f1c62a0)
+- asd (74a8442)
+- asd (9551457)
+- Create nextjs.yml (abbd379)
+- Initial plan (820d084)
+
 ## 0.4.0 (2026-09-18)
 
 ### Újdonságok
