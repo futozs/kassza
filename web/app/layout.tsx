@@ -4,8 +4,8 @@ import type { ReactNode } from 'react'
 import { RootProviders } from '@/components/site/root-providers'
 import { site } from '@/lib/site'
 import './globals.css'
-import { SpeedInsights } from "@vercel/speed-insights/next"
-import { Analytics } from "@vercel/analytics/next"
+import { Analytics } from '@vercel/analytics/next'
+import { SpeedInsights } from '@vercel/speed-insights/next'
 
 const display = Bricolage_Grotesque({
   subsets: ['latin', 'latin-ext'],
@@ -74,6 +74,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     >
       <body>
         <RootProviders>{children}</RootProviders>
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   )
