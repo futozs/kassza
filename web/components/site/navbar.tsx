@@ -73,6 +73,15 @@ export function Navbar({ tree }: { tree?: PageTree.Root }) {
             GitHub
             <ArrowUpRight className="size-3.5 text-muted" aria-hidden="true" />
           </a>
+          <a
+            href={site.npm}
+            target="_blank"
+            rel="noreferrer"
+            className="hidden items-center gap-1 rounded-[var(--radius-md)] px-3 py-1.5 text-[0.95rem] font-medium whitespace-nowrap text-ink transition-colors hover:text-accent lg:inline-flex"
+          >
+            npm
+            <ArrowUpRight className="size-3.5 text-muted" aria-hidden="true" />
+          </a>
           <ThemeToggle className="hidden lg:inline-flex" />
           <button
             type="button"
