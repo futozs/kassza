@@ -14,9 +14,8 @@ export function ClosingSection() {
             Próbáld ki kulcs nélkül, a böngészőben.
           </h2>
           <p className="mt-6 max-w-[54ch] text-[length:var(--text-lede)] leading-relaxed text-ink-2">
-            A sandbox a Számlázz.hu Számla Agent szimulátorán futtatja a példákat, és megmutatja a
-            pontosan elküldött XML-t. A dokumentációban a teljes API, a receptek és a gyakori
-            integrációk is megvannak. Ha meggyőzött, egy{' '}
+            A sandbox egy szimulált Számlázz.hu ellen futtatja a példákat, és megmutatja a pontosan
+            elküldött XML-t. Ha meggyőzött, egy{' '}
             <code className="font-mono text-[0.9em] whitespace-nowrap text-ink">npm i kassza</code>, és jöhet az éles
             Agent kulcs.
           </p>
@@ -24,9 +23,6 @@ export function ClosingSection() {
             <ButtonLink href="/sandbox">Sandbox megnyitása</ButtonLink>
             <ButtonLink href="/docs/alapok/telepites" variant="secondary">
               Telepítés
-            </ButtonLink>
-            <ButtonLink href="/docs/receptek" variant="secondary">
-              Receptek
             </ButtonLink>
             <ButtonLink href={site.repo} variant="quiet" external>
               GitHub

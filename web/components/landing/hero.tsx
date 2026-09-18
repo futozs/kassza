@@ -26,9 +26,8 @@ export function Hero({ code, sample, version }: HeroProps) {
             <span className="block text-accent">Te írj TypeScriptet.</span>
           </h1>
           <p className="mt-6 max-w-[34rem] text-[length:var(--text-lede)] leading-relaxed text-ink-2">
-            Kötött elemsorrend, tételenkénti kerekítés, budapesti dátum, session cookie és háromféle
-            hibaformátum. A kassza mindezt elintézi: te típusos objektumot adsz át, és számlaszámot
-            kapsz vissza.
+            A kassza nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. A Számlázz.hu
+            XML-t vár; te típusos objektumot adsz át, a kassza pedig elkészíti a helyes kérést.
           </p>
           <InstallCommand command={installSnippet} className="mt-8" />
           <div className="mt-4 flex flex-wrap items-center gap-3">

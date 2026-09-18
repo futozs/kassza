@@ -4,7 +4,13 @@
 
 <p align="center">
   <b>Számlázz.hu, TypeScriptben, egyszerűbben.</b><br>
-  Számla, díjbekérő, nyugta, sztornó, befizetés, PDF, adószám. Mind a 11 Agent művelet, 0 függőség.
+  Nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. Mind a 11 Agent művelet, 0 függőség.
+</p>
+
+<p align="center">
+  <a href="https://kassza-amber.vercel.app/">Weboldal</a> ·
+  <a href="https://www.npmjs.com/package/kassza">npm</a> ·
+  <a href="https://github.com/futozs/kassza">GitHub</a>
 </p>
 
 <p align="center">
@@ -59,7 +65,7 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 
 ## Tartalom
 
-- [Weboldal, dokumentáció és sandbox](#weboldal-dokumentáció-és-sandbox)
+- [Weboldal, sandbox és receptek](#weboldal-sandbox-és-receptek)
 - [Beállítás](#beállítás)
 - [Számlák](#számlák)
 - [Nyugták](#nyugták)
@@ -73,30 +79,14 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 - [Haladó beállítások](#haladó-beállítások)
 - [AI-val kódolsz?](#ai-val-kódolsz)
 
-## Weboldal, dokumentáció és sandbox
+## Weboldal, sandbox és receptek
 
-A kassza a Számlázz.hu hivatalos Számla Agent API-jának nem hivatalos, nyílt forráskódú
-TypeScript-wrappera. A weboldalon egy helyen találod a csomag dokumentációját, a működő
-recepteket és a böngészőben futó sandboxot:
-
-**[kassza weboldal és dokumentáció](https://kassza-amber.vercel.app/)**
-
-- **[Dokumentáció](https://kassza-amber.vercel.app/docs)**: telepítés, hitelesítés, számlák,
-  nyugták, IPN, PDF, tárolók, validátorok és minden publikus API.
-- **[Sandbox](https://kassza-amber.vercel.app/sandbox)**: a példákat Agent kulcs nélkül próbálhatod
-  ki. A kód böngészőben, Web Workerben fut egy szimulált Számlázz.hu Agent ellen, és látható a
-  konzolkimenet, a ténylegesen elküldött XML és a válasz.
-- **[Receptek](https://kassza-amber.vercel.app/docs/receptek)**: teljes, működő minták közös
-  klienshez, fizetett rendeléshez, Stripe webhookhoz, díjbekérőhöz, IPN webhookhoz, pénztári
-  nyugtához, S3/R2 PDF-tároláshoz, adószám alapú űrlaphoz, devizás EU-s számlához, Cloudflare
-  Workershez és egységtesztekhez.
-- **[npm csomag](https://www.npmjs.com/package/kassza)**: telepíthető csomag, verziók és kiadások.
-- **[Hivatalos Számla Agent dokumentáció](https://docs.szamlazz.hu/hu/agent/)**: a Számlázz.hu
-  API-jának eredeti leírása.
-
-Az oldal forrása a repó [`web/`](web/) mappájában van. A webes README leírja a fejlesztői
-parancsokat, a dokumentációs oldalak és a sandbox-példák szerkesztését:
-**[`web/README.md`](web/README.md)**.
+- **Weboldal:** [kassza-amber.vercel.app](https://kassza-amber.vercel.app/)
+- **Dokumentáció:** [kassza-amber.vercel.app/docs](https://kassza-amber.vercel.app/docs)
+- **Sandbox:** [kassza-amber.vercel.app/sandbox](https://kassza-amber.vercel.app/sandbox) — futtasd a TypeScript példákat böngészőben, Agent kulcs nélkül, szimulált Számlázz.hu válaszokkal és elküldött XML-lel.
+- **Receptek:** [kassza-amber.vercel.app/docs/receptek](https://kassza-amber.vercel.app/docs/receptek) — kész minták fizetett rendelésekhez, webhookokhoz, IPN-hez, PDF-tárhelyhez, serverless környezethez és teszteléshez.
+- **npm csomag:** [npmjs.com/package/kassza](https://www.npmjs.com/package/kassza)
+- **Hivatalos Számlázz.hu Agent dokumentáció:** [docs.szamlazz.hu/hu/agent](https://docs.szamlazz.hu/hu/agent/)
 
 ## Beállítás
 
