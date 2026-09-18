@@ -1,0 +1,63 @@
+---
+title: Mi a kassza?
+description: A kassza TypeScript kliens a Számlázz.hu Számla Agenthez. Mit old meg a nyers Agent API-hoz képest, és mit nem.
+official: https://docs.szamlazz.hu/hu/agent/basics/what-is
+---
+
+A **Számla Agent** a Számlázz.hu API-ja: XML fájlokat fogad HTTP POST kérésben, és XML-lel, PDF-fel vagy szöveggel válaszol. A **kassza** ezt az API-t teszi kényelmesen és biztonságosan használhatóvá TypeScriptből. Te objektumokat adsz át és típusos eredményt kapsz vissza, az XML-lel, a kerekítéssel és a hibaüzenetek értelmezésével a kassza foglalkozik.
+
+```ts
+import { createKassza } from 'kassza'
+
+const kassza = createKassza()
+
+const szamla = await kassza.invoices.create({
+  orderNumber: 'REND-1001',
+  buyer: { name: 'Vevő Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+  items: [{ name: 'Tanácsadás', netUnitPrice: 20_000, vat: 27 }],
+})
+```
+
+## Mit csinál helyetted a kassza?
+
+| Feladat a nyers Agent API-val | A kasszában |
+| --- | --- |
+| XML összeállítása az XSD által előírt, kötött elemsorrendben | Objektumot adsz át, az XML sorrendhelyes lesz |
+| Nettó, áfa és bruttó kiszámolása és kerekítése tételenként | `netUnitPrice` vagy `grossUnitPrice`, a kerekítés a hivatalos szabályokat követi |
+| Dátum megadása magyar idő szerint | Alapból a mai nap `Europe/Budapest` szerint |
+| `multipart/form-data` kérés és mellékletek | `attachments` tömb |
+| Session cookie mentése és visszaküldése | Automatikus, serverless környezethez közös tárolóval |
+| Hibák kiolvasása fejlécből, XML-ből vagy `[ERR]` szövegből | Egységes `SzamlazzError` kóddal, kategóriával és magyar tippel |
+| Újrapróbálás úgy, hogy ne legyen dupla számla | Csak biztonságos műveleteket próbál újra, számlát soha |
+
+## A 11 művelet
+
+A kassza mind a 11 Számla Agent műveletet lefedi: számla (díjbekérő, előleg-, vég- és helyesbítő számla, szállítólevél) és előnézet, sztornó, befizetés rögzítése, PDF és számlaadatok lekérése, díjbekérő törlése, nyugta létrehozása, sztornója, lekérdezése és kiküldése, valamint az adószám lekérdezése a NAV adatbázisából. A teljes lista a [dokumentáció kezdőlapján](/docs#a-11-számla-agent-művelet) található.
+
+## Kiegészítő modulok
+
+A fő csomag mellett külön importálható modulok is vannak, amelyek csak akkor kerülnek a bundle-be, ha használod őket:
+
+| Modul | Mire jó |
+| --- | --- |
+| `kassza/testing` | Mock kliens unit tesztekhez, valódi validációval és kerekítéssel |
+| `kassza/ipn` | A Számlázz.hu fizetési értesítésének (IPN) feldolgozása |
+| `kassza/storage` | PDF mentése S3-ra, R2-re, Vercel Blobra, UploadThingre vagy Supabase-re |
+| `kassza/cookie-stores` | Közös session tároló Redishez és Cloudflare KV-hez |
+| `kassza/validators` | Adószám, bankszámla, IBAN, EU adószám és magyar cím ellenőrzése |
+| `kassza/money` | A kasszában használt kerekítés és összegzés külön is |
+
+## Hol fut?
+
+A kassza nulla futásidejű függőséggel készül, és csak a szabványos `fetch`, `FormData`, `Blob`, `TextEncoder` és `crypto` API-kat használja. Ezért ugyanaz a kód fut Node.js 22-n vagy újabbon, Bunon, Denón, Cloudflare Workersen és a Vercel Edge Runtime-on.
+
+<Callout type="warning" title="Csak szerveren">
+  A kassza az Agent kulcsoddal hitelesít, ezért soha ne használd böngészőben futó kódban. A
+  kulcsot a szerveren tartsd, és a böngészőből a saját API-dat hívd.
+</Callout>
+
+## Mit nem csinál a kassza?
+
+- **Nem helyettesíti a Számlázz.hu fiókot.** Az előfizetés, a cégadatok, a számlaszám-előtagok és a számlázási beállítások a Számlázz.hu felületén maradnak.
+- **Nem ad adótanácsot.** Az áfakulcs, a bizonylattípus és a devizás számlázás szabályait könyvelőddel egyeztesd.
+- **Nem hivatalos termék.** A kassza független, nyílt forráskódú projekt, a Számlázz.hu (KBOSS.hu Kft.) nem támogatja és nem felel érte.

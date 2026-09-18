@@ -1,0 +1,135 @@
+---
+title: Munkamenet (session cookie)
+description: Hogyan menti és küldi vissza a kassza a Számlázz.hu munkameneti sütijét, és hogyan oszd meg serverless és edge környezetben.
+official: https://docs.szamlazz.hu/hu/agent/basics/session-cookie
+---
+
+A Számla Agent minden kérésnél hitelesít, ami időbe kerül. Ha viszont a kliens visszaküldi az előző válaszban kapott munkameneti sütit (`JSESSIONID`), a Számlázz.hu a meglévő munkamenetet használja, és gyorsabban válaszol. A süti tárolása a hívó fél dolga. A kasszában ez automatikus.
+
+## Mit csinál a kassza?
+
+1. Az első kérésnél nincs tárolt süti, a Számlázz.hu új munkamenetet nyit, és a válasz `Set-Cookie` fejlécében visszaadja a sütit.
+2. A kassza elmenti a sütit a `cookieStore`-ba.
+3. A következő kéréseknél a kassza a `Cookie` fejlécben visszaküldi, és ha a Számlázz.hu frissíti, felülírja a tároltat.
+4. Hitelesítési hibánál (`auth` kategória) a kassza törli a tárolt sütit, így a következő kérés tiszta lappal indul.
+
+A Számlázz.hu 90 perc tétlenség után törli a munkamenetet. A kassza a sütit 85 percig tartja meg, így nem küld vissza lejárt munkamenetet.
+
+<Callout type="info">
+  A tárolókulcs az Agent kulcs hash-éből készül, például `szamlazz:session:3f1c…`. A kulcs maga
+  soha nem kerül a tárolóba, így ugyanaz a tároló több fiók munkamenetét is biztonságosan
+  tárolhatja.
+</Callout>
+
+## Hosszan futó szerveren
+
+Node.js szerveren, Bunon vagy Denón nincs teendőd. Az alapértelmezett tároló a memóriában van, és addig él, amíg a folyamat. Ehhez a klienst egyszer hozd létre, és mindenhol ugyanazt használd:
+
+```ts title="lib/kassza.ts"
+import { createKassza } from 'kassza'
+
+export const kassza = createKassza()
+```
+
+<Callout type="warning" title="Ne hozz létre klienst kérésenként">
+  Ha minden HTTP kérésnél új `createKassza()` hívás fut, minden kliensnek saját, üres
+  memóriatárolója lesz, és a munkamenet soha nem hasznosul újra.
+</Callout>
+
+## Serverless és edge
+
+Vercel Functions, AWS Lambda vagy Cloudflare Workers alatt a példányok jönnek-mennek, a memória nem közös. Ilyenkor adj meg közös tárolót a `kassza/cookie-stores` modulból:
+
+<Tabs items={['Upstash Redis', 'Cloudflare KV', 'ioredis', 'node-redis']} groupId="cookie-store">
+  <Tab value="Upstash Redis">
+    ```ts
+    import { Redis } from '@upstash/redis'
+    import { createKassza } from 'kassza'
+    import { upstashRedisCookieStore } from 'kassza/cookie-stores'
+
+    export const kassza = createKassza({
+      cookieStore: upstashRedisCookieStore(Redis.fromEnv()),
+    })
+    ```
+  </Tab>
+  <Tab value="Cloudflare KV">
+    ```ts
+    import { createKassza } from 'kassza'
+    import { cloudflareKvCookieStore } from 'kassza/cookie-stores'
+
+    export default {
+      async fetch(request: Request, env: Env) {
+        const kassza = createKassza({
+          agentKey: env.SZAMLAZZ_AGENT_KEY,
+          cookieStore: cloudflareKvCookieStore(env.KASSZA_KV),
+        })
+        return Response.json(await kassza.invoices.find({ orderNumber: 'REND-1001' }))
+      },
+    }
+    ```
+  </Tab>
+  <Tab value="ioredis">
+    ```ts
+    import Redis from 'ioredis'
+    import { createKassza } from 'kassza'
+    import { ioredisCookieStore } from 'kassza/cookie-stores'
+
+    export const kassza = createKassza({
+      cookieStore: ioredisCookieStore(new Redis(process.env.REDIS_URL)),
+    })
+    ```
+  </Tab>
+  <Tab value="node-redis">
+    ```ts
+    import { createClient } from 'redis'
+    import { createKassza } from 'kassza'
+    import { nodeRedisCookieStore } from 'kassza/cookie-stores'
+
+    const redis = await createClient({ url: process.env.REDIS_URL }).connect()
+
+    export const kassza = createKassza({ cookieStore: nodeRedisCookieStore(redis) })
+    ```
+  </Tab>
+</Tabs>
+
+A Cloudflare KV legalább 60 másodperces lejáratot fogad el, ezt az adapter magától betartja.
+
+## Saját tároló
+
+Bármilyen kulcs-érték tárolót bekötheted, ha megírod a `get`, `set` és `delete` függvényt. A `set` harmadik paramétere a lejárat másodpercben.
+
+```ts
+import { customCookieStore } from 'kassza/cookie-stores'
+
+const cookieStore = customCookieStore(
+  {
+    get: (key) => db.session.findValue(key),
+    set: (key, value, ttlSeconds) => db.session.upsert(key, value, ttlSeconds),
+    delete: (key) => db.session.remove(key),
+  },
+  { prefix: 'webshop:', timeoutMs: 300 },
+)
+```
+
+<Example slug="munkamenet" />
+
+## Ha a tároló nem elérhető
+
+A munkamenet csak gyorsítás, ezért a tároló hibája nem akaszthatja meg a számlázást. Ha a Redis vagy a KV nem válaszol, a kassza munkamenet nélkül küldi el a kérést. Az adapterek alapból figyelmeztetést írnak a konzolra, ezt az `onError` opcióval a saját naplódba irányíthatod:
+
+| Opció | Alapérték | Leírás |
+| --- | --- | --- |
+| `prefix` | – | Előtag minden tárolókulcs elé. |
+| `timeoutMs` | nincs | Ennyi idő után a tároló műveletét sikertelennek veszi. |
+| `onError` | `console.warn` | Hívódik, ha a tároló hibát dob vagy túllépi az időkorlátot. |
+| `resilient` | `true` | `false` esetén a tároló hibája a hívóhoz is eljut. |
+
+## Munkamenet törlése
+
+Ha a Számlázz.hu felületén módosítod a fiók adatait, például a cégnevet vagy az e-mail címet, a változás csak új munkamenetben érvényesül. Ilyenkor hívd meg a `resetSession()` metódust:
+
+```ts
+await kassza.resetSession()
+```
+
+Ha egyáltalán nem szeretnél munkamenetet, add meg a `cookieStore: false` opciót. Ekkor minden kérés teljes hitelesítéssel fut, ami nagy forgalomnál érezhetően lassabb.

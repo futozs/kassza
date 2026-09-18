@@ -1,0 +1,67 @@
+---
+title: Rendelésszám és hívásazonosító
+description: Az orderNumber mező a nyugtán, a nyugtákra vonatkozó „Rendelésszám ismétlődés tiltása” beállítás, és a callId, amely a dupla nyugta ellen véd.
+official: https://docs.szamlazz.hu/hu/agent/generating_receipt/settings_and_rules/order-number
+---
+
+Az `orderNumber` (XML-ben a fejléc `rendelesSzam` eleme) a saját rendszered rendelésazonosítója. Opcionális, ha kihagyod, a nyugtán nem jelenik meg rendelésszám. Érdemes mégis megadni, mert ezzel kérdezheted le később a nyugtát.
+
+```ts
+const nyugta = await kassza.receipts.create({
+  callId: 'PENZTAR-2026-0212',
+  orderNumber: 'PENZTAR-2026-0212',
+  items: [{ name: 'Napijegy', grossUnitPrice: 4_500, vat: 27 }],
+})
+
+const ugyanaz = await kassza.receipts.get({ orderNumber: 'PENZTAR-2026-0212' })
+```
+
+A válaszban a rendelésszám változatlanul visszajön, a kasszában a nyugta `orderNumber` mezőjében.
+
+<Example slug="nyugta-lekerdezes" />
+
+## Rendelésszám ismétlődés tiltása
+
+A Számlázz.hu fiókban beállíthatod, hogy egy rendelésszám csak egy nyugtán szerepelhessen. A kapcsoló helye: Beállítások → Fiók beállításai → Számlázás beállítások, a Nyugtaszerkesztő beállítások szekcióban, „Rendelésszám ismétlődés tiltása” néven.
+
+- **Bekapcsolva:** korábban már használt rendelésszámmal nem készíthető új nyugta, a kérés hibával elbukik.
+- **Kikapcsolva:** ugyanazzal a rendelésszámmal több nyugta is kiállítható, például ha egy rendelést több részletben nyugtázol.
+
+A nyugtákra ez a kapcsoló vonatkozik, a számlák azonos nevű beállításától függetlenül, amely a Számlaszerkesztő beállítások szekcióban van. Az ellenőrzés bizonylattípusonként történik, így egy nyugtán és egy számlán szerepelhet ugyanaz a rendelésszám. A számlák szabályait a [Rendelésszám és duplikáció](/docs/szamla-letrehozas/beallitasok-es-szabalyok/rendelesszam) oldal írja le.
+
+<Callout type="tip">
+  Ha rendelésszám alapján kérdezed le a nyugtákat, kapcsold be a tiltást. Csak így biztos, hogy egy
+  rendelésszám pontosan egy nyugtát azonosít.
+</Callout>
+
+## Hívásazonosító és idempotencia
+
+A dupla nyugta ellen a fiókbeállítástól függetlenül a `callId` (XML-ben `hivasAzonosito`) véd. Ha megadod, egyedinek kell lennie: ugyanazzal a `callId`-val ismételt kérés nem hoz létre második nyugtát, hanem 338-as, `duplicate` kategóriájú hibát ad.
+
+A kassza erre építve csak `callId` mellett próbálja újra a nyugtakészítést, és csak `network`, `timeout` vagy `maintenance` hibánál. Hívásazonosító nélkül a kérés egyszer megy ki, és egy időtúllépés után nem tudhatod, elkészült-e a nyugta.
+
+A Számla Agent hívásazonosító alapján nem kérdez le, rendelésszám alapján igen. Ezért a bevált minta: a `callId` és az `orderNumber` legyen ugyanaz a saját rendelésazonosítódból képzett érték, és `duplicate` hibánál rendelésszám alapján kérd le a már elkészült nyugtát.
+
+```ts
+import { type CreateReceiptInput, isSzamlazzError, type Receipt } from 'kassza'
+
+async function nyugtaz(rendelesId: string, items: CreateReceiptInput['items']): Promise<Receipt> {
+  const azonosito = `PENZTAR-${rendelesId}`
+  try {
+    return await kassza.receipts.create({ callId: azonosito, orderNumber: azonosito, items })
+  } catch (error) {
+    if (isSzamlazzError(error) && error.isDuplicate) {
+      const meglevo = await kassza.receipts.find({ orderNumber: azonosito })
+      if (meglevo) return meglevo
+    }
+    throw error
+  }
+}
+```
+
+<Callout type="warning" title="Ne küldd újra ciklusban">
+  A nyugtakészítést ne csomagold saját újrapróbáló ciklusba. A Számlázz.hu kitilthatja a fiókot az
+  ismételten beküldött kérések miatt, az újrapróbálást a kassza biztonságosan elvégzi helyetted.
+</Callout>
+
+A teljes leírást az újrapróbálás részleteivel a [Kérés](/docs/nyugta-letrehozas/keres#hívásazonosító-callid) oldal hívásazonosítóról szóló része tartalmazza.

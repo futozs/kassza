@@ -1,0 +1,57 @@
+---
+title: Nyugta létrehozás
+description: Nyugta kiállítása a kassza receipts.create() metódusával, hívásazonosítóval, forintos kerekítéssel és vegyes fizetéssel.
+official: https://docs.szamlazz.hu/hu/agent/category/generating-a-receipt
+---
+
+Nyugtát a `kassza.receipts.create()` metódussal állítasz ki. Vevőt és dátumot nem kell megadnod: elég az előtag, a fizetési mód és legalább egy tétel. A kassza kiszámolja a tételek összegeit a nyugta kerekítési szabályai szerint, összeállítja az `xmlnyugtacreate` XML-t, elküldi, és a választ típusos `Receipt` objektumként adja vissza.
+
+```ts
+import { createKassza } from 'kassza'
+
+const kassza = createKassza({
+  defaults: { receipt: { prefix: 'NYGT', paymentMethod: 'bankkártya' } },
+})
+
+const nyugta = await kassza.receipts.create({
+  callId: `WEB-${rendeles.id}`,
+  orderNumber: `WEB-${rendeles.id}`,
+  items: [
+    { name: 'Kávé', quantity: 2, grossUnitPrice: 890, vat: 27 },
+    { name: 'Kifli', grossUnitPrice: 250, vat: 5 },
+  ],
+})
+
+console.log(nyugta.number, nyugta.totals.grossAmount)
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/nyugta-letrehozas/keres">
+    Minden mező: előtag, fizetési mód, pénznem, tételek, kifizetések, hívásazonosító.
+  </Card>
+  <Card title="Válasz" href="/docs/nyugta-letrehozas/valasz">
+    A Receipt mezői, a PDF, és a nyugtakészítésnél előforduló hibák.
+  </Card>
+  <Card title="Minta" href="/docs/nyugta-letrehozas/minta">
+    Futtatható példa a ténylegesen elküldött XML-lel és a Számlázz.hu válaszával.
+  </Card>
+  <Card title="Nyugta beállítások és szabályok" href="/docs/nyugta-letrehozas/beallitasok">
+    Tételösszegek és kerekítés, PDF sablon, rendelésszám, NAV adatszolgáltatás, adattörlő kód.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="Mindig adj meg hívásazonosítót">
+  A `callId` (XML-ben `hivasAzonosito`) véd a dupla nyugta ellen: ugyanazzal az azonosítóval a
+  Számlázz.hu nem készít második nyugtát, hanem 338-as hibát ad. A kassza ezért csak `callId`
+  mellett próbálja újra a nyugtakészítést hálózati hiba, időtúllépés vagy karbantartás után.
+  Hívásazonosító nélkül egyszer küld, és saját ciklusban akkor se küldd újra. Részletek a
+  [Kérés](/docs/nyugta-letrehozas/keres#hívásazonosító-callid) oldalon.
+</Callout>
+
+<Callout type="info" title="Nyugta-adatszolgáltatás a NAV felé">
+  A nyugtákról 2026. szeptember 1-jétől adatot kell szolgáltatni a NAV-nak, de a NAV 2026. december
+  31-ig türelmi időt ad, és a Számlázz.hu szerint egyelőre nincs teendőd. Lásd
+  [NAV adatszolgáltatás](/docs/nyugta-letrehozas/beallitasok/nav-adatszolgaltatas).
+</Callout>
+
+A kész nyugtával további műveleteket végezhetsz: [sztornózhatod](/docs/nyugta-sztorno), [lekérdezheted](/docs/nyugta-lekerdezes) nyugtaszám vagy rendelésszám alapján, és [elküldheted e-mailben](/docs/nyugta-kikuldes).

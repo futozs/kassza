@@ -1,0 +1,128 @@
+---
+title: Hibakezelés, hibakódok
+description: A SzamlazzError felépítése, a hibakategóriák, a bizonytalan kimenetű hibák kezelése és a Számla Agent összes ismert hibakódja.
+official: https://docs.szamlazz.hu/hu/agent/basics/error-handling
+---
+
+Ha egy Számla Agent kérés nem sikerül, az ok szinte mindig a kérés adataiban vagy a fiók beállításaiban van. Ugyanazt a kérést újra elküldeni ilyenkor nem segít, sőt, a Számlázz.hu ki is tilthatja a fiókot. Ezért a kassza minden hibát egyetlen típusba, a `SzamlazzError`-ba gyűjt, és megmondja, milyen kategóriába esik, és mit érdemes tenni.
+
+## A SzamlazzError
+
+Minden kassza metódus `SzamlazzError`-t dob. A `isSzamlazzError()` típusőrrel biztonságosan szűkítheted a `catch` ágban kapott értéket:
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.create(szamla)
+} catch (error) {
+  if (!isSzamlazzError(error)) throw error
+
+  switch (error.category) {
+    case 'validation':
+      return { hiba: error.message, tipp: error.hint }
+    case 'auth':
+    case 'account':
+      riasztas(`Számlázz.hu fiókhiba: ${error.message}`)
+      throw error
+    default:
+      throw error
+  }
+}
+```
+
+| Mező | Típus | Leírás |
+| --- | --- | --- |
+| `message` | `string` | Magyar hibaüzenet. A Számlázz.hu kódját `[57]` alakban az elejére teszi. |
+| `code` | `number \| undefined` | A Számlázz.hu hibakódja. Kliensoldali hibánál nincs. |
+| `category` | `SzamlazzErrorCategory` | A hiba kategóriája, lásd lent. |
+| `retryable` | `boolean` | `true` karbantartásnál, hálózati hibánál és időtúllépésnél. |
+| `hint` | `string \| undefined` | Magyar javítási tipp, ha ismert. |
+| `action` | `AgentAction \| undefined` | A művelet, például `createInvoice`. |
+| `httpStatus` | `number \| undefined` | A válasz HTTP státusza. |
+| `rawResponse` | `string \| undefined` | A nyers válasz első 2000 karaktere. PDF-nél nincs. |
+| `isDuplicate`, `isNotFound` | `boolean` | Rövidítés a `duplicate` és a `not_found` kategóriára. |
+
+<Callout type="danger" title="Ne próbálkozz újra ciklusban">
+  Ne írj olyan kódot, amely egy sikertelen számlakészítést addig küld újra, amíg sikerül. Egy
+  hibás kérés újraküldve is hibás marad, a sok felesleges kérés pedig a fiók kitiltásához
+  vezethet. Egy kérést legfeljebb ötször szabad elküldeni, utána embernek kell ránéznie.
+</Callout>
+
+## Amit a kassza újrapróbál
+
+A kassza csak ott próbálkozik újra, ahol ez nem okozhat dupla bizonylatot: lekérdezéseknél, a befizetések felülírásánál, és a `callId`-val védett nyugtáknál. Csak a `retryable` hibáknál teszi ezt (`maintenance`, `network`, `timeout`), alapból háromszor, 1, majd 2 másodperc várakozással. A számlakészítést soha nem küldi újra.
+
+<ActionTable />
+
+A próbálkozások számát a `maxAttempts`, a várakozást a `retryDelayMs` opcióval állíthatod. A `maxAttempts` értéke 5 fölé nem mehet, mert a Számlázz.hu ennyit enged egy kérésre.
+
+## Bizonytalan kimenet: számla készült vagy nem?
+
+Hálózati hiba vagy időtúllépés után nem tudhatod, hogy a Számlázz.hu megkapta-e a kérést. Az 56-os hibánál (`partial_success`) a számla biztosan elkészült, csak az értesítő e-mail nem ment ki. A 71-es és 152-es hibánál (`duplicate`) a rendelésszámmal már készült számla.
+
+Mindegyik esetben ugyanaz a helyes lépés: **kérdezd le a számlát a rendelésszám alapján**, mielőtt újra kiállítanád. Ehhez minden számlánál adj meg `orderNumber`-t.
+
+```ts
+import { type CreateInvoiceInput, isSzamlazzError } from 'kassza'
+
+const BIZONYTALAN = ['network', 'timeout', 'partial_success', 'duplicate']
+
+async function szamlaz(orderNumber: string, adatok: CreateInvoiceInput) {
+  const meglevo = await kassza.invoices.find({ orderNumber })
+  if (meglevo) return meglevo.header.number
+
+  try {
+    const szamla = await kassza.invoices.create({ ...adatok, orderNumber })
+    return szamla.number
+  } catch (error) {
+    if (isSzamlazzError(error) && BIZONYTALAN.includes(error.category)) {
+      const letrejott = await kassza.invoices.find({ orderNumber })
+      if (letrejott) return letrejott.header.number
+    }
+    throw error
+  }
+}
+```
+
+<Example slug="hibakezeles-idempotens" />
+
+## Hol jelez hibát a Számlázz.hu?
+
+A Számla Agent műveletenként és válaszverziónként máshogy jelez hibát. A kassza mindet ugyanúgy kezeli:
+
+- **Fejlécben:** a `szlahu_error` és a `szlahu_error_code` fejléc URL-kódolt üzenetet és kódot tartalmaz.
+- **Szöveges válaszban:** a törzs `[ERR]` jelöléssel kezdődik, utána jön az üzenet és egy Java stack trace. A kassza csak az üzenetet és a kódot tartja meg.
+- **XML-ben:** a `<sikeres>false</sikeres>` mellett `<hibakod>` és `<hibauzenet>` elem van.
+- **HTTP státusszal:** az 5xx válaszból `network`, minden más ismeretlen formátumból `unexpected_response` kategóriájú hiba lesz.
+
+## Kliensoldali validáció
+
+Sok hibát a kassza már a kérés előtt észrevesz: hiányzó egységár, ismeretlen áfakulcs, kisbetűs nyugta előtag, túl sok vagy túl nagy melléklet. Ilyenkor `validation` kategóriájú hibát kapsz `code` nélkül, és kérés sem megy a Számlázz.hu-hoz.
+
+<Example slug="hibakezeles-validacio" />
+
+## Tesztfiók
+
+Fejlesztéshez használj Számlázz.hu tesztfiókot. A tesztfiókban 10 percenként legfeljebb 500 számla készíthető, ezért automata tesztekhez inkább a [mock klienst](/docs/kiegeszitok/teszteles) használd, az nem hív hálózatot.
+
+## Hibakategóriák
+
+<ErrorCategoryTable />
+
+## Hibakódok
+
+Az alábbi táblázat a kassza által ismert Számlázz.hu hibakódokat mutatja. Az ismeretlen kódú hiba `unknown` kategóriát kap, de a Számlázz.hu eredeti üzenete ilyenkor is megmarad a `message` mezőben.
+
+<ErrorCodeTable />
+
+## Következő lépések
+
+<Cards>
+  <Card title="Munkamenet (session cookie)" href="/docs/alapok/munkamenet">
+    Hogyan tartja életben a kassza a munkamenetet, és mit tegyél serverless környezetben.
+  </Card>
+  <Card title="Tesztelés" href="/docs/kiegeszitok/teszteles">
+    Hibák szimulálása mock klienssel, hálózat nélkül.
+  </Card>
+</Cards>

@@ -1,0 +1,193 @@
+---
+title: Válasz
+description: A TaxpayerInfo és a TaxpayerAddress mezői, a valid false eset, a számla vevőjének kitöltése a válaszból, és az adószám lekérdezésnél előforduló hibák.
+official: https://docs.szamlazz.hu/hu/agent/querying_taxpayer/response
+---
+
+A `query()` egy `TaxpayerInfo` objektumot ad vissza. A mezők a NAV Online Számla `QueryTaxpayerResponse` válaszából jönnek, amelyet a Számlázz.hu változatlanul továbbít.
+
+```ts
+const ceg = await kassza.taxpayer.query('12345676-2-41')
+
+if (ceg.valid && ceg.address) {
+  console.log(ceg.name, ceg.taxNumber?.formatted, ceg.address.formatted)
+}
+```
+
+## TaxpayerInfo
+
+| Mező | Típus | Forrás a válaszban | Leírás |
+| --- | --- | --- | --- |
+| `valid` | `boolean` | `taxpayerValidity` | Érvényes-e az adószám. `false` esetén csak az `addresses`, az `infoDate` és a `requestId` szerepel. |
+| `name` | `string \| undefined` | `taxpayerName` | Az adózó teljes neve. A kassza nem alakítja át, ezért jellemzően csupa nagybetű. |
+| `shortName` | `string \| undefined` | `taxpayerShortName` | Rövid név, ha a NAV-nál van ilyen. Ez sincs átalakítva. |
+| `taxNumber` | `TaxpayerTaxNumber \| undefined` | `taxNumberDetail` | Az adószám részei, lásd lent. |
+| `address` | `TaxpayerAddress \| undefined` | `taxpayerAddressList` | A székhely (`HQ`), ennek hiányában az első cím. |
+| `addresses` | `readonly TaxpayerAddress[]` | `taxpayerAddressList` | Az összes cím a válasz sorrendjében. Üres tömb, ha nincs cím. |
+| `incorporation` | `TaxpayerIncorporation \| undefined` | `incorporation` | Az adózó típusa: `'ORGANIZATION'` (gazdálkodó szervezet), `'SELF_EMPLOYED'` (egyéni vállalkozó) vagy `'TAXABLE_PERSON'` (adószámos magánszemély). Más értéket változatlanul továbbad. |
+| `vatGroupMembership` | `string \| undefined` | `vatGroupMembership` | Áfacsoport tagjánál a csoport azonosítója. |
+| `infoDate` | `string \| undefined` | `infoDate` | A NAV adatainak dátuma ISO 8601 szövegként. |
+| `requestId` | `string \| undefined` | `header/requestId` | A NAV kérés azonosítója. `-` érték esetén `undefined`. |
+
+<Callout type="info" title="A valid: true sem garantál adatokat">
+  Ha a NAV érvényesnek jelöli az adószámot, de adatot nem küld, a `valid` `true`, az `addresses`
+  pedig üres. A vevő kitöltése előtt ezért a `valid` mellett az `address` meglétét is nézd meg.
+</Callout>
+
+### TaxpayerTaxNumber
+
+| Mező | Típus | Forrás | Leírás |
+| --- | --- | --- | --- |
+| `taxpayerId` | `string` | `taxpayerId` | A 8 jegyű törzsszám. Ha a válaszban nincs, a teljes `taxNumber` `undefined`. |
+| `vatCode` | `string \| undefined` | `vatCode` | Az áfakód, az adószám 9. számjegye. |
+| `countyCode` | `string \| undefined` | `countyCode` | A megyekód, az adószám utolsó két számjegye. |
+| `formatted` | `string \| undefined` | kassza | `'12345676-2-41'` alakú adószám. Csak akkor van, ha a `vatCode` és a `countyCode` is megjött. |
+
+## TaxpayerAddress
+
+| Mező | Típus | Forrás | Leírás |
+| --- | --- | --- | --- |
+| `type` | `TaxpayerAddressType` | `taxpayerAddressType` | `'HQ'` székhely, `'SITE'` telephely, `'BRANCH'` fióktelep. Nagybetűsítve, hiányzó típusnál `''`. |
+| `countryCode` | `string` | `countryCode` | Országkód nagybetűvel, például `'HU'`. Hiányzó értéknél `''`. |
+| `region` | `string \| undefined` | `region` | Megye vagy régió, olvasható formában. |
+| `postalCode` | `string` | `postalCode` | Irányítószám. Hiányzó értéknél `''`. |
+| `city` | `string` | `city` | Település, olvasható formában. Hiányzó értéknél `''`. |
+| `street` | `string \| undefined` | `streetName` | A közterület neve, olvasható formában. |
+| `publicPlaceCategory` | `string \| undefined` | `publicPlaceCategory` | A közterület jellege. Csupa nagybetűs értéknél kisbetűvel, például `'utca'`. |
+| `number` | `string \| undefined` | `number` | Házszám. |
+| `building` | `string \| undefined` | `building` | Épület. |
+| `staircase` | `string \| undefined` | `staircase` | Lépcsőház. |
+| `floor` | `string \| undefined` | `floor` | Emelet. |
+| `door` | `string \| undefined` | `door` | Ajtó. |
+| `lotNumber` | `string \| undefined` | `lotNumber` | Helyrajzi szám. |
+| `formatted` | `string` | kassza | Egysoros cím, például `'1031 Budapest, Záhony utca 7.'`. |
+| `raw` | `NavDetailedAddress` | `taxpayerAddress` | A NAV eredeti értékei átalakítás nélkül. |
+
+A NAV a címeket jellemzően csupa nagybetűvel küldi. Az olvasható formában a kassza szavanként nagy kezdőbetűt ír, a kötőjeles neveket részenként alakítja, a római számot meghagyja: `BUDAPEST XI.` → `Budapest XI.`, `BAJCSY-ZSILINSZKY` → `Bajcsy-Zsilinszky`. A vegyes kis- és nagybetűs értékekhez nem nyúl. A `raw` mezőben (`countryCode`, `region`, `postalCode`, `city`, `streetName`, `publicPlaceCategory`, `number`, `building`, `staircase`, `floor`, `door`, `lotNumber`) az eredeti értékeket találod.
+
+A `formatted` sorrendje: irányítószám és település, vessző, közterület, házszám, épület, lépcsőház, emelet, ajtó, vessző, helyrajzi szám, vessző, és a végén az országkód, ha nem `HU`. A csak számjegyből álló házszám, lépcsőház, emelet és ajtó után pontot tesz:
+
+```text
+1111 Budapest XI., Bajcsy-Zsilinszky út 12. B ép. 2. lh. 3. em. 14. ajtó
+2000 Szentendre, hrsz. 1234/5
+```
+
+## Ha a valid false
+
+Ha a NAV szerint a törzsszámhoz nem tartozik érvényes adószám, a `query()` nem dob hibát, hanem ezt adja vissza:
+
+```ts
+{ valid: false, addresses: [], infoDate: undefined, requestId: '38046_g2z6726bg67ymdt3p56bg6' }
+```
+
+Ilyenkor:
+
+- ne töltsd ki a vevő adatait, és jelezd a felhasználónak, hogy ellenőrizze a beírt számot;
+- ne kérdezd le újra ugyanazt a számot, ez nem átmeneti hiba, hanem a NAV válasza;
+- ha később vissza kell nézned, mit válaszolt a NAV, naplózd a `requestId` mezőt.
+
+## A vevő kitöltése
+
+Az űrlapon beírt adószámot a böngésző előbb a `kassza/validators` modullal ellenőrzi, és csak érvényes formátumnál hívja a szervert. A szerver újra ellenőriz, lekérdezi a NAV-ot, és a válaszból összerakja a számla `buyer` mezőjét.
+
+<Tabs items={['Űrlap', 'Server action']} groupId="adoszam-vevo">
+  <Tab value="Űrlap">
+    ```tsx title="app/rendeles/adoszam-mezo.tsx"
+    'use client'
+
+    import type { InvoiceBuyer } from 'kassza'
+    import { parseHungarianTaxNumber } from 'kassza/validators'
+    import { useState } from 'react'
+    import { vevoAdoszambol } from './actions'
+
+    export function AdoszamMezo({ onVevo }: { onVevo: (vevo: InvoiceBuyer) => void }) {
+      const [hiba, setHiba] = useState<string>()
+
+      async function kitolt(bevitt: string) {
+        const adoszam = parseHungarianTaxNumber(bevitt)
+        if (!adoszam) {
+          setHiba('Hibás adószám. Így add meg: 12345676-2-41')
+          return
+        }
+        const eredmeny = await vevoAdoszambol(adoszam.formatted)
+        if (!eredmeny.ok) {
+          setHiba(eredmeny.uzenet)
+          return
+        }
+        setHiba(undefined)
+        onVevo(eredmeny.vevo)
+      }
+
+      return (
+        <label>
+          Adószám
+          <input name="adoszam" onBlur={(event) => kitolt(event.currentTarget.value)} />
+          {hiba && <span role="alert">{hiba}</span>}
+        </label>
+      )
+    }
+    ```
+  </Tab>
+  <Tab value="Server action">
+    ```ts title="app/rendeles/actions.ts"
+    'use server'
+
+    import { type InvoiceBuyer, isSzamlazzError } from 'kassza'
+    import { parseHungarianTaxNumber } from 'kassza/validators'
+    import { kassza } from '@/lib/kassza'
+
+    type VevoEredmeny = { ok: true; vevo: InvoiceBuyer } | { ok: false; uzenet: string }
+
+    export async function vevoAdoszambol(bevitt: string): Promise<VevoEredmeny> {
+      const adoszam = parseHungarianTaxNumber(bevitt)
+      if (!adoszam) return { ok: false, uzenet: 'Hibás adószám.' }
+
+      try {
+        const ceg = await kassza.taxpayer.query(adoszam.formatted)
+        if (!ceg.valid || !ceg.address) {
+          return { ok: false, uzenet: 'A NAV nem talált érvényes adószámot. Ellenőrizd a számot.' }
+        }
+        return {
+          ok: true,
+          vevo: {
+            name: ceg.name ?? '',
+            zip: ceg.address.postalCode,
+            city: ceg.address.city,
+            address: ceg.address.formatted.split(', ').slice(1).join(', '),
+            taxNumber: ceg.taxNumber?.formatted ?? adoszam.formatted,
+            taxpayerType: 'hungarianTaxNumber',
+          },
+        }
+      } catch (error) {
+        if (isSzamlazzError(error) && error.retryable) {
+          return { ok: false, uzenet: 'A NAV most nem elérhető. Add meg kézzel a vevő adatait.' }
+        }
+        throw error
+      }
+    }
+    ```
+  </Tab>
+</Tabs>
+
+- Az `address` a `formatted` első vessző utáni része, mert az irányítószám és a település külön mezőbe kerül.
+- A `taxNumber` a NAV válaszából jön, de ha abból hiányzik a megyekód, a beírt és ellenőrzött adószámot használja.
+- A `retryable` hibákat (`maintenance`, `network`, `timeout`) a kassza már újrapróbálta, mire a `catch` ágba érsz, ezért itt nem kell újra hívnod.
+
+A mezőket a [Számla létrehozás kérés](/docs/szamla-letrehozas/keres) oldala írja le.
+
+## Hibák
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | A bemenet a `HU` előtag, a szóközök és a kötőjelek nélkül nem 8 vagy 11 számjegy. A kassza kérést sem küld. |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 136 | `account` | Lejárt előfizetés vagy rendezetlen díj. |
+| 57 | `validation` | A kérés XML-je nem felel meg a sémának. A kassza formátum-ellenőrzése mellett nem jellemző. |
+| – | `unknown` | A NAV szöveges hibakóddal válaszolt, például `INVALID_SECURITY_USER`. A kód az üzenet elején áll. |
+| 1 | `maintenance` | Karbantartás. A kassza magától újrapróbálja. |
+| – | `network`, `timeout` | Hálózati hiba, 5xx válasz vagy időtúllépés. A kassza újrapróbálja, és csak az utolsó próbálkozás hibáját kapod meg. |
+| – | `unexpected_response` | A válasz nem `QueryTaxpayerResponse` XML. |
+
+A NAV hibáját a válasz `result` eleme jelzi (`funcCode` értéke `ERROR`). Számjegyes `errorCode` esetén a kassza a Számlázz.hu hibakód táblája szerint adja a kategóriát. Az ott nem szereplő és a szöveges kódok `unknown` kategóriát kapnak. Az összes kódot a [Hibakezelés, hibakódok](/docs/alapok/hibakezeles#hibakódok) oldal sorolja fel.
+
+Tesztekben a [mock kliens](/docs/kiegeszitok/teszteles) `taxpayers` opciójával adhatsz meg törzsszám szerinti válaszokat. Az ismeretlen törzsszámra a mock `{ valid: false, addresses: [] }` választ ad.

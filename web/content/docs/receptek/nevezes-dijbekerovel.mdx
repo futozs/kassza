@@ -1,0 +1,273 @@
+---
+title: Nevezés díjbekérővel
+description: Versenynevezés vagy rendezvényjelentkezés átutalásos fizetéssel. Díjbekérő a jelentkezéskor, számla a befizetés után, díjbekérő törlése lemondáskor.
+---
+
+Egy futóversenyre a jelentkezők egy űrlapon neveznek, a nevezési díjat átutalással fizetik. Nevezéskor díjbekérőt küldesz, amelyből a jelentkező látja, mennyit és meddig kell fizetnie. Amikor a pénz megérkezik, a díjbekérőre hivatkozó számlát állítasz ki. Ha valaki lemondja a nevezést, mielőtt fizetett, a díjbekérőt törlöd.
+
+A díjbekérő és a számla ugyanazt a rendelésszámot kapja, így a kassza mindkettőt meg tudja keresni. A recept a [Fizetett rendelés számlája](/docs/receptek/fizetett-rendeles-szamla) recept `egyszerSzamlaz()` függvényére épül.
+
+## A nevezési logika
+
+```ts title="lib/nevezes-szamlazas.ts"
+import { type InvoiceBuyer, type InvoiceItemInput, isSzamlazzError, type Kassza } from 'kassza'
+import { kassza as alapKliens } from '@/lib/kassza'
+import { egyszerSzamlaz } from '@/lib/szamlazas'
+
+export interface Nevezes {
+  readonly id: string
+  readonly vevo: InvoiceBuyer
+  readonly tav: string
+  readonly nevezesiDij: number
+}
+
+export type TorlesEredmenye = 'torolve' | 'nem-talalhato' | 'mar-szamlazva'
+
+function rendelesszam(nevezes: Nevezes): string {
+  return `NEV-${nevezes.id}`
+}
+
+function tetelek(nevezes: Nevezes): InvoiceItemInput[] {
+  return [{ name: `Nevezési díj, ${nevezes.tav}`, grossUnitPrice: nevezes.nevezesiDij, vat: 27 }]
+}
+
+export function dijbekeroKiallitasa(
+  nevezes: Nevezes,
+  kliens: Kassza = alapKliens,
+): Promise<string> {
+  return egyszerSzamlaz(
+    {
+      type: 'proforma',
+      orderNumber: rendelesszam(nevezes),
+      paymentMethod: 'átutalás',
+      paymentDueInDays: 5,
+      downloadPdf: false,
+      buyer: nevezes.vevo,
+      items: tetelek(nevezes),
+    },
+    kliens,
+  )
+}
+
+export async function szamlaBefizetesUtan(
+  nevezes: Nevezes,
+  kliens: Kassza = alapKliens,
+): Promise<string> {
+  const orderNumber = rendelesszam(nevezes)
+  const legutobbi = await kliens.invoices.find({ orderNumber })
+  if (legutobbi?.header.type === 'invoice') return legutobbi.header.number
+
+  return egyszerSzamlaz(
+    {
+      orderNumber,
+      proformaNumber: legutobbi?.header.type === 'proforma' ? legutobbi.header.number : undefined,
+      paid: true,
+      paymentMethod: 'átutalás',
+      buyer: nevezes.vevo,
+      items: tetelek(nevezes),
+    },
+    kliens,
+  )
+}
+
+export async function dijbekeroTorlese(
+  nevezes: Nevezes,
+  kliens: Kassza = alapKliens,
+): Promise<TorlesEredmenye> {
+  const orderNumber = rendelesszam(nevezes)
+  const legutobbi = await kliens.invoices.find({ orderNumber })
+  if (legutobbi?.header.type === 'invoice') return 'mar-szamlazva'
+
+  try {
+    await kliens.invoices.deleteProforma({ orderNumber })
+    return 'torolve'
+  } catch (error) {
+    if (isSzamlazzError(error) && error.isNotFound) return 'nem-talalhato'
+    throw error
+  }
+}
+```
+
+A számla ugyanazt a vevőt és ugyanazokat a tételeket kapja, mint a díjbekérő. A `proformaNumber` kapcsolja össze a két bizonylatot a Számlázz.hu-ban.
+
+<Example slug="dijbekero-szamla" />
+
+## Jelentkezés
+
+A `@/lib/nevezesek` a saját adatbázis-réteged: a `nevezesMentese()` elmenti a jelentkezést és visszaadja `Nevezes` alakban, a `dijbekeroszamMentese()` a nevezéshez írja a díjbekérő számát.
+
+```ts title="app/api/nevezesek/route.ts"
+import { isSzamlazzError } from 'kassza'
+import { isValidEmail, isValidHungarianZipCode } from 'kassza/validators'
+import { dijbekeroszamMentese, nevezesMentese } from '@/lib/nevezesek'
+import { dijbekeroKiallitasa } from '@/lib/nevezes-szamlazas'
+
+const TAVOK = {
+  felmaraton: { nev: 'félmaraton', dij: 12_990 },
+  maraton: { nev: 'maraton', dij: 16_990 },
+} as const
+
+type Tav = keyof typeof TAVOK
+
+interface NevezesiUrlap {
+  readonly nev?: unknown
+  readonly email?: unknown
+  readonly iranyitoszam?: unknown
+  readonly varos?: unknown
+  readonly cim?: unknown
+  readonly tav?: unknown
+}
+
+function szoveg(ertek: unknown): string {
+  return typeof ertek === 'string' ? ertek.trim() : ''
+}
+
+function ismertTav(ertek: unknown): ertek is Tav {
+  return typeof ertek === 'string' && Object.hasOwn(TAVOK, ertek)
+}
+
+export async function POST(request: Request) {
+  const urlap = (await request.json()) as NevezesiUrlap
+  const nev = szoveg(urlap.nev)
+  const email = szoveg(urlap.email)
+  const iranyitoszam = szoveg(urlap.iranyitoszam)
+  const varos = szoveg(urlap.varos)
+  const cim = szoveg(urlap.cim)
+
+  if (!nev || !varos || !cim || !isValidEmail(email) || !isValidHungarianZipCode(iranyitoszam)) {
+    return Response.json({ hiba: 'Hiányos vagy hibás számlázási adatok.' }, { status: 400 })
+  }
+  if (!ismertTav(urlap.tav)) {
+    return Response.json({ hiba: 'Ismeretlen táv.' }, { status: 400 })
+  }
+
+  const tav = TAVOK[urlap.tav]
+  const nevezes = await nevezesMentese({
+    vevo: { name: nev, email, zip: iranyitoszam, city: varos, address: cim },
+    tav: tav.nev,
+    nevezesiDij: tav.dij,
+  })
+
+  try {
+    const dijbekeroszam = await dijbekeroKiallitasa(nevezes)
+    await dijbekeroszamMentese(nevezes.id, dijbekeroszam)
+    return Response.json({ id: nevezes.id, dijbekeroszam }, { status: 201 })
+  } catch (error) {
+    if (!isSzamlazzError(error)) throw error
+    console.error('A díjbekérő nem készült el', nevezes.id, error.category, error.code)
+    return Response.json({ id: nevezes.id, dijbekeroszam: null }, { status: 201 })
+  }
+}
+```
+
+Ha a díjbekérő nem készül el, a nevezés ettől még mentve van. Ha később újra meghívod a `dijbekeroKiallitasa()` függvényt, az a rendelésszám alapján megtalálja a mégis elkészült díjbekérőt, így a jelentkező nem kap kettőt.
+
+## Befizetés és lemondás
+
+A két végpontot a szervezők admin felülete hívja. Az `adminKeres()` a belső token ellenőrzése, a `nevezesBetoltese()`, a `szamlaszamMentese()` és a `nevezesLemondasa()` a saját adatbázis-függvényeid.
+
+```ts title="lib/admin.ts"
+export function adminKeres(request: Request): boolean {
+  const token = process.env.BELSO_API_TOKEN
+  return Boolean(token) && request.headers.get('authorization') === `Bearer ${token}`
+}
+```
+
+```ts title="app/api/nevezesek/[id]/befizetes/route.ts"
+import { isSzamlazzError } from 'kassza'
+import { adminKeres } from '@/lib/admin'
+import { szamlaBefizetesUtan } from '@/lib/nevezes-szamlazas'
+import { nevezesBetoltese, szamlaszamMentese } from '@/lib/nevezesek'
+
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!adminKeres(request)) return new Response('Nincs jogosultság', { status: 401 })
+
+  const { id } = await params
+  const nevezes = await nevezesBetoltese(id)
+  if (!nevezes) return Response.json({ hiba: 'Nincs ilyen nevezés.' }, { status: 404 })
+
+  try {
+    const szamlaszam = await szamlaBefizetesUtan(nevezes)
+    await szamlaszamMentese(nevezes.id, szamlaszam)
+    return Response.json({ szamlaszam })
+  } catch (error) {
+    if (!isSzamlazzError(error)) throw error
+    return Response.json({ hiba: error.message, tipp: error.hint }, { status: 502 })
+  }
+}
+```
+
+```ts title="app/api/nevezesek/[id]/route.ts"
+import { adminKeres } from '@/lib/admin'
+import { dijbekeroTorlese } from '@/lib/nevezes-szamlazas'
+import { nevezesBetoltese, nevezesLemondasa } from '@/lib/nevezesek'
+
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!adminKeres(request)) return new Response('Nincs jogosultság', { status: 401 })
+
+  const { id } = await params
+  const nevezes = await nevezesBetoltese(id)
+  if (!nevezes) return Response.json({ hiba: 'Nincs ilyen nevezés.' }, { status: 404 })
+
+  const eredmeny = await dijbekeroTorlese(nevezes)
+  if (eredmeny === 'mar-szamlazva') {
+    return Response.json(
+      { hiba: 'A nevezési díj már be van fizetve, a számlát sztornózni kell.' },
+      { status: 409 },
+    )
+  }
+
+  await nevezesLemondasa(nevezes.id)
+  return Response.json({ eredmeny })
+}
+```
+
+<Example slug="dijbekero-torlese" />
+
+## Buktatók
+
+<Callout type="danger" title="A díjbekérőt ne sztornózd, hanem töröld">
+  A díjbekérő nem számla, és nem kerül a NAV-hoz. Ha díjbekérőt próbálsz sztornózni, a kassza
+  `validation` hibát ad, mert a Számlázz.hu ilyenkor csendben visszaadná az eredeti bizonylatot. A
+  ki nem fizetett díjbekérőt az `invoices.deleteProforma()` törli.
+</Callout>
+
+<Callout type="warning" title="A díjbekérő után a find() a díjbekérőt adja vissza">
+  A `find()` a rendelésszámhoz tartozó legutóbbi bizonylatot adja vissza. Befizetés előtt ez a
+  díjbekérő, ezért a recept mindig a `header.type` mezőt is nézi. Enélkül a díjbekérőt kiállított
+  számlának hinnéd, és a számla soha nem készülne el.
+</Callout>
+
+<Callout type="warning" title="Az árat ne az űrlapból vedd">
+  A nevezési díj a szerveren tárolt `TAVOK` táblából jön, nem a böngészőből. Az űrlapból csak azt
+  fogadd el, hogy melyik távra nevez a jelentkező.
+</Callout>
+
+<Callout type="info" title="Közös rendelésszám két bizonylattípuson">
+  A Számlázz.hu leírása szerint a rendelésszám ismétlődés tiltása bizonylattípusonként érvényes,
+  ezért a díjbekérő és a számla ugyanazt a rendelésszámot kaphatja. Ha a fiókodban be van kapcsolva
+  a tiltás, élesítés előtt tesztfiókkal is próbáld ki a teljes folyamatot.
+</Callout>
+
+<Callout type="tip" title="Lejárt határidejű díjbekérők">
+  A határidőig ki nem fizetett nevezéseket egy időzített feladat is lemondhatja a
+  `dijbekeroTorlese()` hívásával. A `'nem-talalhato'` eredmény azt jelenti, hogy a díjbekérőt már
+  korábban törölték, ez nem hiba.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Bizonylattípusok" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok">
+    Díjbekérő, előleg- és végszámla, helyesbítő számla.
+  </Card>
+  <Card title="Díjbekérő törlése" href="/docs/dijbekero-torlese">
+    A törlés kérése, válasza és hibái.
+  </Card>
+  <Card title="IPN webhook" href="/docs/receptek/ipn-webhook">
+    Értesítés a Számlázz.hu-tól, ha egy számla kifizetettsége megváltozik.
+  </Card>
+  <Card title="Fizetett rendelés számlája" href="/docs/receptek/fizetett-rendeles-szamla">
+    Az egyszerSzamlaz() függvény, amelyre ez a recept épül.
+  </Card>
+</Cards>

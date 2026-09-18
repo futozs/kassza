@@ -1,0 +1,193 @@
+---
+title: Validátorok
+description: A kassza/validators modul. Magyar adószám CDV ellenőrzéssel, bankszámla, IBAN, EU adószám, e-mail, irányítószám, Agent kulcs és cím feldolgozása űrlap-validációhoz.
+---
+
+A Számlázz.hu sok hibát csak a számla elküldésekor jelez, és addigra a vevő már rég elhagyta az űrlapot. A `kassza/validators` függvényeivel a pénztár űrlapján, még a rendelés előtt kiszűrheted az elgépelt adószámot, bankszámlát vagy címet. A modul hálózatot nem hív, böngészőben is futtatható, és a függvényei nem dobnak hibát: érvénytelen vagy nem szöveges bemenetre `false`-t vagy `undefined`-ot adnak.
+
+<ValidatorPlayground />
+
+## Az összes export
+
+### Adószám
+
+| Export | Eredmény | Mit ellenőriz? |
+| --- | --- | --- |
+| `parseHungarianTaxNumber(value)` | `HungarianTaxNumber \| undefined` | 11 számjegy kötőjellel, szóközzel vagy elválasztó nélkül. A törzsszám ellenőrző számjegye (CDV), az áfakód (1–5) és a megyekód. |
+| `isValidHungarianTaxNumber(value)` | `boolean` | Ugyanaz, mint a `parseHungarianTaxNumber`, igen/nem válasszal. |
+| `isValidHungarianTaxpayerId(value)` | `boolean` | A 8 jegyű törzsszám és az ellenőrző számjegye. |
+| `isValidHungarianGroupTaxNumber(value)` | `boolean` | Érvényes adószám `5`-ös áfakóddal (csoportazonosító szám). |
+| `isHungarianVatGroupMemberTaxNumber(value)` | `boolean` | Érvényes adószám `4`-es áfakóddal (csoporttag adószáma). |
+| `HUNGARIAN_TAX_COUNTY_CODES` | `readonly string[]` | Az elfogadott 43 megyekód: `02`–`20`, `22`–`44` és `51`. |
+
+A `HungarianTaxNumber` mezői: `taxpayerId` (törzsszám), `vatCode` (áfakód), `countyCode` (megyekód) és `formatted`, ami mindig `12345676-2-41` alakú.
+
+### Bankszámla és IBAN
+
+| Export | Eredmény | Mit ellenőriz? |
+| --- | --- | --- |
+| `parseHungarianBankAccount(value)` | `HungarianBankAccount \| undefined` | 16 vagy 24 számjegy, szóközzel vagy kötőjellel is. Az első 8 és a többi számjegy ellenőrző számjegye. |
+| `isValidHungarianBankAccount(value)` | `boolean` | Ugyanaz igen/nem válasszal. |
+| `formatHungarianBankAccount(value)` | `string \| undefined` | Érvényes számlaszámot 8-as blokkokra tagol: `11773016-11111018`. |
+| `isValidHungarianIban(value)` | `boolean` | `HU` előtag, 28 karakter, mod 97 ellenőrzés. Szóközt és kisbetűt is elfogad. |
+
+A `HungarianBankAccount` mezői: `digits` (csak a számjegyek), `bankCode` (első 3 jegy), `branchCode` (a következő 4 jegy) és `formatted`.
+
+### EU adószám, e-mail, Agent kulcs
+
+| Export | Eredmény | Mit ellenőriz? |
+| --- | --- | --- |
+| `isValidEuVatNumber(value)` | `boolean` | Országkód és az adott ország formátuma. Ellenőrző összeget nem számol. |
+| `normalizeEuVatNumber(value)` | `string` | Eltávolítja a szóközt, pontot és kötőjelet, és nagybetűsít: `de 123.456.789` → `DE123456789`. |
+| `EU_VAT_NUMBER_PATTERNS` | `Record<EuVatCountryPrefix, RegExp>` | Országonként az országkód utáni rész mintája. |
+| `isValidEmail(value)` | `boolean` | Szóköz nélküli `nev@domain.tld` alak, legfeljebb 254 karakter. A körülötte lévő szóközt levágja. |
+| `normalizeEmail(value)` | `string` | Levágja a szóközt és kisbetűsít. |
+| `isValidAgentKey(value)` | `boolean` | Nem üres, nincs benne szóköz, és nincs benne nagybetű. |
+
+Az `EuVatCountryPrefix` a 27 tagállam kódja és az `XI` (Észak-Írország). Görögország kódja `EL`, a `GR` előtagot a validátor elutasítja.
+
+### Cím
+
+| Export | Eredmény | Mit ellenőriz? |
+| --- | --- | --- |
+| `isValidHungarianZipCode(value)` | `boolean` | 4 számjegy 1000 és 9999 között, szövegként vagy számként. |
+| `parseHungarianAddress(value)` | `HungarianAddress \| undefined` | Egysoros magyar címet bont irányítószámra, településre és címre. |
+
+A `parseHungarianAddress` ezeket az alakokat ismeri fel:
+
+| Bemenet | Eredmény |
+| --- | --- |
+| `1031 Budapest, Záhony utca 7.` | `{ zip: '1031', city: 'Budapest', address: 'Záhony utca 7.' }` |
+| `6720 Szeged Kárász utca 5.` | `{ zip: '6720', city: 'Szeged', address: 'Kárász utca 5.' }` |
+| `Fő utca 1., 1111 Budapest` | `{ zip: '1111', city: 'Budapest', address: 'Fő utca 1.' }` |
+| `1111 Budapest, XI. kerület, Fő utca 1.` | `{ zip: '1111', city: 'Budapest', address: 'Fő utca 1.', district: 11 }` |
+| `H-1011 Budapest I. ker., Fő utca 1., Magyarország` | `{ zip: '1011', city: 'Budapest', address: 'Fő utca 1.', district: 1 }` |
+
+A budapesti kerületet római (`XI.`, `V. ker.`) és arab számmal (`13. kerület`) is felismeri, és a `district` mezőbe teszi. A `H-` vagy `HU-` előtagot és a végén álló `Magyarország` vagy `Hungary` szót elhagyja. Ha a címből nem lesz érvényes irányítószám, település és cím, `undefined`-ot ad.
+
+<Example slug="validatorok" />
+
+## Űrlap-validáció
+
+A validátorokat a szerveren is futtasd, ne csak a böngészőben, mert a kliensoldali ellenőrzés megkerülhető. Az alábbi példa egy pénztár számlázási adatait ellenőrzi, és hiba nélküli űrlapból kész `InvoiceBuyer` objektumot ad vissza:
+
+<Tabs items={['Saját függvény', 'Zod']} groupId="validacio">
+  <Tab value="Saját függvény">
+    ```ts title="lib/szamlazasi-adatok.ts"
+    import type { InvoiceBuyer } from 'kassza'
+    import {
+      isValidEmail,
+      isValidHungarianZipCode,
+      normalizeEmail,
+      parseHungarianTaxNumber,
+    } from 'kassza/validators'
+
+    export interface SzamlazasiUrlap {
+      readonly nev: string
+      readonly email: string
+      readonly iranyitoszam: string
+      readonly telepules: string
+      readonly cim: string
+      readonly adoszam: string
+    }
+
+    type Hibak = Partial<Record<keyof SzamlazasiUrlap, string>>
+
+    export type Eredmeny =
+      | { readonly ok: true; readonly vevo: InvoiceBuyer }
+      | { readonly ok: false; readonly hibak: Hibak }
+
+    export function ellenorizSzamlazasiAdatok(urlap: SzamlazasiUrlap): Eredmeny {
+      const vanAdoszam = urlap.adoszam.trim() !== ''
+      const adoszam = vanAdoszam ? parseHungarianTaxNumber(urlap.adoszam) : undefined
+
+      const hibak: Hibak = {
+        ...(urlap.nev.trim() === '' ? { nev: 'Add meg a számlázási nevet.' } : {}),
+        ...(isValidEmail(urlap.email) ? {} : { email: 'Érvénytelen e-mail cím.' }),
+        ...(isValidHungarianZipCode(urlap.iranyitoszam)
+          ? {}
+          : { iranyitoszam: 'Az irányítószám 4 számjegyű.' }),
+        ...(urlap.telepules.trim() === '' ? { telepules: 'Add meg a települést.' } : {}),
+        ...(urlap.cim.trim() === '' ? { cim: 'Add meg az utcát és a házszámot.' } : {}),
+        ...(vanAdoszam && !adoszam ? { adoszam: 'Az adószám hibás, ellenőrizd a számjegyeket.' } : {}),
+      }
+      if (Object.keys(hibak).length > 0) return { ok: false, hibak }
+
+      return {
+        ok: true,
+        vevo: {
+          name: urlap.nev.trim(),
+          email: normalizeEmail(urlap.email),
+          zip: urlap.iranyitoszam.trim(),
+          city: urlap.telepules.trim(),
+          address: urlap.cim.trim(),
+          ...(adoszam ? { taxNumber: adoszam.formatted } : {}),
+        },
+      }
+    }
+    ```
+  </Tab>
+  <Tab value="Zod">
+    ```ts title="lib/szamlazasi-adatok.ts"
+    import {
+      isValidEmail,
+      isValidHungarianZipCode,
+      normalizeEmail,
+      parseHungarianTaxNumber,
+    } from 'kassza/validators'
+    import { z } from 'zod'
+
+    export const szamlazasiAdatok = z.object({
+      nev: z.string().trim().min(1, { message: 'Add meg a számlázási nevet.' }),
+      email: z
+        .string()
+        .refine(isValidEmail, { message: 'Érvénytelen e-mail cím.' })
+        .transform(normalizeEmail),
+      iranyitoszam: z
+        .string()
+        .trim()
+        .refine(isValidHungarianZipCode, { message: 'Az irányítószám 4 számjegyű.' }),
+      telepules: z.string().trim().min(1, { message: 'Add meg a települést.' }),
+      cim: z.string().trim().min(1, { message: 'Add meg az utcát és a házszámot.' }),
+      adoszam: z
+        .string()
+        .trim()
+        .refine((ertek) => ertek === '' || parseHungarianTaxNumber(ertek) !== undefined, {
+          message: 'Az adószám hibás, ellenőrizd a számjegyeket.',
+        })
+        .transform((ertek) => parseHungarianTaxNumber(ertek)?.formatted),
+    })
+    ```
+  </Tab>
+</Tabs>
+
+Az adószámot mindig a `formatted` alakban add tovább a számlának, így a `13421739241` és a `13421739 2 41` bevitel is `13421739-2-41` lesz.
+
+### EU-s vevő
+
+Közösségi adószámnál előbb normalizáld a bevitelt, és azt mentsd el. Ugyanez a függvény a `HU` előtagú magyar közösségi adószámot is elfogadja:
+
+```ts
+import { isValidEuVatNumber, normalizeEuVatNumber } from 'kassza/validators'
+
+const bevitel = 'de 123.456.789'
+const euAdoszam = isValidEuVatNumber(bevitel) ? normalizeEuVatNumber(bevitel) : undefined
+```
+
+Itt az `euAdoszam` értéke `DE123456789`, amit a számla `buyer.euTaxNumber` mezőjében adhatsz át.
+
+## Amit a validátorok nem tudnak
+
+A validátorok formátumot és ellenőrző számjegyet vizsgálnak, azt nem, hogy a szám valóban létezik-e:
+
+- **Adószám:** egy formailag helyes adószámhoz is tartozhat megszűnt vagy nem létező cég. A NAV nyilvántartását a [`kassza.taxpayer.query()`](/docs/adoszam-lekerdezes) kérdezi le, ami a cég nevét és címét is visszaadja.
+- **EU adószám:** csak az ország szerinti formátumot nézi, az ellenőrző összeget és a regisztrációt nem.
+- **Bankszámla és IBAN:** a számlaszám lehet formailag helyes, de nem létező.
+- **E-mail:** a cím formáját vizsgálja, azt nem, hogy a postafiók létezik-e.
+
+<Callout type="tip" title="Agent kulcs ellenőrzése telepítéskor">
+  Az `isValidAgentKey()` csak a kulcs formáját nézi. A nagybetűs kulcsot a `createKassza()` is
+  elutasítja, már létrehozáskor `configuration` hibával. Azt, hogy a Számlázz.hu elfogadja-e a
+  kulcsot, a `kassza.verifyCredentials()` mondja meg, lásd a
+  [Hitelesítés](/docs/alapok/hitelesites#a-kulcs-ellenőrzése) oldalt.
+</Callout>

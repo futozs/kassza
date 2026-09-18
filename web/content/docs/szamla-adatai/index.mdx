@@ -1,0 +1,33 @@
+---
+title: Számla adatainak lekérése
+description: Egy kiállított számla teljes adattartalma típusos objektumként a kassza invoices.get() és invoices.find() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/query-document-xml
+---
+
+A `kassza.invoices.get()` egy kiállított számla minden adatát visszaadja: az eladót, a vevőt, a tételeket, az összegeket, a rögzített befizetéseket, és ha kéred, a PDF-et is. A Számla Agent ezt XML-ben küldi, a kassza `InvoiceDetails` objektummá alakítja. A `find()` ugyanezt csinálja, de ha nincs ilyen számla, hiba helyett `null`-t ad.
+
+```ts
+const szamla = await kassza.invoices.get({ orderNumber: 'REND-1001' })
+console.log(szamla.header.number, szamla.header.reversed, szamla.totals.grossAmount)
+
+const meglevo = await kassza.invoices.find({ orderNumber: 'REND-1002' })
+if (meglevo === null) console.log('Ehhez a rendeléshez még nincs számla.')
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/szamla-adatai/keres">
+    Lekérés számlaszám, rendelésszám vagy külső azonosító alapján, a get és a find különbsége.
+  </Card>
+  <Card title="Válasz" href="/docs/szamla-adatai/valasz">
+    Az InvoiceDetails teljes szerkezete a válasz XML elemeivel, és a lekérésnél előforduló hibák.
+  </Card>
+  <Card title="Minta" href="/docs/szamla-adatai/minta">
+    Számla kiállítása, az adatai lekérése, és a find egy nem létező rendelésre.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="Csak a Számlázz.hu-ban kiállított kimenő számlákra működik">
+  Beérkező számlát, vagy olyat, amelyet nem a Számlázz.hu-ban állítottak ki, ezzel a művelettel nem
+  tudsz lekérni. Ha csak a PDF kell, használd a [Bizonylat lekérése PDF-ben](/docs/bizonylat-pdf)
+  műveletet.
+</Callout>

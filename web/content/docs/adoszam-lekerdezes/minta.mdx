@@ -1,0 +1,31 @@
+---
+title: Minta
+description: Adószám előellenőrzése, lekérdezése és a számla vevőjének kitöltése a sandboxban, a ténylegesen elküldött xmltaxpayer XML-lel és a NAV válaszával.
+official: https://docs.szamlazz.hu/hu/agent/querying_taxpayer/xml
+---
+
+A példa a `kassza/validators` modullal ellenőrzi a beírt adószámot, lekérdezi a NAV-tól, és a válaszból összerakja a számla vevőjét. Utána egy ismeretlen törzsszámot is lekérdez, amelyre `valid: false` jön. Az **Elküldött XML** fülön mindkét `xmltaxpayer` kérést látod, a **Válasz** fülön a `QueryTaxpayerResponse` XML-t.
+
+<Example slug="adoszam" />
+
+## Kitalált adózók a sandboxban
+
+A sandbox nem hívja a NAV-ot. Ezt a három kitalált törzsszámot ismeri, minden más 8 jegyű törzsszámra `valid: false` választ ad:
+
+| Adószám | `shortName` | `incorporation` |
+| --- | --- | --- |
+| `12345676-2-41` | `MINTA KERESKEDELMI KFT.` | `'ORGANIZATION'` |
+| `23456787-2-13` | `MINTA WEBÁRUHÁZ KFT.` | `'ORGANIZATION'` |
+| `11111111-1-06` | `TESZT ELEK E.V.` | `'SELF_EMPLOYED'` |
+
+Mindhárom átmegy a `parseHungarianTaxNumber` ellenőrzésén, így a [sandboxban](/sandbox?pelda=adoszam) a bevitt számot bármelyikre átírhatod.
+
+## XSD séma
+
+A kérés sémája:
+
+```text
+http://www.szamlazz.hu/docs/xsds/agent/xmltaxpayer.xsd
+```
+
+A válasz a NAV Online Számla `QueryTaxpayerResponse` szerkezetét követi, ennek sémáját a NAV Online Számla interfész dokumentációja tartalmazza.

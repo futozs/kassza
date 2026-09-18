@@ -1,0 +1,47 @@
+---
+title: Hogyan működik a kassza?
+description: Egy számla útja a kódodtól a vevő postafiókjáig, lépésről lépésre, a kassza szemszögéből.
+official: https://docs.szamlazz.hu/hu/agent/basics/how-does
+---
+
+Egy webshopban tipikusan így születik a számla: a vevő fizet, a rendszered meghívja a kasszát, a kassza elküldi a kérést a Számlázz.hu Számla Agentnek, az elkészült számla PDF-je visszajön, a vevő pedig e-mailben is megkapja.
+
+<FlowDiagram />
+
+## Mi történik egy hívás alatt?
+
+1. **Validáció.** A kassza még a kérés előtt ellenőrzi a bemenetet: kötelező mezők, ismert áfakulcs, érvényes dátum, a mellékletek száma és mérete. Ha valami hibás, `validation` kategóriájú `SzamlazzError` jön, és kérés el sem megy.
+2. **Kerekítés.** Minden tételnél kiszámolja a nettó, áfa és bruttó értéket a [hivatalos kerekítési szabályok](/docs/szamla-letrehozas/beallitasok-es-szabalyok/kerekites) szerint, így a Számlázz.hu nem utasítja el a számlát 259–264-es hibával.
+3. **XML összeállítása.** A kassza saját, sorrendtartó XML-írót használ, mert az Agent XSD-je kötött elemsorrendet követel. Számlánál az Agent kulcs a `<beallitasok>` blokkba kerül.
+4. **Küldés.** `multipart/form-data` POST kérés megy a `https://www.szamlazz.hu/szamla/` címre, a művelethez tartozó form mezőben. Ha van tárolt session cookie, a kassza visszaküldi.
+5. **Válasz értelmezése.** A Számlázz.hu hibát jelezhet fejlécben, XML-ben vagy `[ERR]` szövegben. A kassza mindhármat felismeri, és kódot, kategóriát, magyar tippet ad.
+6. **Eredmény.** Sikernél típusos objektumot kapsz, például `CreatedInvoice`-t számlaszámmal, összegekkel és a PDF-fel.
+7. **Értesítés.** Ha a vevőnek van e-mail címe, a Számlázz.hu elküldi neki a számlát. Ezt a `buyer.sendEmail: false` kapcsolja ki.
+
+<Callout type="tip">
+  Az egész folyamatot végignézheted a [sandboxban](/sandbox): a Hálózat fülön a ténylegesen
+  elküldött XML-t és a szimulált Számlázz.hu választ is látod, fejlécekkel és session cookie-val.
+</Callout>
+
+## Újrapróbálás és dupla számla
+
+A számla létrehozása nem idempotens: ha egy kérés kétszer ér be, két számla készül. Ezért a kassza a számlakészítést **soha nem küldi újra magától**, a nyugtát pedig csak akkor, ha `callId` védi a duplikációtól. A lekérdezéseket (PDF, számlaadatok, nyugta, adószám) hálózati hiba, időtúllépés vagy karbantartás esetén alapból háromszor próbálja meg, egyre hosszabb várakozással. A próbálkozások száma a `maxAttempts` opcióval legfeljebb 5-re emelhető, mert a Számlázz.hu ennél többet nem enged egy kérésre.
+
+Ha egy számlakészítés bizonytalan hibával ér véget, például megszakadt a kapcsolat, a helyes lépés a rendelésszám alapján lekérdezni, hogy elkészült-e:
+
+```ts
+const letezik = await kassza.invoices.find({ orderNumber: 'REND-1001' })
+```
+
+A részleteket a [Hibakezelés, hibakódok](/docs/alapok/hibakezeles) oldal írja le.
+
+## Következő lépések
+
+<Cards>
+  <Card title="Telepítés" href="/docs/alapok/telepites">
+    A csomag telepítése és az első számla.
+  </Card>
+  <Card title="Kérések küldése" href="/docs/alapok/keresek-kuldese">
+    Form mezők, válaszformátumok, egyedi fetch.
+  </Card>
+</Cards>

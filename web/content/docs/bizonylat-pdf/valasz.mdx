@@ -1,0 +1,132 @@
+---
+title: Válasz
+description: Az InvoicePdf mezői, amelyeket az invoices.getPdf() visszaad, a PDF letöltése Next.js route-ból, mentése tárhelyre, és a PDF lekérésnél előforduló hibák.
+official: https://docs.szamlazz.hu/hu/agent/querying_pdf/response
+---
+
+Sikeres lekérés után a `getPdf()` egy `InvoicePdf` objektumot ad vissza. A `pdf` mező mindig ki van töltve: ha a Számlázz.hu válaszában nincs PDF, a kassza hibát dob. A többi mező a válasz XML-jéből jön, és ha ott hiányzik, a kassza a `szlahu_*` fejlécekből pótolja.
+
+## InvoicePdf
+
+| Mező | Típus | Forrás | Leírás |
+| --- | --- | --- | --- |
+| `pdf` | `Uint8Array` | `pdf` | A bizonylat PDF-je. |
+| `number` | `string \| undefined` | `szamlaszam` | A bizonylat száma. Rendelésszám vagy külső azonosító alapján ebből tudod meg, melyik bizonylatot kaptad. |
+| `netTotal` | `number \| undefined` | `szamlanetto` | Nettó végösszeg. |
+| `grossTotal` | `number \| undefined` | `szamlabrutto` | Bruttó végösszeg. |
+| `outstanding` | `number \| undefined` | `kintlevoseg` | Hátralék. |
+| `buyerAccountUrl` | `string \| undefined` | `vevoifiokurl` | A vevői fiók linkje, ha a fiókban be van kapcsolva. |
+
+```ts
+import { writeFile } from 'node:fs/promises'
+
+const peldany = await kassza.invoices.getPdf({ orderNumber: 'REND-1001' })
+
+await writeFile(`szamlak/${peldany.number}.pdf`, peldany.pdf)
+```
+
+<Callout type="info" title="Hogyan olvassa a kassza a választ?">
+  A kassza XML választ kér (`valaszVerzio` 2), és a `pdf` elem base64 tartalmát `Uint8Array`-re
+  alakítja. Ha a Számlázz.hu mégis nyers PDF fájlt küld, azt is elfogadja, ilyenkor a mezőket a
+  `szlahu_*` fejlécekből tölti ki.
+</Callout>
+
+## Letöltés Next.js route-ból
+
+Az alábbi route a bejelentkezett vevőnek letöltésként adja vissza a rendeléséhez tartozó számlát. Az `auth()` és a `db` a saját alkalmazásod moduljai, a számlaszámot a kiállításkor mentetted el a rendelés mellé.
+
+<Callout type="danger" title="Ellenőrizd, kié a számla">
+  A számlaszámok sorszámozottak, ezért könnyen kitalálhatók. Ha a route az URL-ből kapott
+  azonosítót ellenőrzés nélkül továbbadja a `getPdf()`-nek, bárki letöltheti más vevők számláit, a
+  nevükkel és a címükkel együtt. Mindig ellenőrizd, hogy a bizonylat a bejelentkezett
+  felhasználóhoz tartozik-e.
+</Callout>
+
+```ts title="app/rendelesek/[id]/szamla/route.ts"
+import { isSzamlazzError } from 'kassza'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { kassza } from '@/lib/kassza'
+
+export async function GET(_request: Request, { params }: RouteContext<'/rendelesek/[id]/szamla'>) {
+  const session = await auth()
+  if (!session) return new Response('Bejelentkezés szükséges.', { status: 401 })
+
+  const { id } = await params
+  const rendeles = await db.rendeles.findUnique({ where: { id } })
+  if (!rendeles?.szamlaszam || rendeles.userId !== session.user.id) {
+    return new Response('Nincs ilyen számla.', { status: 404 })
+  }
+
+  try {
+    const { pdf } = await kassza.invoices.getPdf(rendeles.szamlaszam)
+    return new Response(new Uint8Array(pdf), {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${rendeles.szamlaszam}.pdf"`,
+        'Cache-Control': 'private, no-store',
+      },
+    })
+  } catch (error) {
+    if (isSzamlazzError(error) && error.isNotFound) {
+      return new Response('Nincs ilyen számla.', { status: 404 })
+    }
+    throw error
+  }
+}
+```
+
+- Más vevő rendelésére is 404-et ad, így a válaszból nem derül ki, hogy a rendelés létezik.
+- A `new Uint8Array(pdf)` csak a TypeScript miatt kell: a DOM típusok a `Response` törzsénél `ArrayBuffer` alapú tömböt várnak, a `pdf` típusa pedig ennél általánosabb.
+- Ha a PDF a böngészőben nyíljon meg, az `attachment` helyett `inline` értéket adj.
+- Minden letöltés egy Számla Agent hívás. Ha a vevők gyakran töltik le a számlát, mentsd el egyszer tárhelyre, és onnan szolgáld ki.
+
+## Mentés tárhelyre
+
+Ha a számlát `downloadPdf: false` beállítással állítottad ki, vagy a PDF mentése a kiállításkor nem sikerült, egy háttérfeladat később is letöltheti és elmentheti. A `kassza/storage` modul S3-ba, Cloudflare R2-be és más tárhelyekre ment:
+
+```ts
+import { invoicePdfKey, s3FetchStorage, storePdf } from 'kassza/storage'
+import { kassza } from '@/lib/kassza'
+
+const tarhely = s3FetchStorage({
+  bucket: 'szamlak',
+  region: 'auto',
+  endpoint: process.env.R2_ENDPOINT,
+  accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
+  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
+})
+
+export async function szamlaPdfMentese(szamlaszam: string, kelte: string) {
+  const { pdf } = await kassza.invoices.getPdf(szamlaszam)
+  const fajl = await storePdf(tarhely, invoicePdfKey({ number: szamlaszam, date: kelte }), pdf)
+  return fajl.key
+}
+```
+
+- Az `invoicePdfKey()` a számlaszámból és a dátumból képez kulcsot, például `szamlak/2026/09/WEB-2026-128.pdf`. A `date` nélkül a mai budapesti dátumot használja. A `type` mezővel (`'storno'`, `'proforma'` stb.) a bizonylat külön mappába kerül.
+- A `storePdf()` feltöltés előtt ellenőrzi, hogy a tartalom valóban PDF, és ha nem, `StorageError`-t dob. A visszaadott `StoredFile` a `key`, `size`, `contentType` és, ha a tárhely ad ilyet, az `url` mezőt tartalmazza.
+- A többi tárhely (AWS SDK, R2 binding, Vercel Blob, UploadThing, Supabase, fájlrendszer, memória) ugyanígy használható, lásd [PDF mentése tárhelyre](/docs/kiegeszitok/pdf-tarhely).
+
+## Hibák
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | Üres vagy többértelmű hivatkozás, például egyszerre `invoiceNumber` és `orderNumber`. Kérés nem megy ki. |
+| 1 | `maintenance` | Karbantartás a Számlázz.hu oldalán. A kassza magától újrapróbálja. |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 7 | `not_found` | Nincs bizonylat ezzel a számlaszámmal, rendelésszámmal vagy külső azonosítóval. Az `error.isNotFound` is `true`. |
+| – | `unexpected_response` | A válasz sikeres, de nincs benne PDF, vagy a PDF nem érvényes base64. |
+| – | `network`, `timeout` | Hálózati hiba, 5xx válasz vagy időtúllépés, és a próbálkozások elfogytak. Később nyugodtan próbáld újra, a lekérdezés nem hoz létre semmit. |
+
+Az összes kódot a [Hibakezelés, hibakódok](/docs/alapok/hibakezeles#hibakódok) oldal sorolja fel.
+
+## A kulcs ellenőrzése is ezt használja
+
+A `kassza.verifyCredentials()` egy biztosan nem létező számlaszám PDF-jét kéri le. Ha a Számlázz.hu 7-es hibát ad, a kulcs jó, csak a számla nincs meg, ezért az eredmény `true`. `auth` hibánál `false`, minden más hibát továbbdob.
+
+```ts
+const kulcsRendben = await kassza.verifyCredentials()
+```
+
+Lásd [A kulcs ellenőrzése](/docs/alapok/hitelesites#a-kulcs-ellenőrzése).

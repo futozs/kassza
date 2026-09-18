@@ -1,0 +1,81 @@
+---
+title: Telepítés
+description: A kassza telepítése, az Agent kulcs beállítása és az első számla kiállítása.
+---
+
+A kassza egyetlen npm csomag, futásidejű függőség nélkül. Node.js 22 vagy újabb kell hozzá, de Bunon, Denón, Cloudflare Workersen és Vercel Edge-en is fut, mert csak a szabványos `fetch`, `FormData` és `Blob` API-kat használja.
+
+## Követelmények
+
+- **Futtatókörnyezet:** Node.js 22+, Bun, Deno, Cloudflare Workers vagy Vercel Edge Runtime
+- **Számlázz.hu fiók** Agent kulccsal (a fiók bármelyik csomagjával működik, amelyik engedi a Számla Agentet)
+- **TypeScript** nem kötelező, de a csomag teljes típusdefiníciókkal érkezik
+
+## Telepítés
+
+```package-install
+kassza
+```
+
+## Az Agent kulcs beállítása
+
+Az Agent kulcsot a Számlázz.hu felületén hozod létre, a vezérlőpult alján. A kassza a `SZAMLAZZ_AGENT_KEY` környezeti változóból olvassa ki, így a kódban nem kell megadnod.
+
+```dotenv title=".env"
+SZAMLAZZ_AGENT_KEY=a-te-agent-kulcsod
+```
+
+<Callout type="warning">
+  Az Agent kulcs titok, és csak kisbetűs lehet. Soha ne kerüljön böngészőbe menő kódba vagy a
+  verziókezelőbe. A kassza a nagybetűs kulcsot a kérés elküldése előtt visszautasítja.
+</Callout>
+
+## Az első számla
+
+```ts twoslash title="szamla.ts"
+import { createKassza } from 'kassza'
+
+const kassza = createKassza()
+
+const szamla = await kassza.invoices.create({
+  orderNumber: 'REND-1001',
+  buyer: {
+    name: 'Vevő Kft.',
+    zip: '1111',
+    city: 'Budapest',
+    address: 'Fő utca 1.',
+    email: 'vevo@example.hu',
+  },
+  items: [{ name: 'Webfejlesztés', quantity: 10, unit: 'óra', netUnitPrice: 15_000, vat: 27 }],
+})
+
+console.log(szamla.number, szamla.grossTotal)
+//                 ^?
+```
+
+A kerekítést, a magyar idő szerinti dátumot, az XML felépítését, a session cookie-t és a hibakezelést a kassza végzi. Mivel a vevőnek van e-mail címe, a Számlázz.hu a számlát e-mailben is elküldi neki.
+
+<Callout type="tip">
+  Fejlesztés közben használj Számlázz.hu teszt fiókot, a teszteseteidben pedig a
+  [mock klienst](/docs/kiegeszitok/teszteles), amely valódi hívás nélkül ugyanazt a validációt és
+  kerekítést futtatja.
+</Callout>
+
+## A kulcs ellenőrzése
+
+A `verifyCredentials()` egy ártalmatlan lekérdezéssel ellenőrzi a kulcsot. Hibás kulcsnál `false`, jó kulcsnál `true` az eredménye, fiókprobléma (például lejárt előfizetés) esetén hibát dob.
+
+```ts
+const ervenyes = await kassza.verifyCredentials()
+```
+
+## Következő lépések
+
+<Cards>
+  <Card title="Hitelesítés" href="/docs/alapok/hitelesites">
+    Agent kulcs vagy felhasználónév és jelszó, környezeti változók, több fiók.
+  </Card>
+  <Card title="Kliens beállítása" href="/docs/alapok/kliens-beallitasa">
+    Alapértelmezések, időkorlát, újrapróbálás, hookok.
+  </Card>
+</Cards>

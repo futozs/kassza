@@ -1,0 +1,36 @@
+---
+title: Kiegészítők
+description: A kassza alcsomagjai a számlázás körüli munkához. Mock kliens tesztekhez, validátorok, pénzszámítás, PDF tárhely, serverless futtatás és AI asszisztensek.
+---
+
+A fő `kassza` modul a Számla Agent hívásait intézi. A körülötte lévő feladatokra külön alcsomagok vannak, amelyeket csak akkor importálsz, ha kellenek. Egyiknek sincs futásidejű függősége, és a `kassza/storage/fs` kivételével egyik sem használ Node.js API-t.
+
+| Alcsomag | Mire való? |
+| --- | --- |
+| `kassza/testing` | Mock kliens hálózat és Agent kulcs nélküli tesztekhez |
+| `kassza/validators` | Adószám, bankszámla, IBAN, EU adószám, e-mail és cím ellenőrzése |
+| `kassza/money` | A számlán használt kerekítés és összegzés a saját kódodban |
+| `kassza/storage`, `kassza/storage/fs` | A bizonylat PDF mentése S3-ba, R2-be, Vercel Blobba, Supabase-be vagy lemezre |
+| `kassza/cookie-stores` | Közös munkamenet-tároló serverless és edge környezethez |
+| `kassza/ipn` | A Számlázz.hu fizetési értesítéseinek fogadása |
+
+<Cards>
+  <Card title="Tesztelés" href="/docs/kiegeszitok/teszteles">
+    createMockKassza: hívásnapló, szimulált hibák és Vitest példák valódi API nélkül.
+  </Card>
+  <Card title="Validátorok" href="/docs/kiegeszitok/validatorok">
+    Adószám CDV, bankszámla, IBAN, EU adószám, e-mail és magyar cím feldolgozása.
+  </Card>
+  <Card title="Pénzszámítás" href="/docs/kiegeszitok/penzszamitas">
+    Tételösszegek, áfabontás és kerekítés pontosan úgy, ahogy a számlára kerül.
+  </Card>
+  <Card title="PDF tárhely" href="/docs/kiegeszitok/pdf-tarhely">
+    storePdf, dátum szerinti kulcsok és adapterek S3-hoz, R2-höz, Vercel Blobhoz és társaikhoz.
+  </Card>
+  <Card title="Serverless és edge" href="/docs/kiegeszitok/serverless-es-edge">
+    Vercel, Cloudflare Workers, Deno, Bun és AWS Lambda: munkamenet, időkorlát, webhookok.
+  </Card>
+  <Card title="AI asszisztensek" href="/docs/kiegeszitok/ai-asszisztensek">
+    Az agents mappa és az llms.txt használata Claude Code, Cursor és Copilot mellett.
+  </Card>
+</Cards>

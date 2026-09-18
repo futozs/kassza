@@ -1,0 +1,180 @@
+---
+title: Cloudflare Workers
+description: Cloudflare Worker, amely a kasszával lekérdezi a számlákat, a munkamenetet KV-ben tartja, a számla PDF-eket pedig R2-ben gyorsítótárazza.
+---
+
+A belső rendszereid (admin felület, ügyfélszolgálati eszköz, könyvelői export) egy helyről szeretnék elérni a számlákat. Ez a Worker két végpontot ad: a rendelésszámhoz tartozó számla adatait, és a számla PDF-jét. A PDF-et első lekéréskor R2-be menti, utána onnan szolgálja ki.
+
+A Worker példányai nem osztoznak a memórián, ezért a munkamenet sütit KV-ben tartjuk. Így a kliens kérésenként is létrehozható, a munkamenet mégis megmarad.
+
+## Beállítás
+
+```bash
+npm install kassza
+npx wrangler kv namespace create KASSZA_KV
+npx wrangler r2 bucket create szamlak
+npx wrangler secret put SZAMLAZZ_AGENT_KEY
+npx wrangler secret put BELSO_API_TOKEN
+npx wrangler types
+```
+
+```json title="wrangler.jsonc"
+{
+  "name": "kassza-szamlak",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "kv_namespaces": [{ "binding": "KASSZA_KV", "id": "a-kv-namespace-azonositoja" }],
+  "r2_buckets": [{ "binding": "SZAMLAK", "bucket_name": "szamlak" }]
+}
+```
+
+A KV namespace azonosítóját a `wrangler kv namespace create` parancs írja ki. A `KVNamespace`, `R2Bucket`, `ExecutionContext` és `ExportedHandler` típusokat a `wrangler types` generálja. Helyi fejlesztéshez a titkokat a `.dev.vars` fájlba írd, a tesztfiók Agent kulcsával.
+
+## A Worker
+
+```ts title="src/index.ts"
+import { createKassza, isSzamlazzError, type Kassza } from 'kassza'
+import { cloudflareKvCookieStore } from 'kassza/cookie-stores'
+import { r2BindingStorage, sanitizeKeySegment, storePdf } from 'kassza/storage'
+
+interface Env {
+  readonly SZAMLAZZ_AGENT_KEY: string
+  readonly BELSO_API_TOKEN: string
+  readonly KASSZA_KV: KVNamespace
+  readonly SZAMLAK: R2Bucket
+}
+
+const PDF_FEJLECEK = { 'content-type': 'application/pdf', 'cache-control': 'private, no-store' }
+
+function kasszaKliens(env: Env): Kassza {
+  return createKassza({
+    agentKey: env.SZAMLAZZ_AGENT_KEY,
+    cookieStore: cloudflareKvCookieStore(env.KASSZA_KV, { prefix: 'kassza:', timeoutMs: 300 }),
+  })
+}
+
+function jogosult(request: Request, env: Env): boolean {
+  return (
+    Boolean(env.BELSO_API_TOKEN) &&
+    request.headers.get('authorization') === `Bearer ${env.BELSO_API_TOKEN}`
+  )
+}
+
+async function szamlaAdatai(kassza: Kassza, rendelesszam: string): Promise<Response> {
+  const szamla = await kassza.invoices.find({ orderNumber: rendelesszam })
+  if (!szamla) return Response.json({ hiba: 'Nincs ilyen számla.' }, { status: 404 })
+  return Response.json({
+    szamlaszam: szamla.header.number,
+    tipus: szamla.header.type,
+    kelt: szamla.header.issueDate,
+    brutto: szamla.totals.grossAmount,
+    penznem: szamla.header.currency,
+    sztornozva: szamla.header.reversed ?? false,
+  })
+}
+
+async function szamlaPdf(
+  kassza: Kassza,
+  env: Env,
+  ctx: ExecutionContext,
+  szamlaszam: string,
+): Promise<Response> {
+  const tarhely = r2BindingStorage(env.SZAMLAK, { prefix: 'szamlak' })
+  const kulcs = `${sanitizeKeySegment(szamlaszam)}.pdf`
+
+  const mentett = await tarhely.get(kulcs)
+  if (mentett) return new Response(mentett, { headers: PDF_FEJLECEK })
+
+  const { pdf } = await kassza.invoices.getPdf(szamlaszam)
+  ctx.waitUntil(
+    storePdf(tarhely, kulcs, pdf).catch((error: unknown) => {
+      console.error('A PDF nem került az R2-be', szamlaszam, error)
+    }),
+  )
+  return new Response(pdf, { headers: PDF_FEJLECEK })
+}
+
+export default {
+  async fetch(request, env, ctx): Promise<Response> {
+    if (!jogosult(request, env)) return new Response('Nincs jogosultság', { status: 401 })
+    if (request.method !== 'GET') return new Response('Nem támogatott', { status: 405 })
+
+    const { pathname } = new URL(request.url)
+    const kassza = kasszaKliens(env)
+
+    try {
+      const rendeles = /^\/rendelesek\/([^/]+)\/szamla$/.exec(pathname)
+      if (rendeles?.[1]) return await szamlaAdatai(kassza, decodeURIComponent(rendeles[1]))
+
+      const pdf = /^\/szamlak\/([^/]+)\.pdf$/.exec(pathname)
+      if (pdf?.[1]) return await szamlaPdf(kassza, env, ctx, decodeURIComponent(pdf[1]))
+
+      return new Response('Nincs ilyen útvonal', { status: 404 })
+    } catch (error) {
+      if (!isSzamlazzError(error)) throw error
+      if (error.isNotFound) return Response.json({ hiba: 'Nincs ilyen számla.' }, { status: 404 })
+      return Response.json(
+        { hiba: error.message, kategoria: error.category },
+        { status: error.retryable ? 503 : 502 },
+      )
+    }
+  },
+} satisfies ExportedHandler<Env>
+```
+
+A két végpont:
+
+| Kérés | Válasz |
+| --- | --- |
+| `GET /rendelesek/WEB-5001/szamla` | A rendelésszámhoz tartozó legutóbbi bizonylat adatai JSON-ben. |
+| `GET /szamlak/WEB-2026-128.pdf` | A számla PDF-je, első alkalommal a Számlázz.hu-tól, utána az R2-ből. |
+
+## Buktatók
+
+<Callout type="warning" title="Az Agent kulcsot a bindingból add át">
+  A kassza magától a `process.env.SZAMLAZZ_AGENT_KEY` változót olvasná, ami Workersben nem
+  feltétlenül létezik. A kulcsot ezért az `env` objektumból, az `agentKey` opcióval add át,
+  különben `configuration` hibát kapsz.
+</Callout>
+
+<Callout type="warning" title="Számlaszám szerint gyorsítótárazz, ne rendelésszám szerint">
+  Egy kiállított számla PDF-je nem változik, ezért a számlaszám biztonságos kulcs. Egy
+  rendelésszámhoz viszont idővel több bizonylat is tartozhat, például díjbekérő, majd számla, és a
+  `find()` mindig a legutóbbit adja vissza. Rendelésszám szerinti kulccsal a régi PDF ragadna a
+  gyorsítótárban.
+</Callout>
+
+<Callout type="info" title="Kérésenkénti kliens, közös munkamenet">
+  A `createKassza()` nem indít hálózati kérést, ezért kérésenként is létrehozható. A munkamenet
+  süti a KV-ben van, így minden kliens ugyanazt használja. A KV legalább 60 másodperces lejáratot
+  fogad el, ezt az adapter betartja, és ha a KV nem válaszol 300 ms-on belül, a kassza munkamenet
+  nélkül küldi el a kérést.
+</Callout>
+
+<Callout type="note" title="Mentés a válasz után">
+  A `ctx.waitUntil()` miatt a PDF feltöltése a válasz elküldése után is folytatódik. Ha a feltöltés
+  nem sikerül, csak a napló jelzi, a következő lekérés újra megpróbálja.
+</Callout>
+
+<Callout type="danger" title="Számlát ne állíts ki nyilvános Workerből">
+  Ez a Worker csak olvas. Ha számlát is kiállítanál belőle, a végpontot ugyanúgy védd tokennel,
+  és kövesd a [Fizetett rendelés számlája](/docs/receptek/fizetett-rendeles-szamla) recept
+  rendelésszámos mintáját.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Serverless és edge" href="/docs/kiegeszitok/serverless-es-edge">
+    A kassza futtatása Workersben, Vercelen és más edge környezetben.
+  </Card>
+  <Card title="Munkamenet" href="/docs/alapok/munkamenet">
+    A Cloudflare KV és a többi munkamenet-tároló.
+  </Card>
+  <Card title="PDF tárhely" href="/docs/kiegeszitok/pdf-tarhely">
+    Az r2BindingStorage és a többi tárhely adapter.
+  </Card>
+  <Card title="PDF mentése S3-ba vagy R2-be" href="/docs/receptek/pdf-mentes-s3-r2">
+    Ugyanez Node.js szerveren, az R2 S3 API-ján keresztül.
+  </Card>
+</Cards>

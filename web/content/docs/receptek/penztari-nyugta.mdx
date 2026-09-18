@@ -1,0 +1,170 @@
+---
+title: Pénztári nyugta
+description: Nyugta egy pénztári eladásról hívásazonosítóval, a dupla nyugta kezelésével és e-mail kiküldéssel, Next.js route handlerben.
+---
+
+Egy bolt vagy büfé pénztárprogramja minden eladás után nyugtát kér. A vevő kérheti e-mailben is. A hálózat itt sem megbízható: ha a kérés elakad, a pénztáros újra megnyomja a gombot, és ebből nem lehet két nyugta.
+
+Nyugtánál ezt a hívásazonosító (`callId`) oldja meg. Ugyanazzal a `callId`-val a Számlázz.hu nem készít második nyugtát, hanem 338-as hibát ad, amelyet a kassza `duplicate` kategóriájú hibává alakít. Emiatt a kassza hálózati hiba után a nyugtát magától is újrapróbálja, ha van `callId`.
+
+## A nyugtakészítő függvény
+
+A nyugta előtagját és alapértelmezett fizetési módját a [Közös kliens](/docs/receptek/kozos-kliens) `defaults.receipt` beállítása adja.
+
+```ts title="lib/penztar.ts"
+import { isSzamlazzError, type Kassza, type Receipt, type ReceiptItemInput } from 'kassza'
+import { kassza as alapKliens } from '@/lib/kassza'
+
+export interface Eladas {
+  readonly id: string
+  readonly fizetesiMod: 'készpénz' | 'bankkártya'
+  readonly tetelek: readonly ReceiptItemInput[]
+}
+
+export async function nyugtaEladasrol(
+  eladas: Eladas,
+  kliens: Kassza = alapKliens,
+): Promise<Receipt> {
+  const azonosito = `POS-${eladas.id}`
+  try {
+    return await kliens.receipts.create({
+      callId: azonosito,
+      orderNumber: azonosito,
+      paymentMethod: eladas.fizetesiMod,
+      downloadPdf: false,
+      items: eladas.tetelek,
+    })
+  } catch (error) {
+    if (!isSzamlazzError(error) || !error.isDuplicate) throw error
+    const meglevo = await kliens.receipts.find({ orderNumber: azonosito, downloadPdf: false })
+    if (meglevo) return meglevo
+    throw error
+  }
+}
+```
+
+A `callId` és a rendelésszám ugyanaz. A Számla Agent hívásazonosító alapján nem ad lekérdezést, ezért a dupla nyugta hibája után a rendelésszám alapján keressük meg a már elkészült nyugtát.
+
+A tételeknél bruttó egységárat adj meg, a nettó és az áfa összegét a kassza számolja ki a nyugtákra vonatkozó kerekítéssel:
+
+```ts title="lib/penztar-tetelek.ts"
+import type { ReceiptItemInput } from 'kassza'
+
+export const KAVE: ReceiptItemInput = { name: 'Kávé', grossUnitPrice: 890, vat: 27 }
+export const KIFLI: ReceiptItemInput = { name: 'Kifli', grossUnitPrice: 250, vat: 5 }
+```
+
+<Example slug="nyugta" />
+
+## Route handler
+
+A pénztárprogram az eladás mentése után hívja ezt a végpontot, opcionálisan a vevő e-mail címével. Az `eladasBetoltese()` és a `nyugtaszamMentese()` a saját adatbázis-függvényeid, az `adminKeres()` a [Nevezés díjbekérővel](/docs/receptek/nevezes-dijbekerovel#befizetés-és-lemondás) recept belső token ellenőrzése.
+
+```ts title="app/api/penztar/eladasok/[id]/nyugta/route.ts"
+import { isSzamlazzError, type Receipt } from 'kassza'
+import { isValidEmail } from 'kassza/validators'
+import { adminKeres } from '@/lib/admin'
+import { eladasBetoltese, nyugtaszamMentese } from '@/lib/eladasok'
+import { kassza } from '@/lib/kassza'
+import { nyugtaEladasrol } from '@/lib/penztar'
+
+async function nyugtaKuldese(receiptNumber: string, email: string): Promise<boolean> {
+  try {
+    await kassza.receipts.send({
+      receiptNumber,
+      emails: email,
+      subject: `Nyugtád: ${receiptNumber}`,
+    })
+    return true
+  } catch (error) {
+    if (!isSzamlazzError(error)) throw error
+    console.error('A nyugta kiküldése nem sikerült', receiptNumber, error.category)
+    return false
+  }
+}
+
+export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!adminKeres(request)) return new Response('Nincs jogosultság', { status: 401 })
+
+  const { id } = await params
+  const eladas = await eladasBetoltese(id)
+  if (!eladas) return Response.json({ hiba: 'Nincs ilyen eladás.' }, { status: 404 })
+
+  const { email } = (await request.json().catch(() => ({}))) as { email?: unknown }
+  if (email !== undefined && (typeof email !== 'string' || !isValidEmail(email))) {
+    return Response.json({ hiba: 'Érvénytelen e-mail cím.' }, { status: 400 })
+  }
+
+  let nyugta: Receipt
+  try {
+    nyugta = await nyugtaEladasrol(eladas)
+  } catch (error) {
+    if (!isSzamlazzError(error)) throw error
+    return Response.json(
+      { hiba: error.message, tipp: error.hint },
+      { status: error.retryable ? 503 : 422 },
+    )
+  }
+  await nyugtaszamMentese(eladas.id, nyugta.number)
+
+  const kikuldve = typeof email === 'string' ? await nyugtaKuldese(nyugta.number, email) : false
+  return Response.json({
+    nyugtaszam: nyugta.number,
+    brutto: nyugta.totals.grossAmount,
+    kikuldve,
+  })
+}
+```
+
+Ha a végpont `503`-mal válaszol, a pénztáros nyugodtan újrapróbálhatja: ugyanaz a `callId` megy el, így legfeljebb a már elkészült nyugtát kapja vissza.
+
+<Example slug="nyugta-kikuldes" />
+
+## Buktatók
+
+<Callout type="danger" title="A callId legyen állandó">
+  A hívásazonosító az eladás azonosítójából készüljön, soha ne véletlen értékből vagy
+  időbélyegből. Új `callId`-val minden újrapróbálás új nyugtát állít ki. Egy kérést itt is
+  legfeljebb ötször szabad elküldeni, utána embernek kell ránéznie.
+</Callout>
+
+<Callout type="warning" title="Nyugta előtag és fizetési mód">
+  A nyugta előtagja csak nagybetűt és számot tartalmazhat, és nem lehet olyan, amelyet számlán már
+  használtál (336, 337). A fizetési módnak nyugtán nincs beépített alapértéke: add meg a hívásban
+  vagy a `defaults.receipt.paymentMethod` beállításban, különben a kassza `validation` hibát ad.
+</Callout>
+
+<Callout type="info" title="A kiküldés külön lépés">
+  A `receipts.send()` hibája nem érinti a már elkészült nyugtát, ezért a recept csak jelzi a
+  `kikuldve: false` mezőben. A kiküldést a kassza nem próbálja újra magától. Egy admin felületről
+  később újra elküldheted a nyugtaszám alapján.
+</Callout>
+
+<Callout type="note" title="NAV adatszolgáltatás">
+  A nyugtákról 2026. szeptember 1-jétől adatot kell szolgáltatni a NAV felé, de 2026. december
+  31-ig türelmi idő van. A Számlázz.hu leírása szerint ezzel egyelőre nincs teendőd, a kassza
+  változásait a changelogban követheted.
+</Callout>
+
+<Callout type="tip" title="Ne számold ki az összegeket">
+  Forintos nyugtán a bruttó összeg egész szám, a nettó és az áfa legfeljebb két tizedesjegy, és a
+  kettő összege pontosan a bruttó. Ha a `grossUnitPrice` mezőt adod meg, a kassza ezt betartja,
+  a kézzel számolt összegek viszont könnyen 261-es vagy 363–365-ös hibát okoznak.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Nyugta létrehozás" href="/docs/nyugta-letrehozas">
+    A nyugtakérés összes mezője, a PDF sablonok és a kerekítés.
+  </Card>
+  <Card title="Nyugta kiküldése" href="/docs/nyugta-kikuldes">
+    E-mail tárgy, szöveg és válaszcím.
+  </Card>
+  <Card title="Pénzszámítás" href="/docs/kiegeszitok/penzszamitas">
+    A nyugta tételeinek kiszámítása előre, például a kijelzőhöz.
+  </Card>
+  <Card title="Egységtesztek" href="/docs/receptek/egysegtesztek">
+    A dupla nyugta esetének tesztelése mock klienssel.
+  </Card>
+</Cards>

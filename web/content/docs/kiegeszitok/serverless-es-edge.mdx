@@ -1,0 +1,282 @@
+---
+title: Serverless és edge
+description: A kassza futtatása Vercelen, Cloudflare Workersen, Denón, Bunon és AWS Lambdán. Közös munkamenet-tároló, környezeti változók, időkorlát és webhook minták.
+---
+
+A kasszának nincs futásidejű függősége, és csak webes szabvány API-kat használ (`fetch`, `FormData`, `AbortSignal`, Web Crypto). Emiatt Node.js 22-n és újabbon, Bunon, Denón, Cloudflare Workersen és a Vercel Edge futtatókörnyezetében is ugyanaz a kód fut. Egyetlen kivétel a `kassza/storage/fs`, amely a `node:fs` modult használja.
+
+Környezettől függetlenül három dolgot kell eldöntened:
+
+1. **Hol él a kliens?** Folyamatonként vagy izolátumonként egyszer hozd létre, modul szinten, ne kérésenként.
+2. **Hol él a munkamenet?** Ha a példányok nem osztoznak a memórián, adj meg közös `cookieStore`-t. A részleteket a [Munkamenet](/docs/alapok/munkamenet) oldal írja le.
+3. **Mennyi ideig futhat egy kérés?** A kassza alapból 60 másodpercig vár egy válaszra, ami több lehet, mint amennyit a platform vagy a webhook küldője enged.
+
+| Környezet | Agent kulcs | Munkamenet | PDF tárhely |
+| --- | --- | --- | --- |
+| Node.js, Bun, Deno szerveren | `process.env`, Denón `Deno.env.get()` | memória (alapértelmezett) | `fsStorage`, S3 |
+| Vercel Functions | `process.env` | Upstash, ioredis, node-redis | Vercel Blob, S3, R2 |
+| Vercel Edge | `process.env` | Upstash | `s3FetchStorage` |
+| Cloudflare Workers | `env.SZAMLAZZ_AGENT_KEY` | Cloudflare KV | `r2BindingStorage` |
+| AWS Lambda | `process.env` | ioredis, node-redis, Upstash | S3 |
+
+Edge környezetben HTTP alapú tárolót válassz (Upstash Redis, Cloudflare KV), mert az ioredis és a node-redis TCP kapcsolattal dolgozik.
+
+## Platformonként
+
+<Tabs items={['Vercel', 'Cloudflare Workers', 'Deno', 'Bun', 'AWS Lambda']} groupId="platform">
+  <Tab value="Vercel">
+    A klienst egy közös modulban hozd létre. A Vercel Functions példányai nem osztoznak a memórián, ezért a munkamenetet Upstash Redisben tárold:
+
+    ```ts title="lib/kassza.ts"
+    import { Redis } from '@upstash/redis'
+    import { createKassza } from 'kassza'
+    import { upstashRedisCookieStore } from 'kassza/cookie-stores'
+
+    export const kassza = createKassza({
+      cookieStore: upstashRedisCookieStore(Redis.fromEnv()),
+      timeoutMs: 15_000,
+      maxAttempts: 2,
+    })
+    ```
+
+    Ugyanez a modul Node.js és Edge futtatókörnyezetben is működik:
+
+    ```ts title="app/api/szamlazas/allapot/route.ts"
+    import { kassza } from '@/lib/kassza'
+
+    export const runtime = 'edge'
+
+    export async function GET() {
+      const kulcsJo = await kassza.verifyCredentials()
+      return Response.json({ kulcsJo }, { status: kulcsJo ? 200 : 500 })
+    }
+    ```
+
+    Az Agent kulcsot a projekt beállításaiban vagy a `vercel env add SZAMLAZZ_AGENT_KEY` paranccsal add meg. Soha ne adj neki `NEXT_PUBLIC_` előtagot, mert az ilyen változók a böngészőbe kerülnek.
+  </Tab>
+  <Tab value="Cloudflare Workers">
+    Workers alatt a környezeti változók és a bindingok a `fetch` handler `env` paraméterében érkeznek, ezért az Agent kulcsot az `agentKey` opcióban add át. A munkamenetet KV-ban, a PDF-et R2-ben tárolhatod:
+
+    ```json title="wrangler.json"
+    {
+      "name": "szamlazas",
+      "main": "src/index.ts",
+      "compatibility_date": "2026-09-01",
+      "kv_namespaces": [{ "binding": "KASSZA_KV", "id": "<kv-namespace-id>" }],
+      "r2_buckets": [{ "binding": "SZAMLAK", "bucket_name": "szamlak" }]
+    }
+    ```
+
+    ```ts title="src/index.ts"
+    import { createKassza } from 'kassza'
+    import { cloudflareKvCookieStore } from 'kassza/cookie-stores'
+
+    export default {
+      async fetch(request: Request, env: Env) {
+        const rendeles = new URL(request.url).searchParams.get('rendeles')
+        if (!rendeles) return new Response('Hiányzó rendelésszám', { status: 400 })
+
+        const kassza = createKassza({
+          agentKey: env.SZAMLAZZ_AGENT_KEY,
+          cookieStore: cloudflareKvCookieStore(env.KASSZA_KV),
+        })
+        const szamla = await kassza.invoices.find({ orderNumber: rendeles })
+        return Response.json(szamla?.header ?? null)
+      },
+    }
+    ```
+
+    Mivel az `env` csak a kérésen belül érhető el, a kliens itt kérésenként készül. Ez nem jár hálózati hívással, és a munkamenet a KV-ban megmarad a kérések között.
+
+    A kulcsot a `wrangler secret put SZAMLAZZ_AGENT_KEY` paranccsal add meg, helyi fejlesztéshez a `.dev.vars` fájlban. Az `Env` típust a `wrangler types` parancs generálja. A kassza nem használ Node.js API-t, ezért a `nodejs_compat` flag nem kell hozzá. A KV legalább 60 másodperces lejáratot fogad el, ezt az adapter magától betartja.
+  </Tab>
+  <Tab value="Deno">
+    Denóban az npm csomagot `npm:` előtaggal importálod. A kulcsot a `Deno.env.get()` adja, ezt az `agentKey` opcióban add át:
+
+    ```ts title="main.ts"
+    import { createKassza } from 'npm:kassza'
+    import { ipnOkResponse, readIpnNotification } from 'npm:kassza/ipn'
+
+    const kassza = createKassza({ agentKey: Deno.env.get('SZAMLAZZ_AGENT_KEY') })
+
+    Deno.serve(async (request) => {
+      const url = new URL(request.url)
+      if (request.method === 'POST' && url.pathname === '/szamlazz/ipn') {
+        const ertesites = await readIpnNotification(request)
+        if (ertesites.isFullyPaid) await rendelesFizetve(ertesites.invoiceNumber)
+        return ipnOkResponse()
+      }
+
+      const rendeles = url.searchParams.get('rendeles')
+      if (!rendeles) return new Response('Hiányzó rendelésszám', { status: 400 })
+      const szamla = await kassza.invoices.find({ orderNumber: rendeles })
+      return Response.json(szamla?.header ?? null)
+    })
+    ```
+
+    ```bash
+    deno run --allow-net --allow-env main.ts
+    ```
+
+    Hosszan futó Deno szerveren az alapértelmezett memóriás munkamenet elég. Ha több példányon futsz, használj közös tárolót, például Upstash Redist.
+  </Tab>
+  <Tab value="Bun">
+    Bun a `.env` fájlt magától betölti, a kassza pedig a `SZAMLAZZ_AGENT_KEY` változót a `process.env`-ből olvassa, így a `createKassza()` paraméter nélkül is működik:
+
+    ```ts title="server.ts"
+    import { createKassza } from 'kassza'
+    import { ipnOkResponse, readIpnNotification } from 'kassza/ipn'
+
+    const kassza = createKassza()
+
+    Bun.serve({
+      port: 3000,
+      async fetch(request) {
+        const url = new URL(request.url)
+        if (request.method === 'POST' && url.pathname === '/szamlazz/ipn') {
+          const ertesites = await readIpnNotification(request)
+          if (ertesites.isFullyPaid) await rendelesFizetve(ertesites.invoiceNumber)
+          return ipnOkResponse()
+        }
+
+        const rendeles = url.searchParams.get('rendeles')
+        if (!rendeles) return new Response('Hiányzó rendelésszám', { status: 400 })
+        const szamla = await kassza.invoices.find({ orderNumber: rendeles })
+        return Response.json(szamla?.header ?? null)
+      },
+    })
+    ```
+
+    Egy Bun folyamat hosszan fut, ezért a memóriás munkamenet itt is elég.
+  </Tab>
+  <Tab value="AWS Lambda">
+    Node.js 22-es vagy újabb futtatókörnyezetet válassz. A modul szinten létrehozott kliens a meleg indítások között megmarad, a hideg indítás viszont új memóriát kap, ezért a munkamenetet Redisben tárold. Az alábbi függvény egy SQS sorból dolgozza fel a kiállítandó számlákat:
+
+    ```ts title="handler.ts"
+    import Redis from 'ioredis'
+    import { createKassza } from 'kassza'
+    import { ioredisCookieStore } from 'kassza/cookie-stores'
+    import { szamlazRendelest } from './szamlazas'
+
+    const kassza = createKassza({
+      cookieStore: ioredisCookieStore(new Redis(process.env.REDIS_URL)),
+      timeoutMs: 15_000,
+    })
+
+    interface SqsEsemeny {
+      readonly Records: readonly { readonly body: string }[]
+    }
+
+    export async function handler(esemeny: SqsEsemeny) {
+      for (const uzenet of esemeny.Records) {
+        await szamlazRendelest(kassza, JSON.parse(uzenet.body))
+      }
+    }
+    ```
+
+    A `szamlazRendelest` a [Tesztelés](/docs/kiegeszitok/teszteles#a-kliens-injektálása) oldal idempotens függvénye: először rendelésszám alapján keres, így ha egy üzenet hiba miatt újra megérkezik, nem készül második számla. A Lambda időkorlátját állítsd nagyobbra, mint amennyi ideig a kassza egy hívásnál várhat, lásd lent.
+  </Tab>
+</Tabs>
+
+## Környezeti változók
+
+- A kassza a `SZAMLAZZ_AGENT_KEY` változót a `process.env`-ből olvassa. Ahol ez nincs (Cloudflare Workers, Deno), add át a kulcsot az `agentKey` opcióban.
+- A `createKassza()` már létrehozáskor `configuration` hibát dob, ha nincs kulcs, vagy ha a kulcs nagybetűt tartalmaz. Ha a klienst modul szinten hozod létre, a hiba már az első importnál jelentkezik, ezért a változót minden környezetben állítsd be, ahol a kód fut.
+- Fejlesztéshez és az előnézeti környezetekhez Számlázz.hu tesztfiók kulcsát használd, az éles kulcs csak az éles környezetbe kerüljön.
+- Telepítés után a `verifyCredentials()` megmondja, hogy a kulcs jó-e, bizonylat létrehozása nélkül. Hibás kulcsnál `false`, fiókproblémánál hibát dob.
+
+## Időkorlát
+
+A serverless platformok és a webhookot küldő szolgáltatók is korlátozzák, meddig futhat egy kérés. Vercelen ezt a route `maxDuration` beállítása, Lambdán a függvény időkorlátja adja meg. A kassza oldalán két beállítás számít:
+
+- `timeoutMs`: egy próbálkozás időkorlátja, alapból 60 000 ms. Túllépésnél `timeout` kategóriájú `SzamlazzError` jön.
+- `maxAttempts`: a biztonságosan ismételhető műveletek (lekérdezések, befizetések felülírása, `callId`-val védett nyugták) próbálkozásainak száma hálózati hiba, időtúllépés vagy karbantartás esetén, alapból 3. Két próbálkozás között 1, majd 2 másodperc a várakozás.
+
+Egy lekérdezés így legrosszabb esetben `maxAttempts × timeoutMs` plusz a várakozások ideig tarthat. A számlakészítést a kassza soha nem ismétli, az legfeljebb egy `timeoutMs`-ig tart.
+
+| Beállítás | `invoices.create` legfeljebb | `invoices.find` legfeljebb |
+| --- | --- | --- |
+| Alapértelmezés (`timeoutMs: 60_000`, `maxAttempts: 3`) | 60 s | 183 s |
+| `timeoutMs: 15_000`, `maxAttempts: 2` | 15 s | 31 s |
+
+Ha egy kérésnek összesen van határideje, adj át egy közös `AbortSignal`-t minden hívásnak. A signal a próbálkozásokat és a köztük lévő várakozást is megszakítja.
+
+<Callout type="warning" title="Megszakítás után nem SzamlazzError jön">
+  Ha a saját `AbortSignal`-od szakítja meg a hívást, a kassza a signal okát dobja tovább, ami
+  `AbortSignal.timeout()` esetén egy `TimeoutError` nevű `DOMException`. Ez ugyanolyan
+  bizonytalan kimenet, mint a `timeout` kategória: a számla elkészülhetett, ezért kezeld ugyanúgy.
+</Callout>
+
+## Webhook minták
+
+### Fizetés után számla
+
+A fizetési szolgáltatók (Stripe, Barion, SimplePay és társaik) ugyanazt az eseményt többször is elküldhetik, és újraküldik, ha nem kapnak időben sikeres választ. Ezt kihasználva a webhook bizonytalan kimenetnél nem próbálkozik tovább, hanem hibakóddal válaszol, és a következő kézbesítés az elején rendelésszám alapján megtalálja a közben elkészült számlát:
+
+```ts title="app/api/fizetes/webhook/route.ts"
+import { isSzamlazzError } from 'kassza'
+import { kassza } from '@/lib/kassza'
+
+const BIZONYTALAN = ['network', 'timeout', 'partial_success', 'duplicate']
+
+function bizonytalan(error: unknown): boolean {
+  if (isSzamlazzError(error)) return BIZONYTALAN.includes(error.category)
+  return error instanceof DOMException && error.name === 'TimeoutError'
+}
+
+export async function POST(request: Request) {
+  const esemeny = await ellenorzottEsemeny(request)
+  const orderNumber = `REND-${esemeny.rendelesId}`
+  const signal = AbortSignal.timeout(8_000)
+
+  try {
+    const meglevo = await kassza.invoices.find({ orderNumber }, {}, { signal })
+    if (meglevo) return Response.json({ szamla: meglevo.header.number })
+
+    const szamla = await kassza.invoices.create(szamlaAdatok(esemeny, orderNumber), { signal })
+    return Response.json({ szamla: szamla.number })
+  } catch (error) {
+    if (bizonytalan(error)) return new Response('Próbáld újra később', { status: 503 })
+    throw error
+  }
+}
+```
+
+- Az `ellenorzottEsemeny` a szolgáltató aláírását ellenőrzi, a `szamlaAdatok` a rendelésből állítja össze a számlát.
+- A rendelésszám a rendelés azonosítójából készül, így minden kézbesítés ugyanazt a számlát keresi.
+- A `find` az első lépés, ezért a webhook tetszőleges számú ismétlés mellett is legfeljebb egy számlát állít ki.
+
+A hibakódok jelentését és a bizonytalan kimenetek kezelését a [Hibakezelés](/docs/alapok/hibakezeles#bizonytalan-kimenet-számla-készült-vagy-nem) oldal írja le.
+
+### Fizetési értesítés a Számlázz.hu-tól (IPN)
+
+Az IPN-t a Számlázz.hu küldi, ha egy számla kifizetett összege megváltozik. Sikertelen fogadásnál 3 percenként újraküldi, legfeljebb tízszer. Válaszolj gyorsan `200`-zal, és a feldolgozás legyen idempotens:
+
+```ts title="app/api/szamlazz/ipn/route.ts"
+import { ipnOkResponse, readIpnNotification } from 'kassza/ipn'
+
+export async function POST(request: Request) {
+  const ertesites = await readIpnNotification(request)
+  if (ertesites.isFullyPaid) await rendelesFizetve(ertesites.invoiceNumber)
+  return ipnOkResponse()
+}
+```
+
+A `readIpnNotification()` szabványos `Request`-et vár, így Next.js route handlerben, Workersben, Denóban és Bunban is ugyanígy működik. Ahol csak a nyers törzs van meg, például AWS Lambdán, a `parseIpnNotification()` a szöveges törzset is feldolgozza. A forrás IP-cím ellenőrzését (`isSzamlazzIp()`) és a proxyval kapcsolatos buktatókat a [Hálózat és biztonság](/docs/alapok/halozat-es-biztonsag#bejövő-forgalom-a-számlázzhu-felől) oldal írja le.
+
+### Hosszú munka sorban
+
+Ha a webhookra néhány másodpercen belül válaszolni kell, a számlázást ne a webhook végezze. A webhook tegye az eseményt egy üzenetsorba (például Cloudflare Queues vagy Amazon SQS), és a feldolgozó függvény állítsa ki a számlát, mentse a PDF-et, és küldje ki az e-mailt. A feldolgozó is rendelésszám alapján keressen először, mert a sorok is kézbesíthetnek egy üzenetet többször.
+
+## PDF mentése
+
+Serverless függvényben a fájlrendszer nem tartós, ezért a PDF-et objektumtárba mentsd: S3-ba vagy R2-be az `s3FetchStorage`-dzsal, Workersben az `r2BindingStorage`-dzsal, Vercelen a `vercelBlobStorage`-dzsal. A részletek a [PDF tárhely](/docs/kiegeszitok/pdf-tarhely) oldalon vannak.
+
+<Cards>
+  <Card title="Munkamenet (session cookie)" href="/docs/alapok/munkamenet">
+    A cookie store adapterek, a saját tároló és a tároló hibáinak kezelése.
+  </Card>
+  <Card title="Kliens beállítása" href="/docs/alapok/kliens-beallitasa">
+    A createKassza() összes opciója, a hookok és a megszakítás.
+  </Card>
+</Cards>

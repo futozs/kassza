@@ -1,0 +1,16 @@
+{
+  "title": "Receptek",
+  "pages": [
+    "kozos-kliens",
+    "fizetett-rendeles-szamla",
+    "stripe-webhook",
+    "nevezes-dijbekerovel",
+    "ipn-webhook",
+    "penztari-nyugta",
+    "pdf-mentes-s3-r2",
+    "adoszam-urlap",
+    "devizas-eu-szamla",
+    "cloudflare-workers",
+    "egysegtesztek"
+  ]
+}

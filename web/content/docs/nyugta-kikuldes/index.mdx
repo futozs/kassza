@@ -1,0 +1,28 @@
+---
+title: Nyugta kiküldés
+description: Kiállított nyugta elküldése e-mailben a vevőnek a kassza receipts.send() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/sending-a-receipt
+---
+
+A nyugta kiállítása nem küld e-mailt. Ha a vevő kéri a nyugtát, egy külön kéréssel küldöd ki neki, a már kiállított nyugta száma alapján. A kasszában ezt a `receipts.send()` végzi.
+
+```ts
+await kassza.receipts.send({ receiptNumber: nyugta.number, emails: 'vevo@example.hu' })
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/nyugta-kikuldes/keres">
+    A kiküldés mezői: nyugtaszám, címzettek, válaszcím, tárgy, szöveg.
+  </Card>
+  <Card title="Válasz" href="/docs/nyugta-kikuldes/valasz">
+    Mit ad vissza a send(), és milyen hibák fordulnak elő.
+  </Card>
+  <Card title="Minta" href="/docs/nyugta-kikuldes/minta">
+    Nyugta kiállítása és kiküldése két címzettnek a sandboxban.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="Nem próbálja újra">
+  A kassza a kiküldést soha nem küldi el újra magától, mert minden sikeres kérés újabb levelet
+  jelent a vevőnek. Hálózati hiba után te döntsd el, kell-e még egyszer küldeni.
+</Callout>

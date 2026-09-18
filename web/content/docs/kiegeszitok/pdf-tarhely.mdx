@@ -1,0 +1,362 @@
+---
+title: PDF tárhely
+description: A kassza/storage modul. A számla és a nyugta PDF-jének mentése S3-ba, Cloudflare R2-be, Vercel Blobba, UploadThingre, Supabase-be vagy lemezre, dátum szerinti kulcsokkal és lejáró letöltési linkkel.
+---
+
+Számla kiállításakor a kassza alapból letölti a PDF-et is, és a válasz `pdf` mezőjében `Uint8Array`-ként adja vissza. Ha ezt elmented egy tárhelyre, a vevőnek letöltési linket adhatsz, és nem kell minden letöltésnél a Számlázz.hu-t hívnod. A `kassza/storage` modul ehhez ad egy közös felületet és kész adaptereket. Egyiknek sincs függősége: a szolgáltató SDK-ját, ha kell, te adod át.
+
+```ts title="lib/tarhely.ts"
+import { s3FetchStorage } from 'kassza/storage'
+
+export const tarhely = s3FetchStorage({
+  bucket: 'szamlak',
+  region: 'auto',
+  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+  accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
+  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
+})
+```
+
+```ts
+import { invoicePdfKey, storePdf } from 'kassza/storage'
+import { tarhely } from '@/lib/tarhely'
+
+const szamla = await kassza.invoices.create(adatok)
+
+if (szamla.pdf) {
+  const fajl = await storePdf(tarhely, invoicePdfKey({ number: szamla.number }), szamla.pdf)
+  await db.rendeles.update({ where: { id: rendelesId }, data: { szamlaPdfKulcs: fajl.key } })
+}
+```
+
+A kulcs ebben a példában `szamlak/2026/09/E-WEB-2026-12.pdf` alakú lesz. Az adatbázisba a kulcsot mentsd, ne a PDF-et base64-ként és ne egy lejáró URL-t.
+
+<Example slug="pdf-tarhely" />
+
+## A storePdf
+
+A `storePdf(storage, key, pdf)` ellenőrzi, hogy a tartalom valóban PDF-e (a `%PDF` fejléccel kezdődik), majd `application/pdf` típussal elmenti. Ha a tartalom nem PDF, `StorageError`-t dob, és nem ír semmit. Az eredmény egy `StoredFile`:
+
+| Mező | Típus | Leírás |
+| --- | --- | --- |
+| `key` | `string` | Az általad megadott kulcs, az adapter `prefix` opciója nélkül. |
+| `url` | `string \| undefined` | Letöltési cím, ha az adapter a mentéskor meg tudja adni. |
+| `size` | `number` | A fájl mérete bájtban. |
+| `contentType` | `string` | `application/pdf` |
+
+Ha a számlát `downloadPdf: false` beállítással állítottad ki, vagy a mentés nem sikerült, a PDF-et később az [`invoices.getPdf()`](/docs/bizonylat-pdf) metódussal kérheted le.
+
+## Kulcsok
+
+Az `invoicePdfKey()` és a `receiptPdfKey()` év és hónap szerinti mappába rendezett, ékezet nélküli kulcsot készít a bizonylatszámból:
+
+```ts
+import { invoicePdfKey, receiptPdfKey } from 'kassza/storage'
+
+const szamla = invoicePdfKey({ number: 'E-WEB-2026-12' })
+const dijbekero = invoicePdfKey({ number: 'D-WEB-2026-3', type: 'proforma', date: '2026-01-31' })
+const nyugta = receiptPdfKey({ number: 'NYGT-2026-45', date: '2026-09-17' })
+const ugyfelenkent = invoicePdfKey({ number: 'E-WEB-2026-12', prefix: 'ugyfelek/Árvíztűrő Kft', date: '2026-09-17' })
+```
+
+| Változó | Kulcs |
+| --- | --- |
+| `szamla` | `szamlak/2026/09/E-WEB-2026-12.pdf` (a mai nap szerint) |
+| `dijbekero` | `szamlak/dijbekero/2026/01/D-WEB-2026-3.pdf` |
+| `nyugta` | `nyugtak/2026/09/NYGT-2026-45.pdf` |
+| `ugyfelenkent` | `ugyfelek/Arvizturo-Kft/2026/09/E-WEB-2026-12.pdf` |
+
+| Paraméter | Alapérték | Leírás |
+| --- | --- | --- |
+| `number` | – | A bizonylatszám, ebből lesz a fájlnév. Kötelező. |
+| `type` | `'invoice'` | Csak az `invoicePdfKey`-nél. Almappát ad: `proforma` → `dijbekero`, `advance` → `elolegszamla`, `final` → `vegszamla`, `corrective` → `helyesbito`, `storno` → `sztorno`, `deliveryNote` → `szallitolevel`. |
+| `prefix` | `szamlak` vagy `nyugtak` | Az első mappa, perjellel tagolva több szint is lehet. |
+| `date` | ma, budapesti idő szerint | `Date` vagy `YYYY-MM-DD`. Ebből lesz az év és a hónap. |
+
+Minden szakaszból eltűnnek az ékezetek, és ami nem betű, szám, pont, aláhúzás vagy kötőjel, az kötőjel lesz. Ugyanezt a `sanitizeKeySegment()` függvény külön is elvégzi.
+
+<Callout type="warning" title="Mentsd el a kulcsot">
+  Dátum nélkül a kulcs a mentés napjára mutat. Ha később ugyanazzal a hívással újra kiszámolod,
+  hónapfordulón más kulcsot kaphatsz. A mentéskor kapott `key`-t tárold az adatbázisban.
+</Callout>
+
+Az adapterek minden kulcsot ellenőriznek: nem lehet üres vagy 1024 karakternél hosszabb, nem kezdődhet perjellel, és nem lehet benne visszaperjel, vezérlőkarakter, üres, `.` vagy `..` szakasz. Hibás kulcsnál `StorageError` jön `operation: 'key'` értékkel. Saját adapterben ugyanezt az `assertStorageKey()` végzi.
+
+Minden adapternek van `prefix` opciója. Ez a tárhelyen a kulcs elé kerül, például `prefix: 'eles'` mellett a fájl az `eles/szamlak/2026/09/…` útvonalra kerül, a `StoredFile.key` viszont prefix nélkül marad. Így ugyanazzal a kulccsal dolgozhatsz fejlesztői és éles tárhelyen is.
+
+## Adapterek
+
+Minden adapter tud menteni (`put`). A többi művelet adapterenként eltér:
+
+| Adapter | Import | `get` | `delete` | `getUrl` lejárat nélkül | `getUrl` lejáró linkkel |
+| --- | --- | --- | --- | --- | --- |
+| `s3FetchStorage` | `kassza/storage` | igen | igen | `publicBaseUrl` esetén | aláírt URL, legfeljebb 7 nap |
+| `s3Storage` | `kassza/storage` | `GetObjectCommand`-dal | `DeleteObjectCommand`-dal | `publicBaseUrl` esetén | `getSignedUrl`-lel, legfeljebb 7 nap |
+| `r2BindingStorage` | `kassza/storage` | igen | igen | `publicBaseUrl` esetén | nem |
+| `vercelBlobStorage` | `kassza/storage` | nem | `del`-lel | `head`-del | nem |
+| `uploadthingStorage` | `kassza/storage` | nem | igen | nem, mindig aláírt | aláírt URL, legfeljebb 7 nap |
+| `supabaseStorage` | `kassza/storage` | igen | igen | `public: true` esetén | aláírt URL, legfeljebb 1 év |
+| `fsStorage` | `kassza/storage/fs` | igen | igen | `publicBaseUrl` esetén | nem |
+| `memoryStorage` | `kassza/storage` | igen | igen | mindig | nem |
+
+Ahol van aláírt URL, a lejárat alapból 1 óra, és a megengedettnél hosszabb lejárat `StorageError`-t ad. Az R2 binding, a Vercel Blob és a fájlrendszer adapternél már az `expiresInSeconds` megadása is `StorageError`-t ad.
+
+<Tabs items={['S3 (fetch)', 'AWS SDK', 'R2 binding', 'Vercel Blob', 'UploadThing', 'Supabase', 'Fájlrendszer', 'Memória']} groupId="pdf-tarhely">
+  <Tab value="S3 (fetch)">
+    Aláírt S3 kéréseket küld a beépített `fetch`-csel, AWS SDK nélkül. Az aláíráshoz a Web Crypto API-t használja, ezért edge környezetben is fut. Amazon S3, Cloudflare R2, MinIO, Backblaze és más S3-kompatibilis tárhelyek mellett is működik.
+
+    ```ts
+    import { s3FetchStorage } from 'kassza/storage'
+
+    export const tarhely = s3FetchStorage({
+      bucket: 'szamlak',
+      region: 'eu-central-1',
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? '',
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? '',
+    })
+    ```
+
+    | Opció | Leírás |
+    | --- | --- |
+    | `bucket`, `region`, `accessKeyId`, `secretAccessKey` | Kötelező. R2-nél a régió `auto`. Ha bármelyik üres, a létrehozás `configuration` hibát dob. |
+    | `sessionToken` | Ideiglenes AWS hitelesítéshez. |
+    | `endpoint` | Nem AWS tárhelynél, például `https://<account-id>.r2.cloudflarestorage.com`. |
+    | `forcePathStyle` | Endpoint nélkül alapból `https://<bucket>.s3.<region>.amazonaws.com` a cím, pontot tartalmazó bucketnél vagy `true` esetén `https://s3.<region>.amazonaws.com/<bucket>`. Endpointtal alapból `<endpoint>/<bucket>`, `false` esetén `<bucket>.<endpoint>`. |
+    | `publicBaseUrl` | Nyilvános cím, például egy CDN vagy az R2 egyedi domainje. |
+    | `prefix`, `fetch` | Kulcselőtag és saját `fetch` implementáció. |
+  </Tab>
+  <Tab value="AWS SDK">
+    Ha a projektben már van `@aws-sdk/client-s3`, add át a kliensét és a parancsosztályait. A `GetObjectCommand` és a `DeleteObjectCommand` csak a `get`, a `delete` és az aláírt URL-hez kell.
+
+    ```ts
+    import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+    import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+    import { s3Storage } from 'kassza/storage'
+
+    export const tarhely = s3Storage({
+      client: new S3Client({ region: 'eu-central-1' }),
+      bucket: 'szamlak',
+      commands: { PutObjectCommand, GetObjectCommand, DeleteObjectCommand },
+      getSignedUrl,
+    })
+    ```
+
+    | Opció | Leírás |
+    | --- | --- |
+    | `client`, `bucket` | Kötelező. |
+    | `commands` | Kötelező. `PutObjectCommand` kötelező, a másik kettő opcionális. |
+    | `getSignedUrl` | A `@aws-sdk/s3-request-presigner` függvénye, lejáró linkhez. |
+    | `publicBaseUrl`, `prefix` | Nyilvános cím és kulcselőtag. |
+  </Tab>
+  <Tab value="R2 binding">
+    Cloudflare Workers alatt a bucket bindingot közvetlenül is használhatod, hozzáférési kulcs nélkül:
+
+    ```ts
+    import { createKassza } from 'kassza'
+    import { invoicePdfKey, r2BindingStorage, storePdf } from 'kassza/storage'
+
+    export default {
+      async fetch(request: Request, env: Env) {
+        const kassza = createKassza({ agentKey: env.SZAMLAZZ_AGENT_KEY })
+        const tarhely = r2BindingStorage(env.SZAMLAK, { publicBaseUrl: 'https://szamlak.example.hu' })
+
+        const szamlaszam = 'E-WEB-2026-12'
+        const { pdf } = await kassza.invoices.getPdf(szamlaszam)
+        const fajl = await storePdf(tarhely, invoicePdfKey({ number: szamlaszam }), pdf)
+        return Response.json(fajl)
+      },
+    }
+    ```
+
+    Az első paraméter a binding, a második opcionális: `publicBaseUrl` és `prefix`. Lejáró linket a binding nem tud készíteni. Ha a fájlok nem nyilvánosak, a Workerből szolgáld ki őket a `get()` eredményével.
+  </Tab>
+  <Tab value="Vercel Blob">
+    Add át a `@vercel/blob` függvényeit. A `put` kötelező, a `del` a törléshez, a `head` a `getUrl()`-hez kell.
+
+    ```ts
+    import { del, head, put } from '@vercel/blob'
+    import { vercelBlobStorage } from 'kassza/storage'
+
+    export const tarhely = vercelBlobStorage({ put, del, head, access: 'public' })
+    ```
+
+    | Opció | Leírás |
+    | --- | --- |
+    | `access` | Kötelező, `'public'` vagy `'private'`. |
+    | `token` | Blob token, ha nem a `@vercel/blob` alapértelmezését használod. |
+    | `allowOverwrite` | Felülírhatja-e a meglévő fájlt, alapból `true`. |
+    | `cacheControlMaxAge` | Gyorsítótárazási idő másodpercben. |
+    | `prefix` | Kulcselőtag. |
+
+    Az adapter véletlen utótag nélkül ment, így a fájl útvonala pontosan a kulcs. A `StoredFile.url` a blob URL-je. Olvasni (`get`) és lejáró linket készíteni nem tud.
+  </Tab>
+  <Tab value="UploadThing">
+    Add át az UploadThing szerveroldali `UTApi` példányát:
+
+    ```ts
+    import { UTApi } from 'uploadthing/server'
+    import { uploadthingStorage } from 'kassza/storage'
+
+    export const tarhely = uploadthingStorage({ utapi: new UTApi() })
+    ```
+
+    | Opció | Leírás |
+    | --- | --- |
+    | `utapi` | Kötelező. |
+    | `acl` | `'public-read'` vagy `'private'`. |
+    | `contentDisposition` | `'inline'` vagy `'attachment'`. |
+    | `prefix` | Kulcselőtag. |
+
+    A teljes kulcs az UploadThing `customId` azonosítója lesz, ezért előtaggal együtt legfeljebb 128 karakter lehet. A fájl neve a kulcs utolsó szakasza. A `getUrl()` mindig aláírt linket ad a `generateSignedURL` függvénnyel, ehhez uploadthing v7 kell.
+  </Tab>
+  <Tab value="Supabase">
+    Add át a Supabase klienst és a bucket nevét. A kliens szerveroldalon készüljön, olyan kulccsal, amely írhat a bucketbe.
+
+    ```ts
+    import { createClient } from '@supabase/supabase-js'
+    import { supabaseStorage } from 'kassza/storage'
+
+    const supabase = createClient(process.env.SUPABASE_URL ?? '', process.env.SUPABASE_SERVICE_ROLE_KEY ?? '')
+
+    export const tarhely = supabaseStorage({ client: supabase, bucket: 'szamlak' })
+    ```
+
+    | Opció | Leírás |
+    | --- | --- |
+    | `client`, `bucket` | Kötelező. |
+    | `public` | Nyilvános bucketnél `true`: ekkor a `getUrl()` lejárat nélkül a nyilvános címet adja. |
+    | `upsert` | Felülírhatja-e a meglévő fájlt, alapból `true`. |
+    | `cacheControl` | A Supabase `cacheControl` beállítása. |
+    | `prefix` | Kulcselőtag. |
+  </Tab>
+  <Tab value="Fájlrendszer">
+    Saját szerveren a lemezre is menthetsz. Ez az adapter külön útvonalon érhető el, mert a `node:fs` modult használja:
+
+    ```ts
+    import { fsStorage } from 'kassza/storage/fs'
+
+    export const tarhely = fsStorage({ directory: './adatok/szamlak' })
+    ```
+
+    | Opció | Leírás |
+    | --- | --- |
+    | `directory` | Kötelező. Relatív útvonalnál a munkakönyvtárhoz képest értendő. Hiányában a létrehozás `configuration` hibát dob. |
+    | `publicBaseUrl` | Ha a könyvtárat egy webszerver kiszolgálja, annak címe. Nélküle a `getUrl()` hibát dob. |
+    | `prefix` | Kulcselőtag. |
+
+    Az adapter létrehozza a hiányzó mappákat, és előbb ideiglenes fájlba ír, majd átnevezi, így félig megírt PDF nem marad a lemezen. Olyan kulcsot, amely a könyvtáron kívülre mutatna, szimbolikus linken keresztül sem enged. A `pathFor(key)` a fájl abszolút útvonalát adja, a `directory` a gyökérkönyvtárat.
+
+    Edge környezetben nem fut, és serverless függvényben sem érdemes használni, mert ott a fájlrendszer nem tartós.
+  </Tab>
+  <Tab value="Memória">
+    Tesztekhez és a sandboxhoz. A fájlok a folyamat memóriájában vannak:
+
+    ```ts
+    import { memoryStorage } from 'kassza/storage'
+
+    const tarhely = memoryStorage({ publicBaseUrl: 'https://cdn.example.hu' })
+    ```
+
+    A `publicBaseUrl` alapból `memory://storage`, a `prefix` itt is megadható. A `files` mező a mentett fájlokat tartalmazza teljes kulcs szerint (`body` és `contentType`), a `clear()` mindet törli. A `getUrl()` nem létező fájlra `StorageError`-t dob 404-es `status` értékkel.
+  </Tab>
+</Tabs>
+
+## Letöltési link
+
+A vevő a PDF-et egy saját végponton keresztül kapja meg: a végpont ellenőrzi, hogy a bejelentkezett felhasználó láthatja-e a számlát, és rövid lejáratú linkre irányít át.
+
+```ts title="app/api/szamlak/[rendelesId]/route.ts"
+import { tarhely } from '@/lib/tarhely'
+
+export async function GET(_request: Request, { params }: { params: Promise<{ rendelesId: string }> }) {
+  const { rendelesId } = await params
+  const rendeles = await db.rendeles.findUnique({ where: { id: rendelesId } })
+  if (!rendeles?.szamlaPdfKulcs) return new Response('Nem található', { status: 404 })
+
+  const url = await tarhely.getUrl(rendeles.szamlaPdfKulcs, { expiresInSeconds: 300 })
+  return Response.redirect(url, 302)
+}
+```
+
+<Callout type="warning" title="A számla személyes adat">
+  A számlán a vevő neve, címe és a vásárolt tételek is szerepelnek. Ne tedd a PDF-eket kitalálható
+  kulccsal nyilvános bucketbe. Használj privát tárhelyet és lejáró linket, és a link kiadása előtt
+  ellenőrizd a jogosultságot.
+</Callout>
+
+## Hibakezelés
+
+A tárhely hibáit a kassza `StorageError`-ba csomagolja:
+
+| Mező | Leírás |
+| --- | --- |
+| `message` | Magyar hibaüzenet, benne a szolgáltató hibájával. |
+| `operation` | `'put'`, `'get'`, `'delete'`, `'getUrl'` vagy `'key'`. |
+| `key` | Az érintett kulcs. |
+| `status` | HTTP státusz, ha ismert. |
+| `cause` | Az eredeti hiba. |
+
+Az `isStorageError()` típusőrrel szűkítheted. A hiányzó fájl nem hiba: a `get()` ilyenkor `undefined`-ot ad. A hiányzó kötelező opció (például a `bucket` vagy a `directory`) viszont már az adapter létrehozásakor `configuration` kategóriájú `SzamlazzError`-t dob.
+
+A számla a mentés előtt már elkészült, ezért tárhelyhiba miatt soha ne állítsd ki újra. Naplózd a hibát, és a PDF-et később a számlaszám alapján kérd le újra:
+
+```ts
+import { invoicePdfKey, isStorageError, storePdf } from 'kassza/storage'
+import { tarhely } from '@/lib/tarhely'
+
+const szamla = await kassza.invoices.create(adatok)
+
+try {
+  if (szamla.pdf) await storePdf(tarhely, invoicePdfKey({ number: szamla.number }), szamla.pdf)
+} catch (error) {
+  if (!isStorageError(error)) throw error
+  naplo.warn({ muvelet: error.operation, kulcs: error.key, status: error.status })
+  await pdfMentesKesobb(szamla.number)
+}
+```
+
+A `pdfMentesKesobb` egy háttérfeladatban a `kassza.invoices.getPdf(szamlaszam)` hívással tölti le újra a PDF-et, és megismétli a mentést.
+
+## Tesztelés
+
+A `memoryStorage` és a [mock kliens](/docs/kiegeszitok/teszteles) együtt hálózat nélkül teszteli a teljes folyamatot. A mock minimális, de érvényes PDF-et ad vissza, amit a `storePdf` elfogad:
+
+```ts
+import { invoicePdfKey, memoryStorage, storePdf } from 'kassza/storage'
+import { createMockKassza } from 'kassza/testing'
+import { expect, test } from 'vitest'
+
+test('a számla PDF-je a tárhelyre kerül', async () => {
+  const kassza = createMockKassza({ now: () => new Date('2026-09-17T10:00:00Z') })
+  const tarhely = memoryStorage()
+
+  const szamla = await kassza.invoices.create({
+    buyer: { name: 'Vevő Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+    items: [{ name: 'Fotózás', netUnitPrice: 85_000, vat: 27 }],
+  })
+  const kulcs = invoicePdfKey({ number: szamla.number, date: '2026-09-17' })
+  const fajl = await storePdf(tarhely, kulcs, szamla.pdf ?? new Uint8Array())
+
+  expect(fajl.key).toBe('szamlak/2026/09/E-KASSZA-2026-1.pdf')
+  expect(tarhely.files.get(fajl.key)?.contentType).toBe('application/pdf')
+})
+```
+
+## Saját adapter
+
+Ha a tárhelyedhez nincs adapter, írd meg a `StorageAdapter` felületet. Csak a `put` kötelező, a `get`, a `delete` és a `getUrl` opcionális. A `guardStorageCall()` a szolgáltató hibáját `StorageError`-ba csomagolja:
+
+```ts
+import { Storage } from '@google-cloud/storage'
+import { assertStorageKey, guardStorageCall, type StorageAdapter } from 'kassza/storage'
+
+const bucket = new Storage().bucket('szamlak')
+
+export const tarhely: StorageAdapter = {
+  async put(key, body, { contentType }) {
+    const file = bucket.file(assertStorageKey(key))
+    await guardStorageCall('Google Cloud Storage', 'put', key, () => file.save(body, { contentType }))
+    return { key, size: body.byteLength, contentType }
+  },
+}
+```

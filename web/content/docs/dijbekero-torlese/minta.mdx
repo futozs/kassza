@@ -1,0 +1,16 @@
+---
+title: Minta
+description: Díjbekérő kiállítása, törlése rendelésszám alapján és a második törlés 335-ös hibája, a ténylegesen elküldött xmlszamladbkdel XML-lel.
+official: https://docs.szamlazz.hu/hu/agent/deleting_pro_forma_invoice/xml
+---
+
+A példa kiállít egy díjbekérőt, rendelésszám alapján törli, majd a számával még egyszer megpróbálja. A második kérésre 335-ös, `not_found` kategóriájú hibát kapsz, mert a díjbekérő már nincs meg. Az **Elküldött XML** fülön mindkét `xmlszamladbkdel` kérést látod: az elsőben a `rendelesszam`, a másodikban a `szamlaszam` elem azonosítja a díjbekérőt.
+
+<Example slug="dijbekero-torlese" />
+
+## XSD séma
+
+```text
+http://www.szamlazz.hu/docs/xsds/szamladbkdel/xmlszamladbkdel.xsd
+http://www.szamlazz.hu/docs/xsds/szamladbkdel/xmlszamladbkdelvalasz.xsd
+```

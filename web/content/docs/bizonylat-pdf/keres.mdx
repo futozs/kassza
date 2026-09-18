@@ -1,0 +1,52 @@
+---
+title: Kérés
+description: Az invoices.getPdf() bemenete, a bizonylat azonosítása számlaszámmal, rendelésszámmal vagy külső azonosítóval, a Számla Agent xmlszamlapdf XML elemeivel.
+official: https://docs.szamlazz.hu/hu/agent/querying_pdf/request
+---
+
+```ts
+kassza.invoices.getPdf(reference: InvoiceReference, options?: { signal?: AbortSignal }): Promise<InvoicePdf>
+```
+
+A kassza `xmlszamlapdf` XML-t küld az `action-szamla_agent_pdf` form mezőben. A bizonylatot egyetlen hivatkozással azonosítod. Ha szöveget adsz át, azt a kassza számlaszámnak veszi:
+
+```ts
+const peldany = await kassza.invoices.getPdf('WEB-2026-128')
+```
+
+## A bizonylat azonosítása
+
+```ts
+type InvoiceReference =
+  | string
+  | { readonly invoiceNumber: string }
+  | { readonly orderNumber: string }
+  | { readonly externalId: string }
+```
+
+| Hivatkozás | XML elem | Mikor használd? |
+| --- | --- | --- |
+| `'WEB-2026-128'` vagy `{ invoiceNumber }` | `szamlaszam` | Ha eltároltad a bizonylat számát. Ez mindig pontosan egy bizonylatot jelöl. |
+| `{ orderNumber }` | `rendelesSzam` | Ha csak a saját rendelésazonosítód van meg. Több azonos rendelésszámú bizonylat közül a legutóbbit kapod. |
+| `{ externalId }` | `szamlaKulsoAzon` | Ha a kiállításkor megadtad az `externalId` mezőt. Enélkül ezzel nem található meg a bizonylat. |
+
+```ts
+const szamlaszamAlapjan = await kassza.invoices.getPdf({ invoiceNumber: 'WEB-2026-128' })
+const rendelesAlapjan = await kassza.invoices.getPdf({ orderNumber: 'REND-1001' })
+const kulsoAzonAlapjan = await kassza.invoices.getPdf({ externalId: 'webshop-1001' })
+```
+
+A hivatkozáson kívül a kassza csak a hitelesítést (`szamlaagentkulcs`, vagy `felhasznalo` és `jelszo`) írja az XML-be. A `valaszVerzio` elem értéke mindig `2`, így a Számlázz.hu XML-ben válaszol, benne a base64 kódolású PDF-fel.
+
+## Szabályok
+
+- Pontosan egy hivatkozást adj meg. Üres szövegnél, üres értéknél vagy egyszerre több kulcsnál (például `invoiceNumber` és `orderNumber` együtt) a kassza `validation` hibát dob, és kérést nem küld. Az értékek elejéről és végéről a szóközöket levágja.
+- Rendelésszám alapján a legutóbb kiállított bizonylatot kapod. Ha egy rendeléshez díjbekérő és az abból készült számla is tartozik, a számlát kapod vissza. Egy korábbi bizonylathoz a számlaszámával hivatkozz.
+- A lekérdezés nem hoz létre semmit, ezért a kassza hálózati hibánál, 5xx válasznál, időtúllépésnél és karbantartásnál magától újrapróbálja, alapból háromszor. Lásd [Amit a kassza újrapróbál](/docs/alapok/hibakezeles#amit-a-kassza-újrapróbál).
+- A második paraméterben saját `AbortSignal`-t adhatsz, lásd [Időkorlát és megszakítás](/docs/alapok/kliens-beallitasa#időkorlát-és-megszakítás).
+
+```ts
+const idokorlattal = await kassza.invoices.getPdf('WEB-2026-128', {
+  signal: AbortSignal.timeout(5_000),
+})
+```

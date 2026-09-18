@@ -1,0 +1,73 @@
+---
+title: Kérés
+description: A taxpayer.query() bemenete, az elfogadott adószám formátumok, a Számla Agent xmltaxpayer XML-je és az előellenőrzés a kassza/validators modullal.
+official: https://docs.szamlazz.hu/hu/agent/querying_taxpayer/request
+---
+
+```ts
+kassza.taxpayer.query(taxNumber: string, options?: { signal?: AbortSignal }): Promise<TaxpayerInfo>
+```
+
+A metódus egyetlen szöveget vár: a törzsszámot vagy a teljes adószámot. A kassza kiveszi belőle a szóközöket, a kötőjeleket és az elején álló `HU` előtagot, majd az első 8 számjegyet, a törzsszámot küldi el.
+
+| Bemenet | Formátum | Elküldött `torzsszam` |
+| --- | --- | --- |
+| `'12345676'` | 8 jegyű törzsszám | `12345676` |
+| `'12345676-2-41'` | 11 jegyű adószám kötőjelekkel | `12345676` |
+| `'12345676241'` | 11 jegyű adószám elválasztás nélkül | `12345676` |
+| `'HU12345676'` | közösségi adószám | `12345676` |
+
+Minden más bemenetre, például 7 vagy 9 számjegyre, betűre vagy nem szöveg értékre, a kassza `validation` kategóriájú `SzamlazzError`-t dob, és kérést sem küld.
+
+## Az elküldött XML
+
+A kassza `xmltaxpayer` XML-t küld az `action-szamla_agent_taxpayer` form mezőben:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<xmltaxpayer xmlns="http://www.szamlazz.hu/xmltaxpayer" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.szamlazz.hu/xmltaxpayer http://www.szamlazz.hu/docs/xsds/agent/xmltaxpayer.xsd">
+  <beallitasok>
+    <szamlaagentkulcs>az-agent-kulcsod</szamlaagentkulcs>
+  </beallitasok>
+  <torzsszam>12345676</torzsszam>
+</xmltaxpayer>
+```
+
+| Mező | XML elem | Leírás |
+| --- | --- | --- |
+| `taxNumber` | `torzsszam` | **Kötelező.** Az adószám első 8 számjegye. |
+| a kliens `agentKey` opciója | `beallitasok/szamlaagentkulcs` | Az Agent kulcs, vagy a `SZAMLAZZ_AGENT_KEY` környezeti változó. Felhasználónév és jelszó esetén a `felhasznalo` és a `jelszo` elem kerül ide. |
+| `options.signal` | – | `AbortSignal` a kérés megszakításához, például ha a felhasználó közben átírta az adószámot. |
+
+## Szabályok
+
+- A NAV csak a törzsszámot kapja meg, így az áfakódot és a megyekódot nem ellenőrzi. Ha a vevő teljes adószámot írt be, vesd össze a válasz `taxNumber` mezőjével.
+- A kassza csak a formátumot nézi, a törzsszám ellenőrző számjegyét nem. Ezt a `kassza/validators` modul végzi, lásd lent.
+- Lekérdezésről van szó, ezért a kassza `maintenance`, `network` és `timeout` hibánál magától újrapróbálja, alapból háromszor, 1, majd 2 másodperc várakozással. Lásd [Amit a kassza újrapróbál](/docs/alapok/hibakezeles#amit-a-kassza-újrapróbál).
+
+## Előellenőrzés az űrlapon
+
+Mielőtt a szerveredet és a NAV-ot terhelnéd, ellenőrizd a beírt adószámot a böngészőben. A `kassza/validators` nem használ Agent kulcsot és hálózatot, ezért kliensoldalon is futhat.
+
+| Függvény | Mit ellenőriz? |
+| --- | --- |
+| `parseHungarianTaxNumber(value)` | 11 jegyű adószám: a törzsszám ellenőrző számjegye, az áfakód (1–5) és a megyekód. Érvényes bemenetre `{ taxpayerId, vatCode, countyCode, formatted }`, egyébként `undefined`. |
+| `isValidHungarianTaxNumber(value)` | Ugyanez, `boolean` eredménnyel. |
+| `isValidHungarianTaxpayerId(value)` | Csak a 8 jegyű törzsszám és az ellenőrző számjegye. |
+
+A validátorok a szóközöket és a kötőjeleket elhagyják, a `HU` előtagot viszont nem. Ha az űrlapon közösségi adószámot is elfogadsz, az előtagot ellenőrzés előtt vágd le.
+
+```ts
+import { parseHungarianTaxNumber } from 'kassza/validators'
+
+const adoszam = parseHungarianTaxNumber(bevitt)
+if (!adoszam) throw new Error('Érvénytelen adószám')
+
+const ceg = await kassza.taxpayer.query(adoszam.formatted)
+```
+
+Próbáld ki:
+
+<ValidatorPlayground />
+
+A teljes folyamatot, az űrlaptól a számla vevőjéig, a [Válasz](/docs/adoszam-lekerdezes/valasz#a-vevő-kitöltése) oldal mutatja. A többi validátort a [Validátorok](/docs/kiegeszitok/validatorok) oldal sorolja fel.

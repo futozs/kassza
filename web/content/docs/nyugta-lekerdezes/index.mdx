@@ -1,0 +1,31 @@
+---
+title: Nyugta lekérdezés
+description: Kiállított nyugta adatainak és PDF-jének lekérése nyugtaszám vagy rendelésszám alapján a kassza receipts.get() és receipts.find() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/querying-a-receipt
+---
+
+Egy már kiállított nyugta adatait a nyugtaszám vagy a létrehozáskor megadott rendelésszám alapján kérheted le, alapból a PDF-fel együtt. A kasszában erre két metódus van: a `receipts.get()` hibát dob, ha nincs ilyen nyugta, a `receipts.find()` ilyenkor `null`-t ad.
+
+```ts
+const nyugta = await kassza.receipts.get('NYGT-2026-1')
+
+const rendeleshez = await kassza.receipts.find({ orderNumber: 'PENZTAR-2026-0212' })
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/nyugta-lekerdezes/keres">
+    Azonosítás nyugtaszámmal vagy rendelésszámmal, PDF és sablon.
+  </Card>
+  <Card title="Válasz" href="/docs/nyugta-lekerdezes/valasz">
+    A Receipt mezői, a tételek, az összegek és a lekérdezés hibái.
+  </Card>
+  <Card title="Minta" href="/docs/nyugta-lekerdezes/minta">
+    Nyugta kiállítása és lekérdezése a sandboxban.
+  </Card>
+</Cards>
+
+<Callout type="info" title="Hívásazonosítóval nem lehet keresni">
+  A Számla Agent a nyugtát csak nyugtaszám vagy rendelésszám alapján adja vissza, a `callId`
+  alapján nem. Ha egy nyugtát később a saját rendelésedhez akarsz visszakeresni, a
+  [létrehozásnál](/docs/nyugta-letrehozas) adj meg `orderNumber`-t is.
+</Callout>

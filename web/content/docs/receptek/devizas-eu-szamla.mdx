@@ -1,0 +1,155 @@
+---
+title: Devizás számla EU-s cégnek
+description: Euróban kiállított, angol nyelvű számla másik tagállambeli cégnek, közösségi adószámmal, MNB árfolyammal és angol értesítő e-maillel.
+---
+
+Egy magyar fejlesztőcég egy német ügyfélnek dolgozik, és havonta euróban számlázza a ledolgozott órákat. A számla angol nyelvű, a vevő közösségi adószámmal szerepel rajta, az áfát pedig a vevő fizeti meg a saját országában. Az árfolyamot a Számlázz.hu az MNB-től veszi, ha nem adsz meg mást.
+
+A recept a [Fizetett rendelés számlája](/docs/receptek/fizetett-rendeles-szamla) recept `egyszerSzamlaz()` függvényét használja, így a havi számla egy megbízáshoz csak egyszer készül el.
+
+## A számlázó függvény
+
+```ts title="lib/eu-szamla.ts"
+import type { InvoiceLanguage, Kassza } from 'kassza'
+import { isValidEuVatNumber, normalizeEuVatNumber } from 'kassza/validators'
+import { kassza as alapKliens } from '@/lib/kassza'
+import { egyszerSzamlaz } from '@/lib/szamlazas'
+
+export interface EuMegbizas {
+  readonly id: string
+  readonly cegnev: string
+  readonly orszag: string
+  readonly iranyitoszam: string
+  readonly varos: string
+  readonly cim: string
+  readonly kozossegiAdoszam: string
+  readonly email: string
+  readonly nyelv: InvoiceLanguage
+  readonly szolgaltatas: string
+  readonly orak: number
+  readonly oradijEur: number
+}
+
+export async function euSzolgaltatasSzamla(
+  megbizas: EuMegbizas,
+  kliens: Kassza = alapKliens,
+): Promise<string> {
+  const euTaxNumber = normalizeEuVatNumber(megbizas.kozossegiAdoszam)
+  if (!isValidEuVatNumber(euTaxNumber)) {
+    throw new Error(`Érvénytelen közösségi adószám: ${megbizas.kozossegiAdoszam}`)
+  }
+  if (euTaxNumber.startsWith('HU')) {
+    throw new Error('Magyar vevőre ez a recept nem vonatkozik.')
+  }
+
+  return egyszerSzamlaz(
+    {
+      orderNumber: `EU-${megbizas.id}`,
+      currency: 'EUR',
+      language: megbizas.nyelv,
+      paymentDueInDays: 15,
+      seller: {
+        emailSubject: 'Your invoice',
+        emailText: 'Please find your invoice attached. Thank you for your business.',
+      },
+      buyer: {
+        name: megbizas.cegnev,
+        country: megbizas.orszag,
+        zip: megbizas.iranyitoszam,
+        city: megbizas.varos,
+        address: megbizas.cim,
+        email: megbizas.email,
+        euTaxNumber,
+        taxpayerType: 'euBusiness',
+      },
+      items: [
+        {
+          name: megbizas.szolgaltatas,
+          quantity: megbizas.orak,
+          unit: 'hour',
+          netUnitPrice: megbizas.oradijEur,
+          vat: 'EUFAD37',
+        },
+      ],
+    },
+    kliens,
+  )
+}
+```
+
+A hívás így néz ki egy havi elszámolásból:
+
+```ts title="scripts/havi-szamlak.ts"
+import { euSzolgaltatasSzamla } from '@/lib/eu-szamla'
+
+const szamlaszam = await euSzolgaltatasSzamla({
+  id: '2026-09-HAFENBLICK',
+  cegnev: 'Hafenblick Software GmbH',
+  orszag: 'Germany',
+  iranyitoszam: '20457',
+  varos: 'Hamburg',
+  cim: 'Am Sandtorkai 12',
+  kozossegiAdoszam: 'DE 123 456 789',
+  email: 'billing@example.de',
+  nyelv: 'en',
+  szolgaltatas: 'Software development, September 2026',
+  orak: 42.5,
+  oradijEur: 95,
+})
+
+console.log(`Kiállítva: ${szamlaszam}`)
+```
+
+A nettó egységárból a kassza számolja ki a tételösszegeket, devizában két tizedesjegyre kerekítve. Az `EUFAD37` kódos áfakulcs áfája 0, így a bruttó összeg megegyezik a nettóval.
+
+<Example slug="devizas-szamla" />
+
+## Árfolyam
+
+Ha az `exchangeRate` mezőt elhagyod, az árfolyamot jegyző bank `MNB` lesz, és a Számlázz.hu az aznapi MNB árfolyamot használja. Ha a szerződésed más bank árfolyamát írja elő, az `egyszerSzamlaz()` hívásban add meg az `exchangeBank` mezőt (például `'OTP'`) és az `exchangeRate` mezőt is. Árfolyam nélkül a kassza más bankot nem fogad el, és a kérés elküldése előtt `validation` hibát ad.
+
+## Buktatók
+
+<Callout type="danger" title="Az áfakódot a könyvelőd válassza ki">
+  Az `EUFAD37` az Áfa tv. 37. §-a alapján másik tagállamban teljesített, fordítottan adózó
+  ügyletet jelöli, ez jellemzően szolgáltatás. Termékértékesítésnél más kód kell, például `EUT`, magánszemély vevőnél
+  pedig egészen más szabályok érvényesek. A kassza ebben nem dönthet helyetted.
+</Callout>
+
+<Callout type="warning" title="A formátum még nem jelent érvényes adószámot">
+  Az `isValidEuVatNumber()` csak az országkódot és a számformátumot ellenőrzi. Azt, hogy az
+  adószám él-e, az EU VIES rendszerében kell megnézned, a kassza ezt nem végzi el.
+</Callout>
+
+<Callout type="warning" title="Az értesítő e-mail nyelve">
+  A `language: 'en'` a számlakép feliratait fordítja le, a tételek nevét és az e-mail szövegét
+  nem. Ha a [Közös kliens](/docs/receptek/kozos-kliens) alapbeállításaiban magyar e-mail tárgy van,
+  azt a hívás `seller` mezőjében írd felül, ahogy a recept teszi.
+</Callout>
+
+<Callout type="info" title="Árfolyam csak devizás számlán">
+  Forintos számlán az `exchangeRate` és az `exchangeBank` nem adható meg, a kassza ilyenkor
+  `validation` hibát ad. Devizás számlán az `MNB`-n kívüli bankhoz az árfolyam kötelező.
+</Callout>
+
+<Callout type="note" title="Az ország neve szövegként">
+  A `country` mező szabad szöveg, így kerül a számlára. Írd ki az ország nevét, például
+  `Germany`, ne csak az ISO kódját.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Támogatott devizanemek" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok/penznemek">
+    Pénznemkódok, árfolyam és árfolyamot jegyző bank.
+  </Card>
+  <Card title="Áfakulcsok" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok/afakulcsok">
+    A kódos áfakulcsok jelentése és a közösségi áfa.
+  </Card>
+  <Card title="Kerekítés" href="/docs/szamla-letrehozas/beallitasok-es-szabalyok/kerekites">
+    Hogyan kerekít a kassza forintban és devizában.
+  </Card>
+  <Card title="Validátorok" href="/docs/kiegeszitok/validatorok">
+    Közösségi adószám formátumának ellenőrzése.
+  </Card>
+</Cards>

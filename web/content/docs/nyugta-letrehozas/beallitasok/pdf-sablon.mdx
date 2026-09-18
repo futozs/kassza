@@ -1,0 +1,70 @@
+---
+title: PDF sablon
+description: A nyugta PDF sablonjának kiválasztása a template mezővel ('A', 'N', 'J', 'L'), és a PDF letöltése a downloadPdf opcióval.
+official: https://docs.szamlazz.hu/hu/agent/generating_receipt/settings_and_rules/pdf-template
+---
+
+A `template` mező (XML-ben `pdfSablon`) azt választja ki, milyen formátumú PDF készüljön a nyugtáról. Opcionális: ha nem adod meg, normál A4-es nyugta készül.
+
+| `template` | Sablon a Számlázz.hu felületén |
+| --- | --- |
+| `'A'` | normál (A4) |
+| `'N'` | 80 mm-es |
+| `'J'` | jegy sablon |
+| `'L'` | jegy sablon logóval |
+
+```ts
+const nyugta = await kassza.receipts.create({
+  callId: 'PENZTAR-2026-0001',
+  template: 'N',
+  items: [{ name: 'Kávé', quantity: 2, grossUnitPrice: 890, vat: 27 }],
+})
+```
+
+Ha minden nyugtád ugyanazzal a sablonnal készül, add meg alapbeállításként:
+
+```ts
+const kassza = createKassza({
+  defaults: { receipt: { prefix: 'NYGT', paymentMethod: 'készpénz', template: 'N' } },
+})
+```
+
+A `template` típusa `ReceiptPdfTemplate`, és a kassza küldés előtt is ellenőrzi: más érték `validation` hibát ad, így elírt sablonkód nem jut el a Számlázz.hu-hoz.
+
+## Sztornó és lekérdezés
+
+A `receipts.reverse()`, a `receipts.get()` és a `receipts.find()` is fogad `template` mezőt, ugyanezzel a négy értékkel:
+
+```ts
+const sztorno = await kassza.receipts.reverse({ receiptNumber: 'NYGT-2026-1', template: 'N' })
+const nyugta = await kassza.receipts.get({ receiptNumber: 'NYGT-2026-1', template: 'N' })
+```
+
+<Callout type="info">
+  A `defaults.receipt.template` csak a `receipts.create()` hívásra hat. Sztornónál és lekérdezésnél a
+  sablont a hívásban add meg.
+</Callout>
+
+## PDF letöltése
+
+A `downloadPdf` (XML-ben `pdfLetoltes`) szabályozza, hogy a válasz tartalmazza-e a nyugta PDF-jét. A kasszában az alapértéke `true`, ekkor a PDF a visszakapott nyugta `pdf` mezőjében van, `Uint8Array`-ként. Ha nem kell a PDF, kapcsold ki, így kisebb a válasz:
+
+```ts
+const nyugta = await kassza.receipts.create({
+  callId: 'PENZTAR-2026-0002',
+  downloadPdf: false,
+  items: [{ name: 'Napijegy', grossUnitPrice: 4_500, vat: 27 }],
+})
+```
+
+A `downloadPdf` a `create()` mellett a `reverse()`, a `get()` és a `find()` hívásnak is megadható, alapbeállításként viszont szintén csak a `create()`-re hat. A `pdf` mező akkor is üres lehet, ha a válasz nem tartalmaz PDF-et, ezért használat előtt ellenőrizd:
+
+```ts
+import { receiptPdfKey, storePdf } from 'kassza/storage'
+
+if (nyugta.pdf) {
+  await storePdf(tarhely, receiptPdfKey({ number: nyugta.number }), nyugta.pdf)
+}
+```
+
+Lásd még: [Nyugta lekérdezés](/docs/nyugta-lekerdezes) és [Számlasablon és nyelvek](/docs/szamla-letrehozas/beallitasok-es-szabalyok/szamlasablon-es-nyelvek).

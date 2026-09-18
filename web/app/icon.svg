@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <title>kassza</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0d542b"/>
+      <stop offset="1" stop-color="#032e15"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#tile)"/>
+  <path d="M160 72H376A24 24 0 0 1 400 96V440L356 406L312 440L268 406L224 440L180 406L136 440V96A24 24 0 0 1 160 72Z" fill="#fffdf6"/>
+  <path d="M178 128H234V220L306 128H372L288 230L378 348H312L248 262L234 279V348H178Z" fill="#0d542b"/>
+  <rect x="290" y="368" width="88" height="22" rx="11" fill="#fe9900"/>
+</svg>

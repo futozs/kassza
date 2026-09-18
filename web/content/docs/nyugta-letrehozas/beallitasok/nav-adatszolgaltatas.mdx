@@ -1,0 +1,22 @@
+---
+title: NAV adatszolgáltatás
+description: A nyugták kötelező NAV adatszolgáltatása 2026. szeptember 1-jétől, a 2026. december 31-ig tartó türelmi idő, és mit jelent ez a kassza használatakor.
+official: https://docs.szamlazz.hu/hu/agent/generating_receipt/settings_and_rules/nav-data-reporting
+---
+
+A Számla Agenttel kiállított nyugta számítógéppel előállított nyugtának számít. Ezekről 2026. szeptember 1-jétől adatot kell szolgáltatni a NAV felé.
+
+<Callout type="info" title="Türelmi idő 2026. december 31-ig">
+  A NAV az év végéig türelmi időt ad, addig nincs teendőd. A Számlázz.hu az adatszolgáltatás
+  automatizálásán dolgozik, és értesíti a felhasználókat, amikor valamit be kell majd állítani.
+</Callout>
+
+## Mit jelent ez a kasszában?
+
+Jelenleg semmit nem kell módosítanod a kódodon. A `receipts.create()` ugyanúgy működik, mint eddig, új mezőt vagy beállítást nem kell megadnod.
+
+Ha a Számlázz.hu új beállítást vagy kérésmezőt vezet be, és ez a kasszát is érinti, a változást a [változásnaplóban](https://github.com/futozs/kassza/blob/main/CHANGELOG.md) követheted. A türelmi idő vége előtt érdemes ránézned, és szükség esetén frissítened a csomagot.
+
+A nyugta-adatszolgáltatás részleteit és a gyakori kérdéseket a Számlázz.hu tudástárának erről szóló cikke tartalmazza.
+
+Lásd még: [Nyugta létrehozás: kérés](/docs/nyugta-letrehozas/keres).

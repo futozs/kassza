@@ -1,0 +1,77 @@
+---
+title: Kerekítés
+description: Hogyan számolja a kassza a tételek nettó, áfa és bruttó értékét forintos és devizás számlán, nettó és bruttó alapon, interaktív kalkulátorral.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/rounding
+---
+
+A Számlázz.hu nem számol a tételadatokból: a nettó, az áfa és a bruttó értéket is a kérésnek kell tartalmaznia, és ha ezek nem stimmelnek, a számla 259–264-es hibával elbukik. A kasszában ezt nem kell kézzel kiszámolnod. Megadod az egységárat és az áfakulcsot, a többit a kassza számolja a hivatalos kerekítési szabályok szerint.
+
+<RoundingCalculator />
+
+## Nettó vagy bruttó alapon?
+
+| | Nettó alapú | Bruttó alapú |
+| --- | --- | --- |
+| Mező | `netUnitPrice` | `grossUnitPrice` |
+| Mikor? | Vállalkozásnak (B2B), nettó árlistával | Magánszemélynek (B2C), webshopban, bruttó árakkal |
+| Ami biztosan pontos | A nettó érték | A bruttó érték, amit a vevő kifizet |
+
+Egy tételnél csak az egyiket adhatod meg, a kettő együtt `validation` hibát ad.
+
+## Forintos számla
+
+Forintos számlán csak a nettó egységár lehet tört szám, a tétel nettó, áfa és bruttó értéke egész.
+
+**Nettó alapon** a kassza így számol:
+
+1. nettó érték = nettó egységár × mennyiség, egészre kerekítve,
+2. áfa érték = nettó érték × áfakulcs / 100, egészre kerekítve,
+3. bruttó érték = nettó érték + áfa érték.
+
+Például 3 darab 500 Ft nettó egységárú könyv 27%-os áfával: nettó 1 500 Ft, áfa 405 Ft, bruttó 1 905 Ft.
+
+**Bruttó alapon** fordítva:
+
+1. bruttó érték = bruttó egységár × mennyiség, egészre kerekítve,
+2. áfa érték = bruttó érték × áfakulcs / (100 + áfakulcs), egészre kerekítve,
+3. nettó érték = bruttó érték − áfa érték,
+4. a nettó egységárat a kassza visszaszámolja a nettó értékből.
+
+Például 3 darab 500 Ft bruttó egységárú könyv 27%-os áfával: bruttó 1 500 Ft, áfa 318,89 Ft helyett 319 Ft, nettó 1 181 Ft, nettó egységár 393,67 Ft.
+
+<Example slug="szamla-brutto" />
+
+## Devizás számla
+
+Devizás számlán mindhárom érték legfeljebb 2 tizedesjegyre kerekedik, ugyanazzal a sorrenddel, mint forintban.
+
+## Nyugta
+
+Forintos nyugtán a bruttó érték egész, a nettó és az áfa legfeljebb 2 tizedes, és a nettó és az áfa összege pontosan kiadja a bruttót. A részleteket a [nyugta szabályai](/docs/nyugta-letrehozas/beallitasok/tetelosszegek) írják le.
+
+## Kerekítési mód
+
+A kassza kereskedelmi kerekítést használ: a fél értékek nulláról elfelé kerekednek (2,5 → 3, −2,5 → −3), és a lebegőpontos pontatlanságot 15 értékes jegyre normalizálja, így például a 1,005 is helyesen 1,01 lesz két tizedesre.
+
+## Számolás a kassza nélkül
+
+A kerekítő függvények külön is elérhetők a `kassza/money` modulból, például ha a kosárban ugyanazt az összeget akarod mutatni, ami a számlára kerül:
+
+```ts
+import { calculateInvoiceItem, summarizeItems } from 'kassza/money'
+
+const tetelek = [
+  calculateInvoiceItem({ quantity: 2, grossUnitPrice: 5_990, vat: 27 }),
+  calculateInvoiceItem({ grossUnitPrice: 3_500, vat: 5 }),
+]
+
+const { grossAmount, byVat } = summarizeItems(tetelek)
+```
+
+A `grossAmount` a fizetendő végösszeg, a `byVat` az áfakulcsonkénti bontás.
+
+Lásd még: [Pénzszámítás](/docs/kiegeszitok/penzszamitas).
+
+## Saját összegek
+
+Ha a tételösszegeket máshonnan kapod, például egy ERP-ből, a `netAmount`, `vatAmount` és `grossAmount` mezőkkel felülírhatod a számolást. Mindhármat meg kell adnod, és a kassza ilyenkor nem ellenőrzi őket, a Számlázz.hu viszont igen.

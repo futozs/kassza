@@ -1,0 +1,160 @@
+---
+title: Válasz
+description: A Receipt mezői, honnan jönnek az xmlnyugtavalasz válaszból, a PDF mentése, és a nyugtakészítésnél jellemző hibák.
+official: https://docs.szamlazz.hu/hu/agent/generating_receipt/response
+---
+
+Sikeres nyugtakészítés után a `create()` egy `Receipt` objektummal tér vissza. Ugyanezt a típust adja a [sztornó](/docs/nyugta-sztorno) és a [lekérdezés](/docs/nyugta-lekerdezes) is.
+
+```ts
+const nyugta = await kassza.receipts.create(adatok)
+
+await db.rendeles.update({
+  where: { id: rendelesId },
+  data: { nyugtaszam: nyugta.number, brutto: nyugta.totals.grossAmount },
+})
+```
+
+## Receipt
+
+A fejléc mezői a válasz `<nyugta>` blokkjának `<alap>` eleméből jönnek.
+
+| Mező | Típus | Forrás a válaszban | Leírás |
+| --- | --- | --- | --- |
+| `id` | `number` | `id` | A nyugta belső azonosítója a Számlázz.hu-ban. |
+| `number` | `string` | `nyugtaszam` | A nyugtaszám, például `'NYGT-2026-1'`. Ha hiányzik, `unexpected_response` hibát kapsz. |
+| `callId` | `string \| undefined` | `hivasAzonosito` | A kérésben megadott hívásazonosító. |
+| `type` | `'receipt' \| 'reversal'` | `tipus` | `NY` esetén `'receipt'`, `SN` (sztornó nyugta) esetén `'reversal'`. |
+| `isReversed` | `boolean` | `stornozott` | `true`, ha a nyugtát sztornózták. |
+| `reversedReceiptNumber` | `string \| undefined` | `stornozottNyugtaszam` | Sztornó nyugtánál az eredeti nyugta száma. |
+| `issueDate` | `string` | `kelt` | A nyugta kelte `'YYYY-MM-DD'` alakban. |
+| `paymentMethod` | `string` | `fizmod` | Fizetési mód. |
+| `currency` | `string` | `penznem` | Pénznem. Ha a válaszból hiányzik, `'HUF'`. |
+| `exchangeRate` | `number \| undefined` | `devizaarf` | Árfolyam devizás nyugtán. |
+| `exchangeBank` | `string \| undefined` | `devizabank` | Az árfolyamot jegyző bank. |
+| `comment` | `string \| undefined` | `megjegyzes` | A nyugta megjegyzése. |
+| `customerLedgerId` | `string \| undefined` | `fokonyvVevo` | A vevő főkönyvi azonosítója. |
+| `isTest` | `boolean` | `teszt` | `true`, ha a nyugta tesztfiókban készült. |
+| `orderNumber` | `string \| undefined` | `rendelesSzam` | Rendelésszám. |
+| `items` | `ReceiptItem[]` | `tetelek` | A tételek a Számlázz.hu által rögzített összegekkel, lásd lent. |
+| `payments` | `ReceiptPayment[]` | `kifizetesek` | A kifizetések. Ha nem adtál meg, üres tömb. |
+| `totals` | `ReceiptTotals` | `osszegek` | Végösszeg és áfakulcsonkénti bontás. |
+| `pdf` | `Uint8Array \| undefined` | `nyugtaPdf` | A nyugta PDF-je, Base64-ből dekódolva. `downloadPdf: false` esetén nincs. |
+
+### ReceiptItem
+
+| Mező | Forrás a válaszban | Leírás |
+| --- | --- | --- |
+| `name` | `megnevezes` | A tétel megnevezése. |
+| `identifier` | `azonosito` | Cikkszám vagy termékazonosító. |
+| `quantity` | `mennyiseg` | Mennyiség. |
+| `unit` | `mennyisegiEgyseg` | Mennyiségi egység. |
+| `netUnitPrice` | `nettoEgysegar` | Nettó egységár. |
+| `vat` | `afatipus`, ha van, különben `afakulcs` | Kódos áfakulcsnál a kód, például `'ÁKK'`, egyébként a szám, például `27`. |
+| `vatPercentage` | `afakulcs` | Az áfa mértéke számként. |
+| `netAmount` | `netto` vagy `nettoErtek` | Nettó érték. |
+| `vatAmount` | `afa` vagy `afaErtek` | Áfa érték. |
+| `grossAmount` | `brutto` vagy `bruttoErtek` | Bruttó érték. |
+| `ledger` | `fokonyv` | `{ revenue, vat }`, ha a tételnek van főkönyvi adata. |
+
+A Számlázz.hu a tételösszegeket hol `netto`, hol `nettoErtek` néven adja vissza, a kassza mindkettőt olvassa. A tétel megjegyzése és adattörlő kódja nem szerepel a válaszban.
+
+### ReceiptPayment és ReceiptTotals
+
+| Mező | Forrás a válaszban | Leírás |
+| --- | --- | --- |
+| `payments[].method` | `fizetoeszkoz` | A fizetési eszköz. |
+| `payments[].amount` | `osszeg` | Az ezzel az eszközzel fizetett összeg. |
+| `payments[].description` | `leiras` | A fizetési eszköz leírása. |
+| `totals.netAmount`, `vatAmount`, `grossAmount` | `totalossz` | Nettó, áfa és bruttó végösszeg. Ha a válaszban nincs `totalossz`, a kassza a tételekből összegzi. |
+| `totals.byVat` | `afakulcsossz` | Áfakulcsonkénti bontás, elemenként `vat`, `vatPercentage`, `netAmount`, `vatAmount` és `grossAmount`. |
+
+A [mintában](/docs/nyugta-letrehozas/minta) szereplő kéttételes nyugtánál a `totals` értéke `1639.67` nettó, `390.33` áfa és `2030` bruttó, a `byVat` pedig egy 27%-os és egy 5%-os sort tartalmaz.
+
+<Callout type="info" title="Hogyan olvassa a kassza a választ?">
+  A nyugtakészítés válasza mindig `xmlnyugtavalasz` XML. A kassza előbb a `szlahu_error`
+  fejléceket és a szöveges `[ERR]` hibát nézi, utána a `sikeres` elemet. Ha az `false`, a
+  `hibakod` és a `hibauzenet` alapján `SzamlazzError`-t dob. Ha a válasz nem XML, vagy nem jelez
+  sikert, `unexpected_response` hibát kapsz, 5xx HTTP státusznál pedig `network` hibát.
+</Callout>
+
+## A PDF mentése
+
+A `pdf` egy `Uint8Array`, amit közvetlenül fájlba írhatsz, feltölthetsz tárhelyre, vagy visszaadhatsz HTTP válaszként:
+
+<Tabs items={['Fájlba', 'Next.js route', 'S3 vagy R2']} groupId="pdf-mentes">
+  <Tab value="Fájlba">
+    ```ts
+    import { writeFile } from 'node:fs/promises'
+
+    if (nyugta.pdf) await writeFile(`nyugtak/${nyugta.number}.pdf`, nyugta.pdf)
+    ```
+  </Tab>
+  <Tab value="Next.js route">
+    ```ts title="app/nyugtak/[szam]/route.ts"
+    import { kassza } from '@/lib/kassza'
+
+    export async function GET(_request: Request, { params }: RouteContext<'/nyugtak/[szam]'>) {
+      const { szam } = await params
+      const nyugta = await kassza.receipts.find(szam)
+      if (!nyugta?.pdf) return new Response('Nincs ilyen nyugta.', { status: 404 })
+      return new Response(nyugta.pdf, {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `inline; filename="${szam}.pdf"`,
+        },
+      })
+    }
+    ```
+  </Tab>
+  <Tab value="S3 vagy R2">
+    ```ts
+    import { receiptPdfKey, s3FetchStorage, storePdf } from 'kassza/storage'
+
+    const tarhely = s3FetchStorage({
+      bucket: 'nyugtak',
+      region: 'auto',
+      endpoint: process.env.R2_ENDPOINT,
+      accessKeyId: process.env.R2_ACCESS_KEY_ID ?? '',
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY ?? '',
+    })
+
+    if (nyugta.pdf) {
+      const kulcs = receiptPdfKey({ number: nyugta.number, date: nyugta.issueDate })
+      await storePdf(tarhely, kulcs, nyugta.pdf)
+    }
+    ```
+  </Tab>
+</Tabs>
+
+A `receiptPdfKey()` `nyugtak/ÉÉÉÉ/HH/nyugtaszám.pdf` alakú kulcsot képez. A PDF később is lekérhető a `kassza.receipts.get()` hívással, lásd [Nyugta lekérdezés](/docs/nyugta-lekerdezes), e-mailben pedig a [Nyugta kiküldés](/docs/nyugta-kikuldes) művelettel küldheted el.
+
+## Hibák
+
+Ha a nyugta nem készült el, a `create()` `SzamlazzError`-t dob. A nyugtakészítésnél leggyakoribb hibák:
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | A kassza a küldés előtt hibát talált a bemenetben, lásd [Kérés](/docs/nyugta-letrehozas/keres#amit-a-kassza-a-küldés-előtt-ellenőriz). |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 57 | `validation` | Az XML nem felel meg az XSD-nek. Ha adattörlő kódot küldtél, próbáld nélküle: a letölthető XSD-ben a `torloKod` még nem szerepel. |
+| 71, 152 | `duplicate` | A rendelésszám már szerepel nyugtán, és a fiókban a nyugtákra be van kapcsolva a rendelésszám ismétlődés tiltása. |
+| 136 | `account` | Lejárt előfizetés vagy rendezetlen díj. |
+| 259–261 | `validation` | Hibás tételösszeg. A 261-est forintos nyugtán akkor kapod, ha a nettó és az áfa összege nem pontosan a bruttó. |
+| 336 | `validation` | Az előtagot a fiókban már számlákhoz használod, nyugtához másik kell. |
+| 337 | `validation` | Az előtag nem csak nagybetűből és számból áll. A kassza küldés előtt kiszűri. |
+| 338 | `duplicate` | Ezzel a `callId`-val már készült nyugta. **Ne állítsd ki újra.** |
+| 340 | `validation` | A kifizetések összege eltér a bruttó végösszegtől. A kassza küldés előtt kiszűri. |
+| 363–365 | `validation` | Forintos nyugtán a bruttó nem egész, vagy a nettó, illetve az áfa 2-nél több tizedesjegyet tartalmaz. |
+| 537–539 | `validation`, `account` | Adattörlő kód hiba: 400-nál több kód egy tételen, tesztfiók, vagy kikapcsolt beállítás. |
+| – | `network`, `timeout` | Nem tudni, elkészült-e a nyugta. `callId` mellett a kassza már újrapróbálta. |
+
+Az összes kódot a [Hibakezelés, hibakódok](/docs/alapok/hibakezeles#hibakódok) oldal sorolja fel.
+
+A 338-as hibánál a kassza a `hint` mezőben leírja a következő lépést: ha adtál meg rendelésszámot, a lekérdezést javasolja, különben a Számlázz.hu felületére irányít, mert a Számla Agent hívásazonosító alapján nem kérdez le.
+
+<Callout type="danger" title="Bizonytalan kimenet">
+  Hálózati hiba, időtúllépés, 338-as vagy 71/152-es hiba után a nyugta már létezhet. Mielőtt újra
+  kiállítanád, hívd meg a `kassza.receipts.find({ orderNumber })` metódust. Ha újra küldöd, ugyanazzal
+  a `callId`-val tedd, így nem készülhet második nyugta.
+</Callout>

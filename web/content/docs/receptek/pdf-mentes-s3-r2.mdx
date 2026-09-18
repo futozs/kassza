@@ -1,0 +1,187 @@
+---
+title: PDF mentése S3-ba vagy R2-be
+description: A számla PDF-jének mentése saját Amazon S3 vagy Cloudflare R2 tárhelyre AWS SDK nélkül, stabil kulccsal és rövid ideig érvényes letöltési linkkel.
+---
+
+A vevő a fiókjában le szeretné tölteni a számláit, a könyvelő pedig havonta egy mappában kéri őket. Ehhez a PDF-eket a saját tárhelyeden tartod. Így nem kell minden letöltésnél a Számlázz.hu-t hívni, és a számla akkor is elérhető, ha a Számlázz.hu épp karbantart.
+
+A `kassza/storage` modul `s3FetchStorage()` adaptere bármilyen S3-kompatibilis tárhellyel működik, és csak `fetch`-et használ, AWS SDK nem kell hozzá.
+
+## A tárhely
+
+<Tabs items={['Cloudflare R2', 'Amazon S3']} groupId="receptek-tarhely">
+  <Tab value="Cloudflare R2">
+    ```ts title="lib/tarhely.ts"
+    import 'server-only'
+    import { s3FetchStorage } from 'kassza/storage'
+
+    export const tarhely = s3FetchStorage({
+      bucket: 'szamlak',
+      region: 'auto',
+      endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
+      accessKeyId: process.env.R2_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
+    })
+    ```
+  </Tab>
+  <Tab value="Amazon S3">
+    ```ts title="lib/tarhely.ts"
+    import 'server-only'
+    import { s3FetchStorage } from 'kassza/storage'
+
+    export const tarhely = s3FetchStorage({
+      bucket: 'ceg-szamlak',
+      region: 'eu-central-1',
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    })
+    ```
+  </Tab>
+</Tabs>
+
+## A mentés
+
+A függvény rendelésszám alapján megkeresi a bizonylatot, és a PDF-et a bizonylat keltéhez tartozó év és hónap mappájába menti, például `szamlak/2026/09/WEB-2026-128.pdf`. A díjbekérő, a sztornó és a többi bizonylattípus külön almappába kerül.
+
+```ts title="lib/szamla-pdf.ts"
+import type { InvoiceDocumentType, Kassza } from 'kassza'
+import {
+  type InvoiceDocumentKind,
+  invoicePdfKey,
+  type StorageAdapter,
+  type StoredFile,
+  storePdf,
+} from 'kassza/storage'
+import { kassza as alapKliens } from '@/lib/kassza'
+import { tarhely as alapTarhely } from '@/lib/tarhely'
+
+const MAPPAK: Partial<Record<InvoiceDocumentType, InvoiceDocumentKind>> = {
+  invoice: 'invoice',
+  proforma: 'proforma',
+  advance: 'advance',
+  final: 'final',
+  corrective: 'corrective',
+  reversal: 'storno',
+  deliveryNote: 'deliveryNote',
+}
+
+export async function szamlaPdfMentese(
+  orderNumber: string,
+  kliens: Kassza = alapKliens,
+  tarhely: StorageAdapter = alapTarhely,
+): Promise<StoredFile | null> {
+  const szamla = await kliens.invoices.find({ orderNumber }, { includePdf: true })
+  if (!szamla) return null
+
+  const pdf = szamla.pdf ?? (await kliens.invoices.getPdf(szamla.header.number)).pdf
+  const kulcs = invoicePdfKey({
+    number: szamla.header.number,
+    type: MAPPAK[szamla.header.type],
+    date: szamla.header.issueDate,
+  })
+  return storePdf(tarhely, kulcs, pdf)
+}
+```
+
+A `storePdf()` a feltöltés előtt ellenőrzi, hogy a tartalom valóban PDF-e, és `StorageError`-t dob, ha nem.
+
+<Example slug="pdf-tarhely" />
+
+## Route handler
+
+Egy route, két metódussal. A `POST`-ot a saját rendszered hívja a számlázás után, például egy háttérfeladatból. A `GET`-et a bejelentkezett vevő hívja, és egy 5 percig érvényes, aláírt letöltési linkre irányítja át. A `bejelentkezettVevo()`, a `pdfKulcsMentese()` és a `pdfKulcsBetoltese()` a saját függvényeid, az `adminKeres()` a [Nevezés díjbekérővel](/docs/receptek/nevezes-dijbekerovel#befizetés-és-lemondás) recept belső token ellenőrzése.
+
+```ts title="app/api/szamlak/[rendelesszam]/pdf/route.ts"
+import { isSzamlazzError } from 'kassza'
+import { isStorageError } from 'kassza/storage'
+import { adminKeres } from '@/lib/admin'
+import { bejelentkezettVevo } from '@/lib/auth'
+import { pdfKulcsBetoltese, pdfKulcsMentese } from '@/lib/rendelesek'
+import { szamlaPdfMentese } from '@/lib/szamla-pdf'
+import { tarhely } from '@/lib/tarhely'
+
+type Parameterek = { params: Promise<{ rendelesszam: string }> }
+
+const LINK_ERVENYESSEGE_MP = 300
+
+export async function POST(request: Request, { params }: Parameterek) {
+  if (!adminKeres(request)) return new Response('Nincs jogosultság', { status: 401 })
+
+  const { rendelesszam } = await params
+  try {
+    const fajl = await szamlaPdfMentese(rendelesszam)
+    if (!fajl) return Response.json({ hiba: 'Nincs ilyen számla.' }, { status: 404 })
+    await pdfKulcsMentese(rendelesszam, fajl.key)
+    return Response.json({ kulcs: fajl.key, meret: fajl.size })
+  } catch (error) {
+    if (isStorageError(error)) return Response.json({ hiba: error.message }, { status: 502 })
+    if (isSzamlazzError(error)) {
+      return Response.json({ hiba: error.message, tipp: error.hint }, { status: 502 })
+    }
+    throw error
+  }
+}
+
+export async function GET(request: Request, { params }: Parameterek) {
+  const vevo = await bejelentkezettVevo(request)
+  if (!vevo) return new Response('Jelentkezz be', { status: 401 })
+
+  const { rendelesszam } = await params
+  const kulcs = await pdfKulcsBetoltese(vevo.id, rendelesszam)
+  if (!kulcs) return new Response('Nincs ilyen számla', { status: 404 })
+
+  const url = await tarhely.getUrl(kulcs, { expiresInSeconds: LINK_ERVENYESSEGE_MP })
+  return Response.redirect(url, 302)
+}
+```
+
+A `pdfKulcsBetoltese()` csak akkor adjon vissza kulcsot, ha a rendelés az adott vevőé. Enélkül bárki letölthetné más számláját, ha kitalálja a rendelésszámot.
+
+## Buktatók
+
+<Callout type="danger" title="A tárhely hibája ne indítson új számlát">
+  A számla kiállítása és a PDF mentése két külön lépés. Ha a feltöltés nem sikerül, csak a mentést
+  próbáld újra, a számlát ne állítsd ki még egyszer. A PDF bármikor újra lekérhető rendelésszám
+  vagy számlaszám alapján.
+</Callout>
+
+<Callout type="warning" title="Privát bucket, rövid életű link">
+  A számla személyes adatot tartalmaz. A bucket ne legyen nyilvános, és ne adj meg
+  `publicBaseUrl`-t a számlákhoz. Letöltéshez aláírt, néhány percig érvényes linket adj ki, ahogy
+  a `GET` metódus teszi.
+</Callout>
+
+<Callout type="info" title="Mentsd el a kulcsot">
+  Az `invoicePdfKey()` a `date` nélkül a mai napot használja, így egy hónappal később más kulcsot
+  adna ugyanarra a számlára. A recept ezért a bizonylat keltét adja át, és a kapott kulcsot a
+  rendeléshez menti. Letöltéskor a mentett kulcsot használd, ne számold újra.
+</Callout>
+
+<Callout type="note" title="Ha most állítod ki a számlát">
+  Az `invoices.create()` válaszában alapból benne van a PDF a `pdf` mezőben, ha nem adsz meg
+  `downloadPdf: false` beállítást. Ilyenkor a `storePdf()` azonnal is hívható, és a lekérdezés
+  elmarad. A külön lépés akkor jobb, ha a számlázásnak gyorsnak kell lennie, például webhookban.
+</Callout>
+
+<Callout type="tip" title="Más tárhelyek">
+  Ugyanezzel a felülettel működik az `s3Storage` (AWS SDK v3 klienssel), az `r2BindingStorage`
+  (Workers binding), a `vercelBlobStorage`, a `supabaseStorage`, az `uploadthingStorage`, a
+  `kassza/storage/fs` modul `fsStorage` adaptere és a tesztekhez való `memoryStorage`.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="PDF tárhely" href="/docs/kiegeszitok/pdf-tarhely">
+    Az összes tárhely adapter, a kulcsképzés és a StorageError.
+  </Card>
+  <Card title="Bizonylat PDF" href="/docs/bizonylat-pdf">
+    A PDF lekérése számlaszám, rendelésszám vagy külső azonosító alapján.
+  </Card>
+  <Card title="Cloudflare Workers" href="/docs/receptek/cloudflare-workers">
+    PDF gyorsítótár R2 bindinggal, Workerben.
+  </Card>
+  <Card title="Fizetett rendelés számlája" href="/docs/receptek/fizetett-rendeles-szamla">
+    A számlázás, amely után a PDF mentése jön.
+  </Card>
+</Cards>

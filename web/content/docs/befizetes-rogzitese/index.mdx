@@ -1,0 +1,40 @@
+---
+title: Befizetés rögzítése
+description: Befizetés (jóváírás) rögzítése és törlése kiállított számlán az invoices.registerPayment() és clearPayments() metódussal, és a fizetési értesítés (IPN) fogadása.
+official: https://docs.szamlazz.hu/hu/agent/category/registering-credit-entry
+---
+
+Ha a vevő nem a számla kiállításakor fizet, hanem később, átutalással, részletekben vagy készpénzben, a befizetést utólag rögzítheted a számlán. A Számlázz.hu a befizetésekből számolja a számla hátralékát. A kasszában az `invoices.registerPayment()` rögzít befizetést, az `invoices.clearPayments()` pedig törli a számla összes befizetését.
+
+A másik irányt az IPN kezeli: ha a Számlázz.hu-ban megváltozik egy számla kifizetett összege, értesítést küld a webhook végpontodra, amelyet a `kassza/ipn` modullal dolgozol fel.
+
+```ts
+const befizetes = await kassza.invoices.registerPayment({
+  invoiceNumber: 'WEB-2026-128',
+  amount: 19_470,
+  method: 'bankkártya',
+})
+
+console.log(befizetes.outstanding)
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/befizetes-rogzitese/keres">
+    Egy vagy több befizetés, hozzáadás vagy felülírás, törlés és újrapróbálás.
+  </Card>
+  <Card title="Válasz" href="/docs/befizetes-rogzitese/valasz">
+    A RegisteredPayment mezői és a befizetésnél előforduló hibák.
+  </Card>
+  <Card title="Minta" href="/docs/befizetes-rogzitese/minta">
+    Számla, részletfizetés és törlés a sandboxban, az elküldött XML-lel.
+  </Card>
+  <Card title="IPN fizetési értesítés" href="/docs/befizetes-rogzitese/ipn">
+    Webhook a Számlázz.hu kifizetési értesítéséhez, IP-ellenőrzéssel.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="Két hívás két befizetés">
+  A `registerPayment()` alapból hozzáadja a befizetést a korábbiakhoz. Ha ugyanazt a hívást kétszer
+  küldöd el, a számlán kétszer szerepel a befizetés. Ezért a kassza ezt a hívást nem próbálja újra
+  magától, lásd [Újrapróbálás](/docs/befizetes-rogzitese/keres#újrapróbálás).
+</Callout>

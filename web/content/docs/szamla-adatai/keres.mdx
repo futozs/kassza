@@ -1,0 +1,100 @@
+---
+title: Kérés
+description: Az invoices.get() és invoices.find() bemenete, a bizonylat azonosítása, a PDF kérése és a Számla Agent xmlszamlaxml XML elemei.
+official: https://docs.szamlazz.hu/hu/agent/querying_xml/request
+---
+
+```ts
+kassza.invoices.get(reference: InvoiceReference, query?: { includePdf?: boolean }, options?: { signal?: AbortSignal }): Promise<InvoiceDetails>
+kassza.invoices.find(reference: InvoiceReference, query?: { includePdf?: boolean }, options?: { signal?: AbortSignal }): Promise<InvoiceDetails | null>
+```
+
+A kassza `xmlszamlaxml` XML-t küld az `action-szamla_agent_xml` form mezőben. A számlát háromféleképpen azonosíthatod:
+
+<Tabs items={['Számlaszám', 'Rendelésszám', 'Külső azonosító']} groupId="szamla-hivatkozas">
+  <Tab value="Számlaszám">
+    ```ts
+    const szamla = await kassza.invoices.get('WEB-2026-128')
+    const ugyanaz = await kassza.invoices.get({ invoiceNumber: 'WEB-2026-128' })
+    ```
+  </Tab>
+  <Tab value="Rendelésszám">
+    ```ts
+    const szamla = await kassza.invoices.get({ orderNumber: 'REND-1001' })
+    ```
+  </Tab>
+  <Tab value="Külső azonosító">
+    ```ts
+    const szamla = await kassza.invoices.get({ externalId: 'webshop-8f3a2c' })
+    ```
+  </Tab>
+</Tabs>
+
+## Mezők
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `reference` (szöveg) vagy `reference.invoiceNumber` | `szamlaszam` | – | A számla száma. |
+| `reference.orderNumber` | `rendelesSzam` | – | A számla rendelésszáma. Ha több bizonylaton is szerepel, a legutóbbit kapod. |
+| `reference.externalId` | `szamlaKulsoAzon` | – | Külső azonosító. Csak akkor működik, ha kiállításkor megadtad az `externalId` mezőt. |
+| `query.includePdf` | `pdf` | nincs PDF | `true` esetén a válasz a számla PDF-jét is tartalmazza. |
+| `options.signal` | – | – | `AbortSignal`, amellyel megszakíthatod a kérést. |
+
+A hivatkozásban pontosan egy kulcs szerepeljen. Üres érték, hiányzó vagy egyszerre több kulcs esetén a kassza `validation` hibát dob, és kérés nem megy ki.
+
+```ts
+const szamla = await kassza.invoices.get({ orderNumber: 'REND-1001' }, { includePdf: true })
+if (szamla.pdf) await writeFile(`szamlak/${szamla.header.number}.pdf`, szamla.pdf)
+```
+
+## get vagy find?
+
+A `get()` akkor is hibát dob, ha a számla nem létezik: a Számlázz.hu 7-es kódot ad, amelyből `not_found` kategóriájú `SzamlazzError` lesz. A `find()` pontosan ezt az esetet fordítja `null`-ra, minden más hibát ugyanúgy továbbdob.
+
+```ts
+const szamla = await kassza.invoices.find({ orderNumber: 'REND-1001' })
+if (szamla === null) await kassza.invoices.create({ orderNumber: 'REND-1001', buyer, items })
+```
+
+Ha a számlának biztosan léteznie kell, például egy mentett számlaszám alapján, a `get()` a jobb választás. Ha a hiánya is normális eset, használd a `find()`-ot.
+
+## Idempotens számlázás
+
+A `find()` a dupla számla elleni védekezés alapja. Számlakészítés előtt nézd meg, van-e már számla a rendelésszámhoz, és bizonytalan hiba után is előbb ezt ellenőrizd, mielőtt újra kiállítanád:
+
+```ts
+import { type CreateInvoiceInput, isSzamlazzError } from 'kassza'
+
+const BIZONYTALAN = ['network', 'timeout', 'partial_success', 'duplicate']
+
+async function szamlaz(orderNumber: string, adatok: CreateInvoiceInput) {
+  const meglevo = await kassza.invoices.find({ orderNumber })
+  if (meglevo) return meglevo.header.number
+
+  try {
+    const szamla = await kassza.invoices.create({ ...adatok, orderNumber })
+    return szamla.number
+  } catch (error) {
+    if (isSzamlazzError(error) && BIZONYTALAN.includes(error.category)) {
+      const letrejott = await kassza.invoices.find({ orderNumber })
+      if (letrejott) return letrejott.header.number
+    }
+    throw error
+  }
+}
+```
+
+<Callout type="tip" title="Sztornózott számla ugyanazzal a rendelésszámmal">
+  Sztornózás után a rendelésszám újra felhasználható, ezért a `find()` találata lehet egy
+  sztornózott számla is. Ha ez nálad előfordulhat, a találatnál nézd meg a `header.type` és a
+  `header.reversed` mezőt is.
+</Callout>
+
+A teljes mintát a [Hibakezelés](/docs/alapok/hibakezeles#bizonytalan-kimenet-számla-készült-vagy-nem) és a [Rendelésszám](/docs/szamla-letrehozas/beallitasok-es-szabalyok/rendelesszam#a-kassza-ajánlott-mintája) oldal részletezi.
+
+## Szabályok
+
+- Csak a Számlázz.hu-ban kiállított kimenő számlák adatai kérhetők le.
+- Rendelésszám alapján mindig a legutóbbi bizonylat jön vissza, ha több is tartozik hozzá.
+- Külső azonosítóval csak az a számla kérhető le, amelynél kiállításkor megadtad.
+- A lekérés semmit nem módosít, ezért a kassza `maintenance`, `network` és `timeout` hibánál **magától újrapróbálja**, alapból legfeljebb három próbálkozással. Lásd [Amit a kassza újrapróbál](/docs/alapok/hibakezeles#amit-a-kassza-újrapróbál).

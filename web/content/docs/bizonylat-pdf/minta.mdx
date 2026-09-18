@@ -1,0 +1,17 @@
+---
+title: Minta
+description: Számla kiállítása PDF nélkül, majd a PDF lekérése rendelésszám alapján, a ténylegesen elküldött xmlszamlapdf XML-lel.
+official: https://docs.szamlazz.hu/hu/agent/querying_pdf/xml
+---
+
+A példa `downloadPdf: false` beállítással állít ki egy számlát, ezért a `create()` válaszában a `pdf` értéke `undefined`. Utána a rendelésszám alapján a `getPdf()` metódussal kéri le a PDF-et. Az **Elküldött XML** fülön mindkét kérést látod: a második az `xmlszamlapdf` dokumentum, benne a `rendelesSzam` és a `valaszVerzio` elemmel.
+
+<Example slug="pdf-lekeres" />
+
+## XSD séma
+
+```text
+https://www.szamlazz.hu/szamla/docs/xsds/agentpdf/xmlszamlapdf.xsd
+```
+
+A sémában a `valaszVerzio` kötelező, a `szamlaszam`, a `rendelesSzam` és a `szamlaKulsoAzon` elhagyható. A kassza ezek közül mindig pontosan egyet ír ki, a séma által előírt sorrendben.

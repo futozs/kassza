@@ -1,0 +1,92 @@
+---
+title: Minta
+description: Futtatható nyugtakészítési példa a kassza kódjával, a ténylegesen elküldött xmlnyugtacreate XML-lel és a Számlázz.hu válaszával, valamint az XSD séma.
+official: https://docs.szamlazz.hu/hu/agent/generating_receipt/xml
+---
+
+Az alábbi példa a [sandboxban](/sandbox) futott. A **Kód** fül a kassza hívást, az **Elküldött XML** fül a Számla Agentnek küldött `xmlnyugtacreate` dokumentumot, a **Válasz** fül a szimulált Számlázz.hu választ mutatja. A kód fölé húzva az egeret a típusokat is látod.
+
+## Pénztári nyugta
+
+Két tétel bruttó egységárral, két különböző áfakulccsal. Az előtag és a fizetési mód a kliens alapbeállításaiból jön, a hívásazonosító és a rendelésszám ugyanaz.
+
+<Example slug="nyugta" />
+
+Az elküldött XML-ben látszik a forintos nyugta kerekítése. A 27%-os Kávé tétel bruttója egész `1780`, a nettója `1401.57`, az áfája `378.43`, a kettő összege pontosan a bruttó. A nettó egységár `700.785`, mert 2 × 700.785 adja ki pontosan a nettót. Az 5%-os Kifli tételnél a kassza a nettót és az áfát két tizedesjeggyel küldi (`238.10`, `11.90`). A `pdfLetoltes` értéke `true`, mert a `downloadPdf` alapból be van kapcsolva.
+
+## Az XML felépítése
+
+A kassza az elemeket az XSD sorrendjében írja ki, az üres opcionális elemeket kihagyja:
+
+| Blokk | Tartalom |
+| --- | --- |
+| `beallitasok` | Az Agent kulcs és a `pdfLetoltes`. |
+| `fejlec` | `hivasAzonosito`, `elotag`, `fizmod`, `penznem`, `devizaarf`, `devizabank`, `megjegyzes`, `pdfSablon`, `fokonyvVevo`, `rendelesSzam`. |
+| `tetelek` | Tételenként `megnevezes`, `azonosito`, `mennyiseg`, `mennyisegiEgyseg`, `nettoEgysegar`, `afakulcs`, `netto`, `afa`, `brutto`, `fokonyv`, `megjegyzes`, `torloKod`. |
+| `kifizetesek` | Csak akkor, ha megadtad a `payments` mezőt. |
+
+A mezők jelentését a [Kérés](/docs/nyugta-letrehozas/keres) oldal írja le.
+
+## Vegyes fizetés
+
+Ha a fenti nyugtát részben SZÉP kártyával, részben bankkártyával fizetik, a `payments` mezővel adod meg a megosztást:
+
+```ts
+await kassza.receipts.create({
+  callId: 'PENZTAR-2026-0002',
+  orderNumber: 'PENZTAR-2026-0002',
+  items: [
+    { name: 'Kávé', quantity: 2, grossUnitPrice: 890, vat: 27 },
+    { name: 'Kifli', grossUnitPrice: 250, vat: 5 },
+  ],
+  payments: [
+    { method: 'utalvány', amount: 1_000, description: 'OTP SZÉP kártya' },
+    { method: 'bankkártya', amount: 1_030 },
+  ],
+})
+```
+
+Az XML végére a tételek után ez a blokk kerül:
+
+```xml
+<kifizetesek>
+  <kifizetes>
+    <fizetoeszkoz>utalvány</fizetoeszkoz>
+    <osszeg>1000</osszeg>
+    <leiras>OTP SZÉP kártya</leiras>
+  </kifizetes>
+  <kifizetes>
+    <fizetoeszkoz>bankkártya</fizetoeszkoz>
+    <osszeg>1030</osszeg>
+  </kifizetes>
+</kifizetesek>
+```
+
+A két összeg együtt pontosan a nyugta `2030` Ft-os bruttó végösszege. Ha eltérne, a kassza el sem küldené a kérést.
+
+## XSD séma
+
+A kassza az XML-t a Számlázz.hu `xmlnyugtacreate.xsd` sémája szerint építi fel. A séma itt érhető el:
+
+```text
+https://www.szamlazz.hu/szamla/docs/xsds/nyugtacreate/xmlnyugtacreate.xsd
+```
+
+A kassza tesztjei a generált XML-t a letölthető XSD-vel is összevetik, ezért a sémával neked nem kell foglalkoznod. Egy eltérésről tudunk: a hivatalos dokumentáció a tételeknél leírja a `torloKod` elemet, a letölthető XSD-ben viszont még nincs benne. Ha adattörlő kóddal 57-es hibát kapsz, hagyd el. Ha a hivatalos dokumentációban olyan mezőt találsz, amely a kasszában még nincs meg, [nyiss egy issue-t](https://github.com/futozs/kassza/issues).
+
+## További példák
+
+<Cards>
+  <Card title="Idempotens nyugtázás" href="/docs/nyugta-letrehozas/keres#hívásazonosító-callid">
+    Hívásazonosító és rendelésszám, lekérdezés duplikált hívás után.
+  </Card>
+  <Card title="Devizás nyugta" href="/docs/nyugta-letrehozas/keres#devizás-nyugta">
+    Euróban kiállított nyugta árfolyammal és bankkal.
+  </Card>
+  <Card title="Nyugta sztornózása" href="/docs/nyugta-sztorno/minta">
+    Nyugta kiállítása, majd sztornó nyugta a hivatkozással.
+  </Card>
+  <Card title="Nyugta kiküldése" href="/docs/nyugta-kikuldes/minta">
+    A kész nyugta elküldése e-mailben.
+  </Card>
+</Cards>

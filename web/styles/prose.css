@@ -1,0 +1,267 @@
+.docs-prose {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.7;
+  overflow-wrap: break-word;
+}
+
+.docs-prose > :first-child {
+  margin-top: 0;
+}
+
+.docs-prose h2,
+.docs-prose h3,
+.docs-prose h4,
+.docs-prose h5 {
+  position: relative;
+  color: var(--ink);
+  scroll-margin-top: calc(var(--navbar-height) + var(--space-lg));
+  text-wrap: balance;
+}
+
+.docs-prose h2 {
+  margin: 2.6rem 0 1rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.55rem, 1.2rem + 1vw, 2rem);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.018em;
+  font-variation-settings: "opsz" 48;
+}
+
+.docs-prose h3 {
+  margin: 2.1rem 0 0.75rem;
+  font-size: 1.35rem;
+  font-weight: 650;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
+.docs-prose h4 {
+  margin: 1.75rem 0 0.6rem;
+  font-size: 1.1rem;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.docs-prose h5 {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 1rem;
+  font-weight: 650;
+}
+
+.docs-prose .hash-link {
+  margin-left: 0.4rem;
+  color: var(--accent);
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity var(--dur-short) var(--ease-out);
+  user-select: none;
+}
+
+.docs-prose :is(h2, h3, h4, h5):hover .hash-link,
+.docs-prose .hash-link:focus-visible {
+  opacity: 1;
+}
+
+.docs-prose p {
+  margin: 0 0 1.25rem;
+}
+
+.docs-prose a:not(.not-prose a) {
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color var(--dur-short) var(--ease-out);
+}
+
+.docs-prose a:not(.not-prose a):hover {
+  text-decoration-color: currentColor;
+}
+
+.docs-prose strong {
+  font-weight: 650;
+}
+
+.docs-prose ul,
+.docs-prose ol {
+  margin: 0 0 1.25rem;
+  padding-left: 1.5rem;
+}
+
+.docs-prose ul {
+  list-style: disc;
+}
+
+.docs-prose ol {
+  list-style: decimal;
+}
+
+.docs-prose li {
+  padding-left: 0.2rem;
+}
+
+.docs-prose li + li {
+  margin-top: 0.3rem;
+}
+
+.docs-prose li > ul,
+.docs-prose li > ol {
+  margin-top: 0.3rem;
+  margin-bottom: 0;
+}
+
+.docs-prose li::marker {
+  color: var(--muted);
+}
+
+.docs-prose :not(pre) > code {
+  padding: 0.08rem 0.32rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: 0.86em;
+  font-weight: 450;
+  overflow-wrap: anywhere;
+}
+
+.docs-prose a > code {
+  color: inherit;
+}
+
+.docs-prose blockquote {
+  margin: 0 0 1.25rem;
+  padding: 0.1rem 0 0.1rem 1rem;
+  border-left: 3px solid var(--rule-strong);
+  color: var(--ink-2);
+}
+
+.docs-prose hr {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--rule);
+}
+
+.docs-prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius-md);
+}
+
+.docs-prose kbd {
+  display: inline-block;
+  min-width: 1.5em;
+  padding: 0.05rem 0.35rem;
+  border: 1px solid var(--rule-strong);
+  border-bottom-width: 2px;
+  border-radius: var(--radius-sm);
+  background: var(--paper-raised);
+  font-size: 0.82em;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.docs-prose .table-wrap {
+  margin: 0 0 1.5rem;
+  overflow-x: auto;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+}
+
+.docs-prose table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.925rem;
+  line-height: 1.55;
+}
+
+.docs-prose thead {
+  background: var(--surface);
+}
+
+.docs-prose th {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--rule-strong);
+  color: var(--ink);
+  font-weight: 650;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.docs-prose td {
+  padding: 0.65rem 0.9rem;
+  border-top: 1px solid var(--rule);
+  vertical-align: top;
+}
+
+.docs-prose th + th,
+.docs-prose td + td {
+  border-left: 1px solid var(--rule);
+}
+
+.docs-prose tbody tr:first-child td {
+  border-top: 0;
+}
+
+.docs-prose tbody tr:nth-child(2n) {
+  background: color-mix(in oklch, var(--surface) 45%, transparent);
+}
+
+.docs-prose td code {
+  white-space: nowrap;
+}
+
+.docs-prose details {
+  margin: 0 0 1.25rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-md);
+  background: var(--paper-raised);
+}
+
+.docs-prose summary {
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+
+.docs-prose summary::-webkit-details-marker {
+  display: none;
+}
+
+.docs-prose summary::before {
+  content: "";
+  display: inline-block;
+  width: 0.45rem;
+  height: 0.45rem;
+  margin-right: 0.7rem;
+  border-right: 2px solid var(--muted);
+  border-bottom: 2px solid var(--muted);
+  transform: translateY(-0.15rem) rotate(-45deg);
+  transition: transform var(--dur-short) var(--ease-out);
+}
+
+.docs-prose details[open] > summary::before {
+  transform: translateY(-0.25rem) rotate(45deg);
+}
+
+.docs-prose details > :not(summary) {
+  padding: 0 1rem;
+}
+
+.docs-prose details[open] > summary {
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 1rem;
+}
+
+.docs-prose mark {
+  padding: 0 0.15em;
+  border-radius: 0.15em;
+  background: var(--amber-soft);
+  color: inherit;
+}

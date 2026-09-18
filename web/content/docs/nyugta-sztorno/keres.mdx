@@ -1,0 +1,46 @@
+---
+title: Kérés
+description: A receipts.reverse() bemenete, a Számla Agent xmlnyugtast XML elemeivel és alapértékekkel.
+official: https://docs.szamlazz.hu/hu/agent/reversing_receipt/request
+---
+
+```ts
+kassza.receipts.reverse(input: string | ReverseReceiptInput, options?: { signal?: AbortSignal }): Promise<Receipt>
+```
+
+A kassza `xmlnyugtast` XML-t küld az `action-szamla_agent_nyugta_storno` form mezőben. A legegyszerűbb hívás csak a sztornózandó nyugta számát kapja:
+
+```ts
+await kassza.receipts.reverse('NYGT-2026-107')
+```
+
+Ha hívásazonosítót, más PDF sablont adnál, vagy nem kérnéd a PDF-et, objektumot adj át:
+
+```ts
+await kassza.receipts.reverse({
+  receiptNumber: 'NYGT-2026-107',
+  callId: 'PENZTAR-107-STORNO',
+  template: 'N',
+  downloadPdf: false,
+})
+```
+
+## Mezők
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `receiptNumber` | `fejlec/nyugtaszam` | – | **Kötelező.** A sztornózandó nyugta száma. |
+| `callId` | `fejlec/hivasAzonosito` | – | A sztornó kérés egyedi hívásazonosítója. Csak ezzel próbálja újra a kassza a kérést. |
+| `downloadPdf` | `beallitasok/pdfLetoltes` | `true` | Kérje-e a sztornó nyugta PDF-jét a válaszban. |
+| `template` | `fejlec/pdfSablon` | – | A sztornó nyugta PDF sablonja: `A` (normál A4), `N` (80 mm), `J` (jegy) vagy `L` (jegy logóval). |
+
+A kassza a nyugtaszám és a `callId` elejéről és végéről levágja a szóközöket. Más mezőt a kérés nem fogad: a sztornó nyugta tételeit és összegeit a Számlázz.hu az eredeti nyugtából állítja össze.
+
+A `createKassza({ defaults: { receipt } })` alapbeállításai a sztornóra nem hatnak. Ha a `downloadPdf` vagy a `template` értékét módosítanád, itt add meg.
+
+## Szabályok
+
+- Csak normál nyugta sztornózható. Már sztornózott nyugtát, vagy magát a sztornó nyugtát a Számlázz.hu elutasítja.
+- Üres nyugtaszámnál vagy ismeretlen PDF sablonnál a kassza `validation` hibát dob, és a kérés el sem indul.
+- A kassza a sztornót **csak `callId` megadásával** próbálja újra, és csak `maintenance`, `network` vagy `timeout` hibánál. Az üres vagy csak szóközből álló `callId` nem számít.
+- A sztornónak adj saját `callId`-t, például az eredeti hívásazonosítót `-STORNO` végződéssel. A már létező hívásazonosítót a Számlázz.hu `338`-as hibával utasítja el.

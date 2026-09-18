@@ -1,0 +1,322 @@
+---
+title: Egységtesztek
+description: Vitest tesztek a receptek kódjához mock klienssel. Idempotencia, időtúllépés utáni lekérdezés, díjbekérő és számla, dupla nyugta, budapesti dátum és egy route handler teszt.
+---
+
+A receptek függvényei második paraméterben kapják a klienst, ezért tesztben a `kassza/testing` mock kliensét adhatod át nekik. A mock nem hív hálózatot, ugyanazt a validációt és kerekítést futtatja, mint az éles kliens, és naplózza a hívásokat. Ez a recept a többi recept kódjához ad kész teszteket.
+
+A mock részletes leírása a [Tesztelés](/docs/kiegeszitok/teszteles) oldalon van. Itt azt látod, mit érdemes tesztelni egy valódi integrációban.
+
+## Beállítás
+
+```package-install
+-D vitest vite-tsconfig-paths
+```
+
+```ts title="vitest.config.ts"
+import tsconfigPaths from 'vite-tsconfig-paths'
+import { defineConfig } from 'vitest/config'
+
+export default defineConfig({
+  plugins: [tsconfigPaths()],
+  test: {
+    env: { SZAMLAZZ_AGENT_KEY: 'teszt-kulcs-nem-valodi' },
+  },
+})
+```
+
+A `tsconfigPaths()` miatt a tesztekben is működnek a `@/lib/...` importok. A kamu kulcsra azért van szükség, mert a receptek modulszinten importálják a `@/lib/kassza` klienst, a `createKassza()` pedig már létrehozáskor ellenőrzi a kulcs meglétét.
+
+## A számlázó függvény
+
+A [Fizetett rendelés számlája](/docs/receptek/fizetett-rendeles-szamla) recept `szamlazFizetettRendelest()` függvényének tesztjei.
+
+```ts title="lib/szamlazas.test.ts"
+import { type Kassza, SzamlazzError } from 'kassza'
+import { createMockKassza, type MockKassza } from 'kassza/testing'
+import { expect, test } from 'vitest'
+import { type FizetettRendeles, szamlazFizetettRendelest } from './szamlazas'
+
+const rendeles: FizetettRendeles = {
+  id: '5001',
+  fizetesiMod: 'bankkártya',
+  vevo: {
+    name: 'Nagy Péter',
+    zip: '1111',
+    city: 'Budapest',
+    address: 'Fő utca 1.',
+    email: 'peter@example.hu',
+  },
+  tetelek: [{ name: 'Póló', quantity: 2, grossUnitPrice: 5_990, vat: 27 }],
+}
+
+function szamlakeszitesek(mock: MockKassza): number {
+  return mock.calls.filter((hivas) => hivas.method === 'invoices.create').length
+}
+
+function idotullepesUtanElkeszul(mock: MockKassza): Kassza {
+  return {
+    ...mock,
+    invoices: {
+      ...mock.invoices,
+      create: async (adatok) => {
+        await mock.invoices.create(adatok)
+        throw new SzamlazzError('A Számlázz.hu nem válaszolt.', { category: 'timeout' })
+      },
+    },
+  }
+}
+
+test('egy rendelésről csak egy számla készül', async () => {
+  const mock = createMockKassza()
+
+  const elso = await szamlazFizetettRendelest(rendeles, mock)
+  const masodik = await szamlazFizetettRendelest(rendeles, mock)
+
+  expect(masodik).toBe(elso)
+  expect(szamlakeszitesek(mock)).toBe(1)
+  expect(mock.invoiceRecords.get(elso)?.details.totals.grossAmount).toBe(11_980)
+})
+
+test('időtúllépés után a mégis elkészült számlát adja vissza', async () => {
+  const mock = createMockKassza()
+
+  const szamlaszam = await szamlazFizetettRendelest(rendeles, idotullepesUtanElkeszul(mock))
+
+  expect(mock.invoiceRecords.size).toBe(1)
+  expect(mock.invoiceRecords.has(szamlaszam)).toBe(true)
+})
+
+test('hálózati hibát továbbdob, ha nem készült számla', async () => {
+  const mock = createMockKassza()
+  mock.failNext('invoices.create')
+
+  await expect(szamlazFizetettRendelest(rendeles, mock)).rejects.toMatchObject({
+    category: 'network',
+  })
+  expect(mock.invoiceRecords.size).toBe(0)
+})
+
+test('validációs hiba után nem kérdez le újra', async () => {
+  const mock = createMockKassza()
+  const szamlazas = szamlazFizetettRendelest({ ...rendeles, tetelek: [] }, mock)
+
+  await expect(szamlazas).rejects.toMatchObject({ category: 'validation' })
+  expect(mock.calls.map((hivas) => hivas.method)).toEqual(['invoices.get', 'invoices.create'])
+})
+
+test('a kelte a budapesti idő szerinti nap', async () => {
+  const mock = createMockKassza({ now: () => new Date('2026-12-31T23:30:00Z') })
+
+  const szamlaszam = await szamlazFizetettRendelest(rendeles, mock)
+
+  expect(mock.invoiceRecords.get(szamlaszam)?.details.header.issueDate).toBe('2027-01-01')
+})
+```
+
+Az időtúllépéses teszt csomagoló klienst használ, mert a `failNext()` a bizonylat létrehozása előtt dob. A csomagoló előbb kiállítja a számlát, és csak utána dob hibát, ahogy egy elveszett válasz után történne.
+
+## Díjbekérő és számla
+
+A [Nevezés díjbekérővel](/docs/receptek/nevezes-dijbekerovel) recept függvényei. Ezek a tesztek fogják meg azt a hibát, amikor a díjbekérőt kiállított számlának hinnéd.
+
+```ts title="lib/nevezes-szamlazas.test.ts"
+import { createMockKassza } from 'kassza/testing'
+import { expect, test } from 'vitest'
+import {
+  dijbekeroKiallitasa,
+  dijbekeroTorlese,
+  type Nevezes,
+  szamlaBefizetesUtan,
+} from './nevezes-szamlazas'
+
+const nevezes: Nevezes = {
+  id: '42',
+  vevo: {
+    name: 'Kiss Anna',
+    zip: '1134',
+    city: 'Budapest',
+    address: 'Váci út 10.',
+    email: 'anna@example.hu',
+  },
+  tav: 'félmaraton',
+  nevezesiDij: 12_990,
+}
+
+test('a befizetés után a díjbekérőre hivatkozó számla készül', async () => {
+  const mock = createMockKassza()
+
+  const dijbekeroszam = await dijbekeroKiallitasa(nevezes, mock)
+  const szamlaszam = await szamlaBefizetesUtan(nevezes, mock)
+
+  expect(szamlaszam).not.toBe(dijbekeroszam)
+  expect(mock.invoiceRecords.get(szamlaszam)?.input).toMatchObject({
+    proformaNumber: dijbekeroszam,
+    paid: true,
+  })
+})
+
+test('a befizetés kétszeri rögzítése sem állít ki két számlát', async () => {
+  const mock = createMockKassza()
+  await dijbekeroKiallitasa(nevezes, mock)
+
+  const elso = await szamlaBefizetesUtan(nevezes, mock)
+  const masodik = await szamlaBefizetesUtan(nevezes, mock)
+
+  expect(masodik).toBe(elso)
+})
+
+test('kifizetett nevezés díjbekérője nem törölhető', async () => {
+  const mock = createMockKassza()
+  await dijbekeroKiallitasa(nevezes, mock)
+  await szamlaBefizetesUtan(nevezes, mock)
+
+  await expect(dijbekeroTorlese(nevezes, mock)).resolves.toBe('mar-szamlazva')
+})
+
+test('a második törlés nem hiba', async () => {
+  const mock = createMockKassza()
+  await dijbekeroKiallitasa(nevezes, mock)
+
+  await expect(dijbekeroTorlese(nevezes, mock)).resolves.toBe('torolve')
+  await expect(dijbekeroTorlese(nevezes, mock)).resolves.toBe('nem-talalhato')
+})
+```
+
+## Pénztári nyugta
+
+A [Pénztári nyugta](/docs/receptek/penztari-nyugta) recept `nyugtaEladasrol()` függvénye. A mock ismételt `callId`-nál ugyanúgy 338-as `duplicate` hibát dob, mint a Számlázz.hu.
+
+```ts title="lib/penztar.test.ts"
+import { createMockKassza } from 'kassza/testing'
+import { expect, test } from 'vitest'
+import { type Eladas, nyugtaEladasrol } from './penztar'
+
+const eladas: Eladas = {
+  id: '2026-0917-0042',
+  fizetesiMod: 'készpénz',
+  tetelek: [
+    { name: 'Kávé', quantity: 2, grossUnitPrice: 890, vat: 27 },
+    { name: 'Kifli', grossUnitPrice: 250, vat: 5 },
+  ],
+}
+
+test('ugyanarról az eladásról csak egy nyugta készül', async () => {
+  const mock = createMockKassza({ defaults: { receipt: { prefix: 'NYGT' } } })
+
+  const elso = await nyugtaEladasrol(eladas, mock)
+  const masodik = await nyugtaEladasrol(eladas, mock)
+
+  expect(masodik.number).toBe(elso.number)
+  expect(mock.receiptRecords.size).toBe(1)
+  expect(elso.totals.grossAmount).toBe(2_030)
+})
+```
+
+## Route handler
+
+A route handlerek modulszinten importálják a klienst, ezért itt a `vi.mock()` cseréli le a `@/lib/kassza` modult mock kliensre, a saját adatbázis-függvényt pedig egy kémfüggvényre. A teszt az [IPN webhook](/docs/receptek/ipn-webhook) route handlerét hívja meg egy összerakott `Request`-tel.
+
+```ts title="app/api/szamlazz/ipn/route.test.ts"
+import type { MockKassza } from 'kassza/testing'
+import { beforeEach, expect, test, vi } from 'vitest'
+import { kassza } from '@/lib/kassza'
+import { fizetesiAllapotMentese } from '@/lib/rendelesek'
+import { POST } from './route'
+
+vi.mock('@/lib/kassza', async () => {
+  const { createMockKassza } = await import('kassza/testing')
+  return { kassza: createMockKassza() }
+})
+
+vi.mock('@/lib/rendelesek', () => ({ fizetesiAllapotMentese: vi.fn() }))
+
+const mock = kassza as MockKassza
+
+function ipnKeres(mezok: Record<string, string>, ip = '3.73.214.98'): Request {
+  return new Request('https://webshop.example.hu/api/szamlazz/ipn', {
+    method: 'POST',
+    headers: { 'content-type': 'application/x-www-form-urlencoded', 'x-forwarded-for': ip },
+    body: new URLSearchParams(mezok),
+  })
+}
+
+beforeEach(() => {
+  mock.reset()
+  vi.mocked(fizetesiAllapotMentese).mockClear()
+})
+
+test('a kifizetett számla állapotát menti', async () => {
+  const szamla = await mock.invoices.create({
+    orderNumber: 'WEB-5001',
+    paid: true,
+    buyer: { name: 'Nagy Péter', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+    items: [{ name: 'Póló', grossUnitPrice: 5_990, vat: 27 }],
+  })
+
+  const valasz = await POST(
+    ipnKeres({
+      szlahu_szamlaszam: szamla.number,
+      szlahu_bruttovegosszeg: String(szamla.grossTotal),
+      szlahu_kifizetettbrutto: String(szamla.grossTotal),
+    }),
+  )
+
+  expect(valasz.status).toBe(200)
+  expect(fizetesiAllapotMentese).toHaveBeenCalledWith(
+    expect.objectContaining({
+      szamlaszam: szamla.number,
+      rendelesszam: 'WEB-5001',
+      teljesenFizetve: true,
+    }),
+  )
+})
+
+test('idegen IP-címről érkező értesítést elutasít', async () => {
+  const valasz = await POST(ipnKeres({ szlahu_szamlaszam: 'WEB-2026-1' }, '203.0.113.7'))
+
+  expect(valasz.status).toBe(403)
+  expect(fizetesiAllapotMentese).not.toHaveBeenCalled()
+})
+```
+
+## Buktatók
+
+<Callout type="danger" title="Éles kulccsal soha ne futtass tesztet">
+  A tesztkörnyezetben csak kamu kulcs vagy tesztfiók kulcs legyen. Ha egy teszt elfelejti átadni a
+  mockot, a függvény a valódi klienssel hívná a Számlázz.hu-t. Kamu kulccsal ez hitelesítési hibára
+  fut, és bizonylat nem készül, de éles kulccsal valódi számlát állítana ki.
+</Callout>
+
+<Callout type="warning" title="A mock nem ismeri a fiók beállításait">
+  A mock nem ellenőrzi a rendelésszám ismétlődését (71, 152), a nem regisztrált előtagot (202) és
+  a fiók állapotát. Ezeket a `failNext()` második paraméterében megadott `SzamlazzError`-ral
+  szimuláld, a teljes folyamatot pedig élesítés előtt tesztfiókkal is próbáld ki.
+</Callout>
+
+<Callout type="info" title="A számlaszámok formátuma eltér">
+  A mock számlaszámai `E-KASSZA-2026-1` alakúak, a díjbekérőké `D-KASSZA-2026-1`. Ne építs
+  tesztet a Számlázz.hu valódi sorszámformátumára, inkább a visszakapott számot hasonlítsd össze.
+</Callout>
+
+<Callout type="tip" title="A find a naplóban get">
+  Az `invoices.find()` a hívásnaplóban `invoices.get` néven szerepel, ezért a validációs teszt
+  `['invoices.get', 'invoices.create']` sorrendet vár.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Tesztelés" href="/docs/kiegeszitok/teszteles">
+    A mock kliens összes opciója, mezője és szimulált viselkedése.
+  </Card>
+  <Card title="Fizetett rendelés számlája" href="/docs/receptek/fizetett-rendeles-szamla">
+    A tesztelt számlázó függvény.
+  </Card>
+  <Card title="Nevezés díjbekérővel" href="/docs/receptek/nevezes-dijbekerovel">
+    A tesztelt díjbekérős folyamat.
+  </Card>
+  <Card title="Hibakezelés, hibakódok" href="/docs/alapok/hibakezeles">
+    Mely hibák után kell lekérdezni, és melyek után nem.
+  </Card>
+</Cards>

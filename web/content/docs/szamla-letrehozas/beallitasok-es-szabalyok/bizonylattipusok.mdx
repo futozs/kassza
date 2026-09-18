@@ -1,0 +1,73 @@
+---
+title: Bizonylattípusok
+description: Számla, díjbekérő, előlegszámla, végszámla, helyesbítő számla és szállítólevél kiállítása a type mezővel, valamint e-számla vagy papírszámla.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/document-types
+---
+
+Az `invoices.create()` a `type` mező alapján többféle bizonylatot készít. A sztornó számla kivétel, arra külön művelet van: [Számla sztornó](/docs/szamla-sztorno).
+
+| `type` | Bizonylat | XML a `fejlec` blokkban | Kötelező kiegészítés |
+| --- | --- | --- | --- |
+| `'invoice'` | Számla (alapértelmezett) | – | – |
+| `'proforma'` | Díjbekérő | `<dijbekero>true</dijbekero>` | – |
+| `'advance'` | Előlegszámla | `<elolegszamla>true</elolegszamla>` | – |
+| `'final'` | Végszámla | `<vegszamla>true</vegszamla>` | `advanceInvoiceNumber` vagy az előlegszámla `orderNumber`-je |
+| `'corrective'` | Helyesbítő számla | `<helyesbitoszamla>true</helyesbitoszamla>` | `correctedInvoiceNumber` |
+| `'deliveryNote'` | Szállítólevél | `<szallitolevel>true</szallitolevel>` | – |
+
+A `CreateInvoiceInput` a `type` szerint szétválasztott típus: `type: 'corrective'` mellett a TypeScript már szerkesztés közben jelzi, ha a `correctedInvoiceNumber` lemaradt.
+
+## Díjbekérő
+
+A díjbekérő fizetési felszólítás, jogilag nem számla, és nem kerül a NAV-hoz. Ha a vevő kifizette, állíts ki róla számlát, és a `proformaNumber` mezőben hivatkozz a díjbekérőre. A Számlázz.hu így összekapcsolja a kettőt.
+
+<Example slug="dijbekero-szamla" />
+
+A ki nem fizetett díjbekérőt ne sztornózd, hanem töröld a [Díjbekérő törlése](/docs/dijbekero-torlese) művelettel. Ha díjbekérőt vagy szállítólevelet próbálsz sztornózni, a kassza `validation` hibát ad, mert a Számlázz.hu ilyenkor csendben visszaadná az eredeti bizonylatot.
+
+## Előlegszámla és végszámla
+
+Előlegnél előbb `type: 'advance'` előlegszámlát állítasz ki, a teljesítéskor pedig `type: 'final'` végszámlát. A végszámlán az előleget negatív mennyiségű tétellel vonod le.
+
+<Example slug="eloleg-vegszamla" />
+
+<Callout type="warning" title="Egy előleghez egy végszámla">
+  A Számlázz.hu-ban egy előlegszámlához csak egy végszámla tartozhat. Egy előlegből nem készíthető
+  több részszámla, és több előlegszámla sem vonható össze egy végszámlában.
+</Callout>
+
+A végszámlánál az `advanceInvoiceNumber` helyett az előlegszámla rendelésszáma is elég. Ha egyiket sem adod meg, a kassza a kérés előtt hibát dob.
+
+## Helyesbítő számla
+
+Ha egy kiállított számla tartalma változik, például a vevő visszaküld egy terméket, állíts ki helyesbítő számlát a `correctedInvoiceNumber` hivatkozással. A változást negatív mennyiségű tétellel jelzed.
+
+<Example slug="helyesbito-szamla" />
+
+Ha a számlát teljesen érvényteleníteni kell, helyesbítés helyett [sztornózd](/docs/szamla-sztorno). Egyszerűsített számlaképpel (`simpleItems`) kiállított számla nem helyesbíthető, csak sztornózható.
+
+## Szállítólevél
+
+A `type: 'deliveryNote'` szállítólevelet készít. A fuvarlevél adatait a `waybill` mezőben adhatod meg, fuvarleveles számlaképhez pedig a `template: 'SzlaFuvarlevelesAlap'` sablont használd. A mezőket a [Kérés](/docs/szamla-letrehozas/keres#fuvarlevél-waybill) oldal sorolja fel.
+
+```ts
+await kassza.invoices.create({
+  type: 'deliveryNote',
+  template: 'SzlaFuvarlevelesAlap',
+  orderNumber: 'REND-1001',
+  buyer,
+  items,
+  waybill: {
+    courier: 'MPL',
+    mpl: { customerCode: '12345678', barcode: 'JJH30000000000000', weight: '1.25' },
+  },
+})
+```
+
+## E-számla vagy papírszámla
+
+Az `eInvoice` mező dönti el, hogy elektronikus számla (`true`) vagy hagyományos, nyomtatható számla (`false`, ez az alapértelmezett) készül. E-számlához saját tanúsítvány kell, vagy a Számlázz.hu által biztosított tanúsítvány. Ha a fiókban nincs engedélyezve az e-számla, 54-es, ha az aláírás nem sikerül, 55-ös hibát kapsz.
+
+```ts
+const kassza = createKassza({ defaults: { invoice: { eInvoice: true } } })
+```

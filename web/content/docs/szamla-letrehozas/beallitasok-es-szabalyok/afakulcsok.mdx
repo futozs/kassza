@@ -1,0 +1,56 @@
+---
+title: Áfakulcsok
+description: A vat mezőben megadható számszerű áfakulcsok és áfakódok, a VatRate típus, és a közösségi áfát jelző euVat mező.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/vat-rates
+---
+
+Minden tételnél kötelező a `vat` mező. Értéke lehet szám (például `27`) vagy áfakód (például `'AAM'`). A típusa `VatRate`, így a szerkesztő felajánlja az elfogadott értékeket, a kassza pedig a küldés előtt elutasítja az ismeretlen kulcsot.
+
+```ts
+items: [
+  { name: 'Könyv', grossUnitPrice: 4_990, vat: 5 },
+  { name: 'Tanácsadás', netUnitPrice: 20_000, vat: 27 },
+  { name: 'Oktatás, alanyi mentes', netUnitPrice: 15_000, vat: 'AAM' },
+]
+```
+
+<Callout type="info" title="Melyik kulcsot használjam?">
+  Az áfakulcs kiválasztása adózási kérdés, a kassza ebben nem dönthet helyetted. Egyeztess a
+  könyvelőddel, vagy olvasd el a Számlázz.hu tudástárának áfakulcsokról szóló cikkét.
+</Callout>
+
+## Áfakódok
+
+A kódos áfakulcsok áfa összege mindig 0, a kassza a bruttó értéket a nettóval egyezőre számolja.
+
+<VatRateTable />
+
+A `VatRate` típus a számokat és a kódokat is tartalmazza. Ha az áfakulcs felhasználói bemenetből vagy adatbázisból jön, az `isVatRate()` futásidőben is ellenőrzi:
+
+```ts
+import { isVatRate } from 'kassza/money'
+
+const beirt = termek.afakulcs === 'AAM' ? 'AAM' : Number(termek.afakulcs)
+if (!isVatRate(beirt)) throw new Error(`Ismeretlen áfakulcs: ${termek.afakulcs}`)
+```
+
+A lehetséges értékek listája `NUMERIC_VAT_RATES` és `SPECIAL_VAT_CODES` néven is elérhető, például egy legördülő menühöz.
+
+## Közösségi áfa (euVat)
+
+Az `euVat: true` (XML-ben `eusAfa`) azt jelzi, hogy a számla nem tartalmaz magyar áfát, ezért a Számlázz.hu nem küld róla adatot a NAV Online Számla rendszerébe. Akkor használható, ha a céged OSS-regisztrált, vagy nem magyar adószámmal rendelkezik.
+
+```ts
+await kassza.invoices.create({
+  euVat: true,
+  currency: 'EUR',
+  buyer: { name: 'Jan Novák', country: 'Czechia', zip: '11000', city: 'Praha', address: 'Národní 1' },
+  items: [{ name: 'E-book', grossUnitPrice: 12.99, vat: 21 }],
+})
+```
+
+<Callout type="warning" title="Az euVat nem helyettesíti a tétel áfakulcsát">
+  A tételeknél közösségi áfa esetén is a megfelelő kulcsot vagy kódot kell megadnod (például
+  `'EUT'`, `'EUFAD37'`, vagy a vevő országának áfakulcsát). Téves adatszolgáltatás utólag nem
+  javítható, mert az a számla elkészültekor megtörténik.
+</Callout>

@@ -1,0 +1,63 @@
+---
+title: Válasz
+description: Mit ad vissza az invoices.deleteProforma(), milyen hibák fordulnak elő díjbekérő törlésekor, és mi a teendő hálózati hiba után.
+official: https://docs.szamlazz.hu/hu/agent/deleting_pro_forma_invoice/response
+---
+
+A `deleteProforma()` visszatérési értéke `Promise<void>`: sikeres törlés után nincs visszaadott mező. Ha a promise hiba nélkül teljesül, a díjbekérő törlődött.
+
+A Számlázz.hu `xmlszamladbkdelvalasz` XML-lel válaszol. A kassza csak akkor tekinti sikeresnek, ha a `sikeres` elem `true`, minden más esetben `SzamlazzError` hibát dob.
+
+| XML elem | kassza | Leírás |
+| --- | --- | --- |
+| `sikeres` | – | `true` esetén a promise teljesül, különben hiba jön. |
+| `hibakod` | `error.code` | A Számlázz.hu hibakódja. |
+| `hibauzenet` | `error.message` | A Számlázz.hu hibaüzenete, a kód elé írva. |
+
+## Hibák
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | Üres azonosító, vagy a hivatkozásban nem pontosan egy mező van. A kassza nem küld kérést. |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 335 | `not_found` | Nincs ilyen díjbekérő: nem is létezett, vagy már törölték. |
+| – | `unexpected_response` | A válasz nem a várt XML, vagy hiányzik belőle a `sikeres` `true` érték. |
+| – | `network`, `timeout` | Nem tudni, törlődött-e a díjbekérő. A kassza nem küldi újra. |
+
+A 335-ös hibához a kassza `hint` mezőben magyar tippet is ad. A többi kódot a [Hibakezelés, hibakódok](/docs/alapok/hibakezeles#hibakódok) oldalon találod.
+
+## Hálózati hiba után
+
+Hálózati hiba vagy időtúllépés után nem tudhatod, hogy a Számlázz.hu megkapta-e a kérést. Ilyenkor küldd el még egyszer a törlést: ha 335-ös hibát kapsz, a díjbekérő már nincs meg, vagyis az első kérés valószínűleg célba ért.
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+const BIZONYTALAN = ['network', 'timeout']
+
+async function dijbekeroTorlese(dijbekeroSzam: string) {
+  try {
+    await kassza.invoices.deleteProforma(dijbekeroSzam)
+  } catch (error) {
+    if (!isSzamlazzError(error) || !BIZONYTALAN.includes(error.category)) throw error
+    try {
+      await kassza.invoices.deleteProforma(dijbekeroSzam)
+    } catch (ismetelt) {
+      if (!isSzamlazzError(ismetelt) || ismetelt.code !== 335) throw ismetelt
+    }
+  }
+}
+```
+
+Ha újraküldés helyett előbb ellenőriznél, kérdezd le a díjbekérőt a számával. Az `invoices.find()` `null`-t ad, ha a Számlázz.hu nem találja:
+
+```ts
+const dijbekero = await kassza.invoices.find(dijbekeroSzam)
+if (dijbekero) await kassza.invoices.deleteProforma(dijbekeroSzam)
+```
+
+<Callout type="warning" title="Rendelésszámmal ne így ellenőrizz">
+  A `find({ orderNumber })` az adott rendelésszámú bizonylatok közül a legutóbbit adja vissza. Ez
+  más bizonylat is lehet ugyanezzel a rendelésszámmal, és akkor a díjbekérő törlése után sem kapsz
+  `null`-t.
+</Callout>

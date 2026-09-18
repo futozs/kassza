@@ -1,0 +1,80 @@
+---
+title: Hitelesítés (Agent kulcs)
+description: Az Agent kulcs beállítása, a régi felhasználónév és jelszó, több fiók kezelése és a kulcs ellenőrzése.
+official: https://docs.szamlazz.hu/hu/agent/basics/authentication
+---
+
+A Számla Agent minden kérésnél hitelesítést vár. A javasolt mód az **Agent kulcs**: egy hosszú, véletlenszerű kulcs, amelyet a Számlázz.hu felületén hozhatsz létre és vonhatsz vissza. A kassza a kulcsot a kérés XML-jének `<szamlaagentkulcs>` elemébe teszi.
+
+## Agent kulcs létrehozása
+
+Az Agent kulcsot a Számlázz.hu fiókodban, a vezérlőpult alján tudod generálni. Egy fiókhoz több kulcs is tartozhat, így például a webshopodnak és a könyvelési integrációnak lehet külön kulcsa, amelyeket egymástól függetlenül vissza tudsz vonni.
+
+## A kulcs átadása a kasszának
+
+A legegyszerűbb, ha a `SZAMLAZZ_AGENT_KEY` környezeti változóba teszed. A `createKassza()` ezt olvassa, ha nem adsz meg `agentKey` opciót:
+
+```dotenv title=".env"
+SZAMLAZZ_AGENT_KEY=a-te-agent-kulcsod
+```
+
+```ts
+import { createKassza } from 'kassza'
+
+export const kassza = createKassza()
+```
+
+Ha a kulcs máshonnan jön, például egy titokkezelőből vagy a Cloudflare Workers `env` objektumából, add át közvetlenül:
+
+```ts
+const kassza = createKassza({ agentKey: env.SZAMLAZZ_AGENT_KEY })
+```
+
+<Callout type="warning" title="Csak kisbetű">
+  Az Agent kulcs csak kisbetűs lehet. Ha nagybetűt tartalmaz (például rosszul másoltad ki), a
+  kassza már a kliens létrehozásakor `configuration` kategóriájú hibát dob, így a hibás kulcs
+  el sem jut a Számlázz.hu-hoz.
+</Callout>
+
+## Felhasználónév és jelszó
+
+Régebbi integrációk felhasználónévvel és jelszóval hitelesítenek. A kassza ezt is támogatja, de új integrációhoz az Agent kulcsot ajánljuk, mert visszavonható, és nem a fiók jelszava.
+
+```ts
+const kassza = createKassza({
+  username: process.env.SZAMLAZZ_USERNAME,
+  password: process.env.SZAMLAZZ_PASSWORD,
+})
+```
+
+Ha a felhasználó több fiókhoz is hozzáfér, a Számlázz.hu 164-es hibával utasítja el a kérést. Ilyenkor Agent kulcsot kell használni.
+
+## Több fiók
+
+Minden `createKassza()` hívás egy fiókhoz tartozó klienst ad vissza, saját session cookie-val. Több cég számlázásához hozz létre fiókonként egy klienst:
+
+```ts
+const kliensek = {
+  budapest: createKassza({ agentKey: process.env.KULCS_BUDAPEST }),
+  debrecen: createKassza({ agentKey: process.env.KULCS_DEBRECEN }),
+}
+```
+
+## A kulcs ellenőrzése
+
+A `verifyCredentials()` egy ártalmatlan lekérdezéssel teszteli a kulcsot, bizonylatot nem hoz létre. Hibás kulcsnál `false`, jó kulcsnál `true` az eredménye. Fiókproblémánál, például lejárt előfizetésnél hibát dob, mert ezt embernek kell rendeznie.
+
+```ts
+if (!(await kassza.verifyCredentials())) {
+  throw new Error('Hibás Számlázz.hu Agent kulcs')
+}
+```
+
+<Example slug="kulcs-ellenorzes" />
+
+## Biztonság
+
+- A kulcsot csak szerveroldali kód lássa. Ne tedd `NEXT_PUBLIC_` vagy más, a böngészőbe kerülő környezeti változóba.
+- A kassza hookjai (`onRequest`, `onResponse`, `onError`) soha nem kapják meg a kulcsot, így a naplóidba sem kerülhet be.
+- Fejlesztéshez használj Számlázz.hu teszt fiókot, és a teszteket futtasd a [mock klienssel](/docs/kiegeszitok/teszteles).
+- Ha egy kulcs kiszivárgott, vond vissza a Számlázz.hu felületén, és generálj újat.

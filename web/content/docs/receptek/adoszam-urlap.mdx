@@ -1,0 +1,221 @@
+---
+title: Adószám alapú kitöltés
+description: Számlázási űrlap, amely a beírt adószám alapján a NAV adataiból tölti ki a cégnevet és a székhely címét. Route handler és kliens komponens.
+---
+
+Céges vásárlásnál a vevő beírja az adószámát, és a pénztár oldal kitölti helyette a cégnevet és a székhely címét. Kevesebb elgépelés, és a számlán a NAV-nál nyilvántartott adatok szerepelnek. A lekérdezést a kassza `taxpayer.query()` metódusa végzi a Számla Agenten keresztül.
+
+A recept egy szerveroldali route handlerből áll, amely az Agent kulccsal lekérdez, és egy kliens komponensből, amely a formátumot már a böngészőben ellenőrzi. A kettő egy közös típuson osztozik.
+
+## Közös típus
+
+A `CegAdatok` az űrlap és a végpont közös adatszerkezete, a `cegesVevo()` pedig a mentett adatokból a számla vevőjét készíti el.
+
+```ts title="lib/ceges-vevo.ts"
+import type { InvoiceBuyer } from 'kassza'
+
+export interface CegAdatok {
+  readonly nev: string
+  readonly adoszam: string
+  readonly iranyitoszam: string
+  readonly varos: string
+  readonly cim: string
+}
+
+export function cegesVevo(adatok: CegAdatok, email: string): InvoiceBuyer {
+  return {
+    name: adatok.nev,
+    zip: adatok.iranyitoszam,
+    city: adatok.varos,
+    address: adatok.cim,
+    email,
+    taxNumber: adatok.adoszam,
+    taxpayerType: 'hungarianTaxNumber',
+  }
+}
+```
+
+## Route handler
+
+```ts title="app/api/adoszam/route.ts"
+import { isSzamlazzError } from 'kassza'
+import { parseHungarianTaxNumber } from 'kassza/validators'
+import { bejelentkezettVevo } from '@/lib/auth'
+import type { CegAdatok } from '@/lib/ceges-vevo'
+import { kassza } from '@/lib/kassza'
+
+export async function POST(request: Request) {
+  if (!(await bejelentkezettVevo(request))) return new Response('Jelentkezz be', { status: 401 })
+
+  const { adoszam } = (await request.json().catch(() => ({}))) as { adoszam?: unknown }
+  const ervenyes = typeof adoszam === 'string' ? parseHungarianTaxNumber(adoszam) : undefined
+  if (!ervenyes) return Response.json({ hiba: 'Érvénytelen adószám.' }, { status: 400 })
+
+  try {
+    const ceg = await kassza.taxpayer.query(ervenyes.formatted)
+    if (!ceg.valid || !ceg.address) {
+      return Response.json({ hiba: 'A NAV nem ismer ilyen érvényes adószámot.' }, { status: 404 })
+    }
+
+    const adatok: CegAdatok = {
+      nev: ceg.name ?? '',
+      adoszam: ceg.taxNumber?.formatted ?? ervenyes.formatted,
+      iranyitoszam: ceg.address.postalCode,
+      varos: ceg.address.city,
+      cim: ceg.address.formatted.split(', ').slice(1).join(', '),
+    }
+    return Response.json(adatok)
+  } catch (error) {
+    if (isSzamlazzError(error) && error.retryable) {
+      return Response.json({ hiba: 'A NAV lekérdezés most nem elérhető.' }, { status: 503 })
+    }
+    throw error
+  }
+}
+```
+
+A `formatted` cím így néz ki: `1134 Budapest, Váci út 10.`. Az első vessző előtti rész az irányítószám és a település, a többi az utca és a házszám.
+
+<Example slug="adoszam" />
+
+## Kliens komponens
+
+A `kassza/validators` modul tiszta függvényekből áll, hálózatot és kulcsot nem használ, ezért a böngészőben is importálható. A `kassza` fő modult viszont soha ne importáld kliens komponensből.
+
+```tsx title="app/penztar/szamlazasi-adatok.tsx"
+'use client'
+
+import { isValidHungarianTaxNumber } from 'kassza/validators'
+import { type ChangeEvent, useState } from 'react'
+import type { CegAdatok } from '@/lib/ceges-vevo'
+
+const URES: CegAdatok = { nev: '', adoszam: '', iranyitoszam: '', varos: '', cim: '' }
+
+type Eredmeny = CegAdatok | { readonly hiba: string }
+
+async function cegLekerdezese(adoszam: string): Promise<Eredmeny> {
+  try {
+    const valasz = await fetch('/api/adoszam', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ adoszam }),
+    })
+    return (await valasz.json()) as Eredmeny
+  } catch {
+    return { hiba: 'A lekérdezés nem sikerült.' }
+  }
+}
+
+export function SzamlazasiAdatok() {
+  const [adatok, setAdatok] = useState<CegAdatok>(URES)
+  const [uzenet, setUzenet] = useState('')
+  const [tolt, setTolt] = useState(false)
+
+  const mezo = (nev: keyof CegAdatok) => ({
+    name: nev,
+    value: adatok[nev],
+    onChange: (esemeny: ChangeEvent<HTMLInputElement>) =>
+      setAdatok((elozo) => ({ ...elozo, [nev]: esemeny.target.value })),
+  })
+
+  async function kitoltes() {
+    if (!isValidHungarianTaxNumber(adatok.adoszam)) {
+      setUzenet('Az adószám formátuma: 12345678-1-42')
+      return
+    }
+    setTolt(true)
+    setUzenet('')
+    try {
+      const eredmeny = await cegLekerdezese(adatok.adoszam)
+      if ('hiba' in eredmeny) {
+        setUzenet(`${eredmeny.hiba} Töltsd ki kézzel az adatokat.`)
+        return
+      }
+      setAdatok(eredmeny)
+      setUzenet('Az adatokat a NAV nyilvántartásából töltöttük ki. Ellenőrizd őket.')
+    } finally {
+      setTolt(false)
+    }
+  }
+
+  return (
+    <fieldset>
+      <legend>Számlázási adatok</legend>
+      <label>
+        Adószám
+        <input {...mezo('adoszam')} inputMode="numeric" autoComplete="off" />
+      </label>
+      <button type="button" onClick={kitoltes} disabled={tolt}>
+        {tolt ? 'Lekérdezés…' : 'Kitöltés a NAV adataiból'}
+      </button>
+      <p aria-live="polite">{uzenet}</p>
+      <label>
+        Cégnév
+        <input {...mezo('nev')} autoComplete="organization" />
+      </label>
+      <label>
+        Irányítószám
+        <input {...mezo('iranyitoszam')} autoComplete="postal-code" />
+      </label>
+      <label>
+        Település
+        <input {...mezo('varos')} autoComplete="address-level2" />
+      </label>
+      <label>
+        Cím
+        <input {...mezo('cim')} autoComplete="street-address" />
+      </label>
+    </fieldset>
+  )
+}
+```
+
+A kitöltött mezők szerkeszthetők maradnak. A NAV adatai a székhelyre vonatkoznak, de a vevő kérheti, hogy a számlán más cím szerepeljen.
+
+## Buktatók
+
+<Callout type="danger" title="Ne legyen nyílt végpont">
+  Minden lekérdezés a te Agent kulcsoddal fut. Védelem nélkül a végpontot bárki használhatná
+  ingyenes NAV lekérdezőként, és a sok kérés a fiókodra hullik vissza. Csak bejelentkezett vevőnek
+  engedd, és korlátozd a kérések számát.
+</Callout>
+
+<Callout type="warning" title="Az érvénytelen adószám nem hiba">
+  Ha a NAV nem ismeri az adószámot, vagy az nem érvényes, a `query()` nem dob hibát, hanem
+  `valid: false` értéket ad vissza üres címlistával. Ezt mindig ellenőrizd a mezők használata előtt.
+</Callout>
+
+<Callout type="info" title="A cégnév nagybetűs lehet">
+  A kassza a település és az utca nevét olvashatóvá alakítja, de a cégnevet úgy adja vissza, ahogy
+  a NAV tárolja, ez gyakran csupa nagybetű. Ha rövidebb nevet szeretnél, a `shortName` mező a cég
+  rövid nevét tartalmazza.
+</Callout>
+
+<Callout type="note" title="Csak formátumellenőrzés a böngészőben">
+  Az `isValidHungarianTaxNumber()` a CDV ellenőrzőszámot, az áfakódot és a megyekódot vizsgálja.
+  Azt, hogy a cég létezik és működik, csak a NAV lekérdezés mondja meg. A `query()` a 8 jegyű
+  törzsszámot is elfogadja, a számlára viszont a teljes, 11 jegyű adószám kell.
+</Callout>
+
+<Callout type="tip" title="Csoportos adóalanyok">
+  Ha az adószám áfakódja 4, a cég áfacsoport tagja. Ezt az `isHungarianVatGroupMemberTaxNumber()`
+  jelzi. A csoportazonosítót a `buyer.groupTaxNumber` mezőben adhatod át; hogy kell-e, azt a
+  könyvelőddel egyeztesd. A részletek a [Validátorok](/docs/kiegeszitok/validatorok) oldalon vannak.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Adószám lekérdezés" href="/docs/adoszam-lekerdezes">
+    A queryTaxpayer kérés, a válasz mezői és a címek feldolgozása.
+  </Card>
+  <Card title="Validátorok" href="/docs/kiegeszitok/validatorok">
+    Adószám, EU adószám, bankszámlaszám, irányítószám és e-mail ellenőrzése.
+  </Card>
+  <Card title="Stripe webhook" href="/docs/receptek/stripe-webhook">
+    A céges vevő adószámának átadása a számlára.
+  </Card>
+  <Card title="Fizetett rendelés számlája" href="/docs/receptek/fizetett-rendeles-szamla">
+    Az InvoiceBuyer használata a számlázásban.
+  </Card>
+</Cards>

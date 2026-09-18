@@ -1,0 +1,15 @@
+---
+title: Minta
+description: Számla kiállítása, sztornózása és a sztornózott állapot ellenőrzése, a ténylegesen elküldött xmlszamlast XML-lel.
+official: https://docs.szamlazz.hu/hu/agent/reversing_invoice/xml
+---
+
+A példa kiállít egy számlát, sztornózza, majd lekérdezi az eredeti számla adatait, hogy a `header.reversed` mező már `true`. Az **Elküldött XML** fülön mindhárom kérést látod, köztük a sztornó `xmlszamlast` dokumentumát.
+
+<Example slug="sztorno" />
+
+## XSD séma
+
+```text
+https://www.szamlazz.hu/szamla/docs/xsds/agentst/xmlszamlast.xsd
+```

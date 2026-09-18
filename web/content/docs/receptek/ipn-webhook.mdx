@@ -1,0 +1,126 @@
+---
+title: IPN webhook
+description: A Számlázz.hu fizetési értesítésének (IPN) fogadása Next.js route handlerben, IP-ellenőrzéssel, a számla állapotának visszaellenőrzésével és idempotens mentéssel.
+---
+
+Ha a Számlázz.hu-ban egy számla kifizetett összege megváltozik, például a banki egyeztetés rögzít egy átutalást, a Számlázz.hu HTTP POST kérést küld a megadott címre. Ebből tudod meg, hogy egy rendelés ki van fizetve. Az értesítés URL-jét a Számlázz.hu fiókban, a Fiók beállítások / Számlázás alapadatok oldal alján adod meg.
+
+Az értesítést nem írja alá semmi, csak a feladó IP-címe azonosítja. Ezért a recept az értesítést csak jelzésnek veszi: a számla tényleges állapotát a kasszával kérdezi le, és azt menti.
+
+## A route handler
+
+A `fizetesiAllapotMentese()` a saját adatbázis-függvényed. Felülírja a rendelés fizetési állapotát, nem hozzáad.
+
+```ts title="app/api/szamlazz/ipn/route.ts"
+import { isSzamlazzError } from 'kassza'
+import { type IpnNotification, ipnOkResponse, isSzamlazzIp, readIpnNotification } from 'kassza/ipn'
+import { addMoney } from 'kassza/money'
+import { kassza } from '@/lib/kassza'
+import { fizetesiAllapotMentese } from '@/lib/rendelesek'
+
+export async function POST(request: Request) {
+  if (!isSzamlazzIp(request.headers.get('x-forwarded-for') ?? '')) {
+    return new Response('Tiltott', { status: 403 })
+  }
+
+  let ertesites: IpnNotification
+  try {
+    ertesites = await readIpnNotification(request)
+  } catch (error) {
+    if (!isSzamlazzError(error)) throw error
+    console.error('Értelmezhetetlen IPN értesítés', error.message)
+    return new Response('Hibás értesítés', { status: 400 })
+  }
+
+  const szamla = await kassza.invoices.find(ertesites.invoiceNumber)
+  if (!szamla) {
+    console.error('IPN értesítés ismeretlen számláról', ertesites.invoiceNumber)
+    return ipnOkResponse()
+  }
+
+  const kifizetett = addMoney(...szamla.payments.map((befizetes) => befizetes.amount))
+  await fizetesiAllapotMentese({
+    szamlaszam: szamla.header.number,
+    rendelesszam: szamla.header.orderNumber,
+    dijbekeroszam: ertesites.proformaNumber,
+    kifizetett,
+    teljesenFizetve: kifizetett >= szamla.totals.grossAmount,
+  })
+
+  return ipnOkResponse()
+}
+```
+
+A válaszkódok a Számlázz.hu újraküldését irányítják. Csak a `200` számít sikernek, minden más válasz vagy időtúllépés után a Számlázz.hu 3 percenként újrapróbálja, legfeljebb tízszer.
+
+| Helyzet | Válasz | Mi történik |
+| --- | --- | --- |
+| Nem a Számlázz.hu címéről jött | `403` | Nincs feldolgozás. |
+| Hiányzik egy kötelező mező | `400` | A Számlázz.hu újraküldi, de a hiba a naplóban látszik. |
+| A számla nem található | `200` | Nincs mit menteni, az újraküldés sem segítene. |
+| A lekérdezés vagy az adatbázis hibát dob | `500` | A Számlázz.hu 3 perc múlva újraküldi. |
+| Sikeres mentés | `200` | Kész. |
+
+<Example slug="ipn" />
+
+## Az értesítés mezői
+
+A `readIpnNotification()` elfogad `application/x-www-form-urlencoded` és `multipart/form-data` törzset is, és az összegeket számmá alakítja.
+
+| Mező | IPN paraméter | Leírás |
+| --- | --- | --- |
+| `invoiceNumber` | `szlahu_szamlaszam` | A kifizetett számla száma. |
+| `proformaNumber` | `szlahu_dijbekero_szama` | A díjbekérő száma, ha a számla díjbekérőből készült. |
+| `orderNumber` | `szlahu_rendelesszam` | A rendelésszám, ha szerepelt a számlán. |
+| `grossTotal` | `szlahu_bruttovegosszeg` | A számla bruttó végösszege. |
+| `paidAmount` | `szlahu_kifizetettbrutto` | A kifizetett bruttó összeg. |
+| `paymentMethod` | `szlahu_fizetesmod` | A kifizetés módja. |
+| `paymentDate` | `szlahu_kifizdat` | A kifizetés dátuma. Csak akkor érkezik, ha az ügyfélszolgálat bekapcsolta. |
+| `isFullyPaid` | – | `true`, ha a kifizetett összeg eléri a végösszeget. |
+
+## Buktatók
+
+<Callout type="warning" title="Az x-forwarded-for fejlécet a kliens is beállíthatja">
+  Az `isSzamlazzIp()` a fejléc első címét vizsgálja. Ez csak olyan proxy mögött megbízható, amely
+  felülírja a fejlécet, például Vercelen. Cloudflare mögött a `cf-connecting-ip` fejlécet add át.
+  A recept ezért nem az értesítés összegeiben bízik, hanem a lekérdezett számlában.
+</Callout>
+
+<Callout type="warning" title="Írd felül az állapotot, ne adj hozzá">
+  Ugyanarról a számláról több értesítés is jöhet, és a Számlázz.hu számlánként csak a legfrissebbet
+  küldi el. Ha minden értesítésnél hozzáadnád a kifizetett összeget a korábbihoz, a rendelés
+  túlfizetettnek látszana. A mentés mindig a számla aktuális állapotát írja be.
+</Callout>
+
+<Callout type="info" title="Válaszolj gyorsan">
+  Az értesítés feldolgozása csak egy lekérdezés és egy adatbázisírás. Ha ennél többet kell tenned,
+  például e-mailt küldeni vagy raktárkészletet foglalni, tedd sorba, és a választ ne várasd vele.
+</Callout>
+
+<Callout type="note" title="Ne rögzíts befizetést az értesítés hatására">
+  Az IPN-t a számla kifizetett összegének változása indítja. Az értesítés feldolgozásakor ne hívd
+  az `invoices.registerPayment()` metódust, mert az újabb változást és újabb értesítést okozhat.
+</Callout>
+
+## A Számlázz.hu IP-címei
+
+Ha a végpontot tűzfalon is korlátozod, ezeket a címeket engedélyezd:
+
+<OutboundIpTable />
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="IPN fizetési értesítés" href="/docs/befizetes-rogzitese/ipn">
+    Az IPN részletes leírása és a kassza/ipn modul.
+  </Card>
+  <Card title="Hálózat és biztonság" href="/docs/alapok/halozat-es-biztonsag">
+    Bejövő és kimenő forgalom, IP-címek, proxyk.
+  </Card>
+  <Card title="Nevezés díjbekérővel" href="/docs/receptek/nevezes-dijbekerovel">
+    Díjbekérős folyamat, amelyben az értesítés díjbekérőszámot is hoz.
+  </Card>
+  <Card title="Cloudflare Workers" href="/docs/receptek/cloudflare-workers">
+    A kassza futtatása Workerben, KV munkamenettel.
+  </Card>
+</Cards>

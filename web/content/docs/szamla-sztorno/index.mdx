@@ -1,0 +1,28 @@
+---
+title: Számla sztornó
+description: Kiállított számla érvénytelenítése sztornó számlával a kassza invoices.reverse() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/reversing-invoice
+---
+
+A kiállított számlát nem lehet törölni, csak sztornózni: a Számlázz.hu egy sztornó számlát készít, amely az eredeti számla összegeit ellentétes előjellel tartalmazza. A kasszában ezt az `invoices.reverse()` végzi.
+
+```ts
+const sztorno = await kassza.invoices.reverse('WEB-2026-128')
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/szamla-sztorno/keres">
+    A sztornó mezői: dátumok, megjegyzés, e-mail, vevő adatai.
+  </Card>
+  <Card title="Válasz" href="/docs/szamla-sztorno/valasz">
+    A ReversedInvoice mezői és a sztornónál előforduló hibák.
+  </Card>
+  <Card title="Minta" href="/docs/szamla-sztorno/minta">
+    Számla kiállítása és sztornózása a sandboxban.
+  </Card>
+</Cards>
+
+<Callout type="warning" title="Díjbekérőt ne sztornózz">
+  Díjbekérő és szállítólevél nem sztornózható. A ki nem fizetett díjbekérőt a
+  [Díjbekérő törlése](/docs/dijbekero-torlese) művelettel töröld.
+</Callout>

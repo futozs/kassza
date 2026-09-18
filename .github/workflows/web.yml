@@ -1,0 +1,50 @@
+name: Web
+
+on:
+  push:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/web.yml']
+  pull_request:
+    branches: [main]
+    paths: ['web/**', '.github/workflows/web.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - name: Repó kiolvasása
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Node.js beállítása
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Függőségek telepítése
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Típusellenőrzés
+        run: npm run typecheck
+
+      - name: Tesztek
+        run: npm test
+
+      - name: Build
+        run: npm run build

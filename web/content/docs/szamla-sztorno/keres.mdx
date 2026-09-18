@@ -1,0 +1,53 @@
+---
+title: Kérés
+description: Az invoices.reverse() bemenete, a Számla Agent xmlszamlast XML elemeivel és alapértékekkel.
+official: https://docs.szamlazz.hu/hu/agent/reversing_invoice/request
+---
+
+```ts
+kassza.invoices.reverse(input: string | ReverseInvoiceOptions, options?: { signal?: AbortSignal }): Promise<ReversedInvoice>
+```
+
+A kassza `xmlszamlast` XML-t küld az `action-szamla_agent_st` form mezőben. A legegyszerűbb hívás csak a sztornózandó számla számát kapja:
+
+```ts
+await kassza.invoices.reverse('WEB-2026-128')
+```
+
+Ha a sztornóhoz megjegyzést, más dátumot vagy saját e-mail szöveget adnál, objektumot adj át:
+
+```ts
+await kassza.invoices.reverse({
+  invoiceNumber: 'WEB-2026-128',
+  comment: 'A megrendelést a vevő lemondta.',
+  email: { subject: 'Sztornó számla', text: 'A korábbi számládat érvénytelenítettük.' },
+})
+```
+
+## Mezők
+
+| Mező | XML elem | Alapérték | Leírás |
+| --- | --- | --- | --- |
+| `invoiceNumber` | `fejlec/szamlaszam` | – | **Kötelező.** A sztornózandó számla száma. |
+| `issueDate` | `fejlec/keltDatum` | Számlázz.hu alapértelmezés | A sztornó számla kelte. |
+| `fulfillmentDate` | `fejlec/teljesitesDatum` | Számlázz.hu alapértelmezés | A sztornó teljesítési dátuma. |
+| `comment` | `fejlec/megjegyzes` | – | Megjegyzés a sztornó számlán. |
+| `template` | `fejlec/szamlaSablon` | fiók alapértelmezés | Számlakép, lásd [Számlasablon](/docs/szamla-letrehozas/beallitasok-es-szabalyok/szamlasablon-es-nyelvek). |
+| `eInvoice` | `beallitasok/eszamla` | `false` | E-számla legyen-e a sztornó. |
+| `downloadPdf` | `beallitasok/szamlaLetoltes` | `true` | Kérje-e a sztornó PDF-jét. |
+| `externalId` | `beallitasok/szamlaKulsoAzon` | – | A sztornó számla külső azonosítója. |
+| `email.replyTo` | `elado/emailReplyto` | – | Az értesítő válaszcíme. |
+| `email.subject` | `elado/emailTargy` | – | Az értesítő tárgya. |
+| `email.text` | `elado/emailSzoveg` | – | Az értesítő szövege. |
+| `buyer.email` | `vevo/email` | – | Erre a címre megy a sztornó értesítő. |
+| `buyer.taxNumber` | `vevo/adoszam` | – | A vevő adószáma, ha az eredeti számláról hiányzott. |
+| `buyer.euTaxNumber` | `vevo/adoszamEU` | – | A vevő közösségi adószáma, ha az eredeti számláról hiányzott. |
+
+A kassza a `fejlec/tipus` elembe mindig `SS` (sztornó számla) értéket ír.
+
+## Szabályok
+
+- Díjbekérő és szállítólevél nem sztornózható. Ilyenkor a Számlázz.hu nem hibát ad, hanem visszaküldi az eredeti bizonylatot. A kassza ezt felismeri, és `validation` hibát dob.
+- Sztornózás után a számla rendelésszáma újra felhasználható, akkor is, ha a fiókban tiltva van a rendelésszám ismétlődése.
+- Egyszerűsített számlaképpel (`simpleItems`) kiállított számla sztornója is egyszerűsített képpel készül.
+- A kassza a sztornót **nem próbálja újra** magától, mert egy második sztornó kérés hibát vagy duplikációt okozhat.

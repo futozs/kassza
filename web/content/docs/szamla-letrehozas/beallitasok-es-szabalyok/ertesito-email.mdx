@@ -1,0 +1,77 @@
+---
+title: Számlaértesítő küldés
+description: Mikor küld e-mailt a Számlázz.hu a vevőnek, hogyan kapcsold ki, hogyan szabd testre a tárgyat és a szöveget, és hogyan csatolj fájlokat.
+official: https://docs.szamlazz.hu/hu/agent/generating_invoice/settings_and_rules/email-notification
+---
+
+Ha a vevőnek van e-mail címe (`buyer.email`), a Számlázz.hu az elkészült számlát elküldi neki. Ezt a `buyer.sendEmail: false` kapcsolja ki.
+
+| `buyer.email` | `buyer.sendEmail` | Megy e-mail? |
+| --- | --- | --- |
+| nincs | nincs megadva | Nem |
+| van | nincs megadva | **Igen** |
+| van | `true` | Igen |
+| van | `false` | Nem |
+| nincs | `true` | A kassza `validation` hibát ad |
+
+```ts
+await kassza.invoices.create({
+  buyer: { ...vevo, email: 'vevo@example.hu', sendEmail: false },
+  items,
+})
+```
+
+Több címzettet vesszővel választhatsz el: `email: 'penzugy@example.hu,konyveles@example.hu'`. Az alapértelmezést a `defaults.invoice.sendEmail` is beállíthatja, de a hívásban megadott érték mindig erősebb.
+
+<Callout type="info" title="Tesztfiókban">
+  Tesztfiókban az értesítő nem a vevő címére megy, hanem a fiók beállításaiban megadott e-mail
+  címre, így fejlesztés közben nem írhatsz véletlenül valódi vevőnek.
+</Callout>
+
+## Tárgy és szöveg
+
+Az e-mail tárgyát, szövegét és válaszcímét az eladó (`seller`) mezőiben adhatod meg. A szövegben sortörést egyszerű új sorral, formázást BB kódokkal kérhetsz:
+
+| BB kód | Hatás |
+| --- | --- |
+| `[b]…[/b]` | félkövér |
+| `[i]…[/i]` | dőlt |
+| `[u]…[/u]` | aláhúzott |
+| `[h1]…[/h1]` – `[h6]…[/h6]` | címsor |
+| `[center]…[/center]` | középre igazított |
+
+```ts
+const kassza = createKassza({
+  defaults: {
+    invoice: {
+      seller: {
+        emailReplyTo: 'hello@example.hu',
+        emailSubject: 'Megérkezett a számlád',
+        emailText: '[b]Köszönjük a vásárlást![/b]\nA számládat csatoltuk.\n\nÜdv,\nA csapat',
+      },
+    },
+  },
+})
+```
+
+## Mellékletek
+
+Az értesítőhöz legfeljebb 5 fájlt csatolhatsz, fájlonként legfeljebb 2 MB-ot. A kassza ezt, és azt is ellenőrzi, hogy e-mail valóban menni fog, mert értesítő nélkül a Számlázz.hu a mellékleteket figyelmen kívül hagyja.
+
+```ts
+import { readFile } from 'node:fs/promises'
+
+await kassza.invoices.create({
+  buyer: { ...vevo, email: 'vevo@example.hu' },
+  items,
+  attachments: [
+    { filename: 'aszf.pdf', content: await readFile('aszf.pdf'), contentType: 'application/pdf' },
+  ],
+})
+```
+
+Ha egy melléklet hibás, a Számlázz.hu a számlakészítés beküldőjének figyelmeztető e-mailt küld, a vevő pedig a többi melléklettel együtt megkapja az értesítőt.
+
+## Ha az e-mail nem ment ki
+
+Ha a számla elkészült, de az értesítő kiküldése nem sikerült, a kassza 56-os, `partial_success` kategóriájú hibát dob. Ilyenkor **ne állítsd ki újra a számlát**: a számla létezik, a `find({ orderNumber })` megtalálja.

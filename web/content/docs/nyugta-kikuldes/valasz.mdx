@@ -1,0 +1,53 @@
+---
+title: Válasz
+description: Mit jelent, ha a receipts.send() hiba nélkül visszatér, hogyan olvassa a kassza az xmlnyugtasendvalasz választ, és milyen hibák fordulnak elő.
+official: https://docs.szamlazz.hu/hu/agent/sending_receipt/response
+---
+
+A `send()` visszatérési értéke `void`. Ha hiba nélkül lefut, a Számlázz.hu sikeresnek jelezte a kiküldést. Minden más esetben `SzamlazzError`-t dob.
+
+```ts
+await kassza.receipts.send({ receiptNumber: nyugta.number, emails: vevo.email })
+```
+
+## Hogyan olvassa a kassza a választ?
+
+A Számlázz.hu `xmlnyugtasendvalasz` XML-lel válaszol, három elemmel:
+
+| XML elem | Típus | Mit kezd vele a kassza |
+| --- | --- | --- |
+| `sikeres` | `boolean` | Ha `true`, és nincs hibakód, a `send()` hiba nélkül visszatér. |
+| `hibakod` | `int` | A `SzamlazzError` `code` mezője lesz. |
+| `hibauzenet` | `string` | A hibaüzenet, `[kód]` előtaggal, például `[7] Hiányzó adat: emailtargy elem.` |
+
+A kassza a `szlahu_error` és `szlahu_error_code` fejlécben, illetve `[ERR]` kezdetű szöveges válaszban érkező hibát is felismeri. Az `xmlagentresponse=DONE` szöveges választ sikernek veszi.
+
+## Hibák
+
+| Kód | Kategória | Mikor fordul elő? |
+| --- | --- | --- |
+| – | `validation` | Hiányzó nyugtaszám, nincs címzett, vagy hibás e-mail cím. A kérés el sem indul, lásd [Kérés](/docs/nyugta-kikuldes/keres#kliensoldali-ellenőrzés). |
+| 3 | `auth` | Hibás Agent kulcs. |
+| 339 | `not_found` | Nincs ilyen nyugtaszám. |
+| – | `unexpected_response` | A válasz se sikert, se hibakódot nem jelez. Nem tudni, kiment-e a levél. |
+| – | `network`, `timeout` | Nem tudni, kiment-e a levél. |
+
+<Callout type="warning" title="Bizonytalan kimenetnél ne küldd újra vakon">
+  Hálózati hiba, időtúllépés vagy váratlan válasz után a levél kimehetett. A kasszában nincs
+  lekérdezés, amely megmutatná, hogy egy nyugtát kiküldtek-e, ezért egy újabb `send()` dupla
+  levelet jelenthet. Az `error.retryable` ilyenkor `true`, de ez csak azt mondja, hogy a hiba
+  átmeneti: a `send()` ettől függetlenül egyszer próbálkozik.
+</Callout>
+
+A nyugta a kiküldés hibájától függetlenül kiállított marad. Ezért a kiküldés hibája általában ne állítsa meg a rendelés feldolgozását, elég naplózni és később kézzel ránézni:
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.receipts.send({ receiptNumber: nyugta.number, emails: vevo.email })
+} catch (error) {
+  if (!isSzamlazzError(error)) throw error
+  await kikuldesiHibaMentese(nyugta.number, error.category, error.message)
+}
+```

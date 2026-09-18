@@ -1,0 +1,30 @@
+---
+title: Bizonylat lekérése PDF-ben
+description: Egy korábban kiállított bizonylat PDF-jének letöltése számlaszám, rendelésszám vagy külső azonosító alapján a kassza invoices.getPdf() metódusával.
+official: https://docs.szamlazz.hu/hu/agent/category/query-document-pdf
+---
+
+Ha a kiállításkor nem mentetted el a PDF-et, vagy `downloadPdf: false` beállítással kérted a számlát, később bármikor letöltheted. A kasszában ezt az `invoices.getPdf()` végzi: megmondod, melyik bizonylat kell, és `Uint8Array`-ként visszakapod a PDF-et, a bizonylat számával és végösszegeivel együtt.
+
+```ts
+const { pdf, number } = await kassza.invoices.getPdf({ orderNumber: 'REND-1001' })
+```
+
+<Cards>
+  <Card title="Kérés" href="/docs/bizonylat-pdf/keres">
+    A bizonylat azonosítása számlaszámmal, rendelésszámmal vagy külső azonosítóval.
+  </Card>
+  <Card title="Válasz" href="/docs/bizonylat-pdf/valasz">
+    Az InvoicePdf mezői, letöltés Next.js route-ból, mentés tárhelyre és a hibák.
+  </Card>
+  <Card title="Minta" href="/docs/bizonylat-pdf/minta">
+    Számla PDF nélkül, majd a PDF lekérése rendelésszám alapján a sandboxban.
+  </Card>
+</Cards>
+
+<Callout type="tip" title="Csak a PDF kell, vagy az adatok is?">
+  A `getPdf()` a PDF mellett csak néhány összesítő mezőt ad. Ha a tételekre, a vevőre vagy a
+  befizetésekre is szükséged van, a [Számla adatainak lekérése](/docs/szamla-adatai) műveletet
+  használd, ott az `includePdf: true` a PDF-et is kéri. Nyugta PDF-jét a
+  [Nyugta lekérdezése](/docs/nyugta-lekerdezes) adja `downloadPdf: true` beállítással.
+</Callout>
