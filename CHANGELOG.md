@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.4.0 (2026-09-18)
+
+### Újdonságok
+
+- GitHub Pages engedélyezése a workflow-ban és a README automatikus beállítási lépéseinek frissítése (4e7b910)
+
 ## 0.3.0 (2026-09-18)
 
 ### Újdonságok
