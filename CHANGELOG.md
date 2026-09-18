@@ -1,5 +1,12 @@
 # Változásnapló
 
+## 0.3.0 (2026-09-18)
+
+### Újdonságok
+
+- update GitHub Actions workflow for deployment and add environment variables fix: adjust biome configuration to include web directory and update formatter settings docs: revise deployment instructions in README for GitHub Pages refactor: remove unused Markdown route and update absolute URL function chore: enhance Next.js configuration for static export and base path (e5b29d0)
+- add initial configuration and styles for code blocks and prose (1fa34fa)
+
 ## 0.2.0 (2026-09-17)
 
 ### Újdonságok
