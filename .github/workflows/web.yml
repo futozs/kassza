@@ -70,6 +70,8 @@ jobs:
     steps:
       - name: GitHub Pages beállítása
         uses: actions/configure-pages@v5
+        with:
+          enablement: true
 
       - name: GitHub Pages telepítése
         id: deployment
