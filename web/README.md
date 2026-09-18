@@ -116,7 +116,7 @@ Mindegyik statikusan, a build során készül. Az abszolút URL-ek alapja a `lib
 
 A `main` ágra pusholt minden commit után a `.github/workflows/web.yml` lefuttatja a web lintet, típusellenőrzést, teszteket és statikus exportot, majd siker esetén automatikusan közzéteszi a `web/out` tartalmát a GitHub Pages-en.
 
-Az oldal címe: `https://futozs.github.io/kassza/`. Első alkalommal a repository `Settings > Pages > Build and deployment` részén állítsd a forrást `GitHub Actions` értékre. Ezután a workflow automatikusan telepít minden sikeres `main` buildet.
+Az oldal címe: `https://futozs.github.io/kassza/`. Első alkalommal a repository `Settings > Pages` részén engedélyezd a GitHub Pages-t, majd a `Build and deployment > Source` értékét állítsd `GitHub Actions`-re. Ezt a repository `GITHUB_TOKEN`-je nem tudja automatikusan létrehozni. Ezután a workflow automatikusan telepít minden sikeres `main` buildet.
 
 A GitHub Pages statikus hosting miatt a web Next.js export módban készül, `/kassza` base path-tal. A Markdown runtime route-ok nem részei ennek az exportnak. Az „Utoljára frissítve” dátumokat és a sitemap `lastModified` értékeit a build a git előzményből olvassa, ezért a CI teljes előzménnyel (`fetch-depth: 0`) klónoz.
 

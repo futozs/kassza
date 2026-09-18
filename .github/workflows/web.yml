@@ -59,6 +59,7 @@ jobs:
 
   deploy:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    continue-on-error: true
     needs: check
     runs-on: ubuntu-latest
     permissions:
