@@ -5,6 +5,7 @@ import { RootProviders } from '@/components/site/root-providers'
 import { site } from '@/lib/site'
 import './globals.css'
 import { SpeedInsights } from "@vercel/speed-insights/next"
+import { Analytics } from "@vercel/analytics/next"
 
 const display = Bricolage_Grotesque({
   subsets: ['latin', 'latin-ext'],
