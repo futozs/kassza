@@ -22,7 +22,7 @@ export function Hero({ code, sample, version }: HeroProps) {
             id="hero-title"
             className="font-display text-[length:var(--text-display-s)] leading-[1.02] font-extrabold tracking-[-0.035em] text-balance text-ink [overflow-wrap:anywhere]"
           >
-            A Számla Agent XML-t vár.{' '}
+            A Számlázz.hu Agent XML-t vár.{' '}
             <span className="block text-accent">Te írj TypeScriptet.</span>
           </h1>
           <p className="mt-6 max-w-[34rem] text-[length:var(--text-lede)] leading-relaxed text-ink-2">
