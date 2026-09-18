@@ -1,29 +1,18 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "root": true,
+  "root": false,
+  "extends": "//",
   "files": {
     "includes": [
       "**",
       "!.next",
       "!.source",
-      "!out",
       "!node_modules",
       "!public/monaco",
       "!public/sandbox-runtime",
       "!generated",
       "!next-env.d.ts"
     ]
-  },
-  "formatter": {
-    "indentStyle": "space",
-    "indentWidth": 2,
-    "lineWidth": 100
-  },
-  "javascript": {
-    "formatter": {
-      "quoteStyle": "single",
-      "semicolons": "asNeeded"
-    }
   },
   "css": {
     "parser": {

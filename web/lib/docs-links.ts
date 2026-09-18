@@ -48,5 +48,5 @@ export function ogImageUrl(page: SluggedPage): string {
 }
 
 export function absoluteUrl(path: string, base: string): string {
-  return new URL(`.${path}`, `${base.replace(/\/+$/, '')}/`).toString()
+  return new URL(path, `${base.replace(/\/+$/, '')}/`).toString()
 }

@@ -114,10 +114,9 @@ Mindegyik statikusan, a build során készül. Az abszolút URL-ek alapja a `lib
 
 ## Deploy (Vercel)
 
-A `main` ágra pusholt minden commit után a `.github/workflows/nextjs.yml` lefuttatja a web lintet, típusellenőrzést és teszteket, majd natív Next.js SSR buildet készít és Vercelre telepít. A Next.js build részeként a sandbox runtime is elkészül.
+1. Importáld a repót a Vercelen, és a **Root Directory** legyen `web`.
+2. A keretrendszer Next.js, a build parancs az alapértelmezett `npm run build` (ez a sandboxot is legenerálja), a Node.js verzió 22 vagy újabb.
+3. Környezeti változó: `NEXT_PUBLIC_SITE_URL` a végleges domainnel, protokollal együtt (`https://<domain>`). Ha nincs megadva, a projekt Vercel production domainje (`VERCEL_PROJECT_PRODUCTION_URL`) lesz az alap; a változóval ez felülírható, ha a canonical URL-eknek más domainre kell mutatniuk.
+4. Az „Utoljára frissítve” dátumokat és a sitemap `lastModified` értékeit a build a git előzményből olvassa. Sekély klónnál egyes dátumok pontatlanok lehetnek, ezért a CI teljes előzménnyel (`fetch-depth: 0`) klónoz.
 
-A workflow-hoz a repository Settings > Secrets and variables > Actions részén ezeket a repository secret-eket kell felvenni: `VERCEL_TOKEN`, `VERCEL_ORG_ID` és `VERCEL_PROJECT_ID`. Ezek a Vercel projekt tokenjéből, szervezetazonosítójából és projektazonosítójából származnak.
-
-A GitHub Pages workflow (`web.yml`) szándékosan csak kézi indításra van állítva. A GitHub Pages nem futtat Node.js szervert, ezért natív SSR-rel és működő sandbox runtime-mal nem kompatibilis. Az „Utoljára frissítve” dátumokat és a sitemap `lastModified` értékeit a build a git előzményből olvassa, ezért a workflow teljes előzménnyel (`fetch-depth: 0`) klónoz.
-
-A csomag saját CI-ja (`ci.yml`) és kiadási folyamata (`release.yml`) a `web/` változásait figyelmen kívül hagyja.
+A `.github/workflows/web.yml` minden `web/**` változásnál lefuttatja a lintet, a típusellenőrzést, a teszteket és a buildet. A csomag saját CI-ja (`ci.yml`) és kiadási folyamata (`release.yml`) a `web/` változásait figyelmen kívül hagyja.
