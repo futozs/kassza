@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.5.1 (2026-09-18)
+
+### Egyéb
+
+- Add initial configuration and documentation for kassza package (8c70254)
+
 ## 0.5.0 (2026-09-18)
 
 ### Újdonságok
