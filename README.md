@@ -4,7 +4,7 @@
 
 <p align="center">
   <b>Számlázz.hu, TypeScriptben, egyszerűbben.</b><br>
-  Nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. Mind a 11 Agent művelet, 0 függőség.
+  Nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. Mind a 11 Agent művelet, 0 függőség, nulla runtime kompromisszum.
 </p>
 
 <p align="center">
