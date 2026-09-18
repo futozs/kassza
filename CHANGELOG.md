@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.6.0 (2026-09-18)
+
+### Újdonságok
+
+- enhance landing page with coverage bars and hero tape (05844fa)
+
 ## 0.5.1 (2026-09-18)
 
 ### Egyéb
