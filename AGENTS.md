@@ -79,7 +79,9 @@ bun run release minor
 3. Runs `npm run ci`.
 4. Writes `package.json` and prepends the entry to `CHANGELOG.md`.
 5. Runs `npm publish`, which asks for the 2FA code. If publishing fails, it rolls back both files.
-6. Syncs the pinned `kassza` version in `web/` (`package.json`, `package-lock.json`, `bun.lock`), commits `release: vX.Y.Z`, tags `vX.Y.Z` and pushes. If the `web/` sync or the push fails, the script exits non-zero after publishing, so the workflow turns red instead of leaving `tests/web-version.test.ts` failing silently.
+6. Writes the released version to `web/kassza-version.json`, commits `release: vX.Y.Z` with it, tags `vX.Y.Z` and pushes. If the push fails, the script exits non-zero after publishing, so the workflow turns red.
+
+The website never lists `kassza` in its own `package.json` or lockfiles. `web/scripts/install-kassza.mjs` reads `web/kassza-version.json` and unpacks exactly that version from npm into `web/node_modules/kassza` before `dev`, `build`, `typecheck` and `test` (the `pre*` scripts), retrying for about two minutes while the registry catches up. `web/lib/site.ts` shows the same version. `tests/web-version.test.ts` checks that the file matches the root `package.json`.
 
 On GitHub, `.github/workflows/release.yml` runs `release:ci` for every push to `main` and exits early when there is no releasable commit. A maintainer can also start it by hand from the Actions tab (`workflow_dispatch`) with `patch`, `minor` or `major` to force a release.
 

@@ -1,4 +1,4 @@
-import kasszaPackage from 'kassza/package.json' with { type: 'json' }
+import kasszaRelease from '../kassza-version.json' with { type: 'json' }
 
 function resolveSiteUrl(): string {
   const explicit = process.env.NEXT_PUBLIC_SITE_URL
@@ -14,7 +14,7 @@ export const site = {
   description:
     'Nem hivatalos, nulla függőségű TypeScript kliens a Számlázz.hu Számla Agenthez: számla, díjbekérő, nyugta, sztornó, befizetés, PDF és adószám-lekérdezés.',
   url: resolveSiteUrl(),
-  version: kasszaPackage.version,
+  version: kasszaRelease.version,
   repo: 'https://github.com/futozs/kassza',
   npm: 'https://www.npmjs.com/package/kassza',
   issues: 'https://github.com/futozs/kassza/issues',

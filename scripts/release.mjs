@@ -7,8 +7,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const packagePath = join(root, 'package.json')
 const changelogPath = join(root, 'CHANGELOG.md')
 const webRoot = join(root, 'web')
-const WEB_SYNC_ATTEMPTS = 6
-const WEB_SYNC_DELAY_MS = 10_000
+const webVersionPath = join(webRoot, 'kassza-version.json')
 
 const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
@@ -68,48 +67,11 @@ function run(command, commandArgs) {
   return result.status === 0
 }
 
-function runInWeb(command, commandArgs) {
-  return spawnSync(command, commandArgs, { cwd: webRoot, stdio: 'inherit' }).status === 0
-}
-
-function commandExists(command) {
-  return spawnSync(command, ['--version'], { stdio: 'ignore' }).status === 0
-}
-
-function pause(ms) {
-  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms)
-}
-
-function syncWebsite(name, version) {
-  if (!existsSync(join(webRoot, 'package.json'))) return { files: [], ok: true }
-  log(`Weboldal: ${name}@${version} a web/package.json-ba és a lockfájlokba`)
-  const install = [
-    'install',
-    `${name}@${version}`,
-    '--save-exact',
-    '--package-lock-only',
-    '--ignore-scripts',
-    '--no-audit',
-    '--no-fund',
-  ]
-  for (let attempt = 1; attempt <= WEB_SYNC_ATTEMPTS; attempt++) {
-    if (runInWeb('npm', install)) {
-      const files = ['web/package.json', 'web/package-lock.json']
-      if (commandExists('bun') && runInWeb('bun', ['install', '--lockfile-only'])) {
-        files.push('web/bun.lock')
-      } else {
-        log('A bun nem érhető el, a web/bun.lock a következő bun install-nál frissül.')
-      }
-      return { files, ok: true }
-    }
-    if (attempt < WEB_SYNC_ATTEMPTS) {
-      log(
-        `A weboldal függőségének frissítése nem sikerült (az npm hibája fent), ${WEB_SYNC_DELAY_MS / 1000} mp múlva újra.`,
-      )
-      pause(WEB_SYNC_DELAY_MS)
-    }
-  }
-  return { files: [], ok: false }
+function writeWebVersion(version) {
+  if (!existsSync(webRoot)) return []
+  writeFileSync(webVersionPath, `${JSON.stringify({ version }, null, 2)}\n`)
+  log(`Weboldal: web/kassza-version.json → ${version}`)
+  return ['web/kassza-version.json']
 }
 
 function lastTag() {
@@ -278,22 +240,15 @@ if (!run('npm', ['publish', '--ignore-scripts'])) {
 process.removeListener('SIGINT', abort)
 process.removeListener('SIGTERM', abort)
 
-const websiteSync = syncWebsite(pkg.name, version)
-git('add', 'package.json', 'CHANGELOG.md', ...websiteSync.files)
+git('add', 'package.json', 'CHANGELOG.md', ...writeWebVersion(version))
 git('commit', '-m', `release: v${version}`)
 git('tag', '-a', `v${version}`, '-m', `v${version}`)
 log(`Kész: https://www.npmjs.com/package/${pkg.name}/v/${version}`)
 
-const pushed = run('git', ['push', '--follow-tags'])
-if (pushed) {
+if (run('git', ['push', '--follow-tags'])) {
   log('A release commit és a tag felment a GitHubra.')
-}
-
-const problems = []
-if (!pushed) problems.push('A git push nem sikerült, futtasd kézzel: git push --follow-tags')
-if (!websiteSync.ok) {
-  problems.push(
-    `A weboldal függőségét nem sikerült frissíteni, a tests/web-version.test.ts addig piros marad. Futtasd kézzel: npm install ${pkg.name}@${version} --save-exact --package-lock-only --prefix web`,
+} else {
+  fail(
+    'A kiadás kint van az npm-en, de a git push nem sikerült. Futtasd kézzel: git push --follow-tags',
   )
 }
-if (problems.length > 0) fail(`A kiadás kint van az npm-en, de:\n  - ${problems.join('\n  - ')}`)

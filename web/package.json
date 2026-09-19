@@ -7,16 +7,21 @@
     "node": ">=22"
   },
   "scripts": {
+    "predev": "npm run kassza:install",
     "dev": "npm run sandbox:build && next dev",
     "dev:next": "next dev",
+    "prebuild": "npm run kassza:install",
     "build": "npm run sandbox:build && next build",
     "start": "next start",
     "sandbox:build": "node scripts/build-sandbox.mjs",
+    "pretypecheck": "npm run kassza:install",
     "typecheck": "npm run sandbox:build && next typegen && tsc --noEmit",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
+    "pretest": "npm run kassza:install",
     "test": "vitest run",
-    "ci": "npm run lint && npm run typecheck && npm run test && npm run build"
+    "ci": "npm run lint && npm run typecheck && npm run test && npm run build",
+    "kassza:install": "node scripts/install-kassza.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -27,7 +32,6 @@
     "fumadocs-core": "16.15.11",
     "fumadocs-mdx": "15.4.1",
     "fumadocs-twoslash": "4.0.1",
-    "kassza": "0.6.0",
     "lucide-react": "^1.47.0",
     "lz-string": "1.5.0",
     "monaco-editor": "0.56.0",

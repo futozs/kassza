@@ -17,8 +17,6 @@ updates:
     commit-message:
       prefix: chore
       include: scope
-    ignore:
-      - dependency-name: kassza
     groups:
       web-dependencies:
         patterns: ['*']
