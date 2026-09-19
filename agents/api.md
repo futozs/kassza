@@ -190,7 +190,8 @@ createMockKassza({ defaults?, taxpayers?: Record<taxpayerId, TaxpayerInfo>, cred
 - `parseIpnNotification(body: string | URLSearchParams | FormData | Record<string, string>): IpnNotification`
 - `IpnNotification` is `{ invoiceNumber, proformaNumber?, orderNumber?, grossTotal, paidAmount, paymentMethod?, paymentDate?, isFullyPaid, raw }`.
 - `ipnOkResponse(): Response`
-- `isSzamlazzIp(ip)` and `SZAMLAZZ_OUTBOUND_IPS`.
+- `isSzamlazzIp(ip, { trustedProxies?, allowedIps? })` and `SZAMLAZZ_OUTBOUND_IPS`. `ip` may be an `x-forwarded-for` list: the rightmost entry is checked, after skipping `trustedProxies` entries.
+- `readIpnNotification` rejects bodies above `MAX_IPN_BODY_BYTES` (64 KiB) with a `validation` error.
 
 ### `kassza/validators`
 

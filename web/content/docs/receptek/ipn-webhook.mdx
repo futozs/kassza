@@ -81,9 +81,10 @@ A `readIpnNotification()` elfogad `application/x-www-form-urlencoded` és `multi
 ## Buktatók
 
 <Callout type="warning" title="Az x-forwarded-for fejlécet a kliens is beállíthatja">
-  Az `isSzamlazzIp()` a fejléc első címét vizsgálja. Ez csak olyan proxy mögött megbízható, amely
-  felülírja a fejlécet, például Vercelen. Cloudflare mögött a `cf-connecting-ip` fejlécet add át.
-  A recept ezért nem az értesítés összegeiben bízik, hanem a lekérdezett számlában.
+  Az `isSzamlazzIp()` a fejléc jobb szélső címét vizsgálja, azt, amelyet a hozzád legközelebbi
+  proxy látott. Több proxy mögött add meg a `trustedProxies` opciót, Cloudflare mögött pedig
+  érdemes a `cf-connecting-ip` fejlécet átadni. A recept ezért sem az értesítés összegeiben bízik,
+  hanem a lekérdezett számlában.
 </Callout>
 
 <Callout type="warning" title="Írd felül az állapotot, ne adj hozzá">

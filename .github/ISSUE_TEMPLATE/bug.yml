@@ -1,0 +1,44 @@
+name: Hibajelentés
+description: Hibásan működik valami a kasszában
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Ne másold be az Agent kulcsot, jelszót vagy valódi vevői adatot. A hibaüzenetből és a kérésből töröld ki ezeket.
+  - type: input
+    id: version
+    attributes:
+      label: kassza verzió
+      placeholder: 0.6.0
+    validations:
+      required: true
+  - type: input
+    id: runtime
+    attributes:
+      label: Futtatókörnyezet
+      description: Node, Cloudflare Workers, Bun vagy Deno, a verzióval együtt.
+      placeholder: Node 22.12
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Mit csináltál?
+      description: A lehető legkisebb kód, amivel a hiba reprodukálható.
+      render: ts
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Mit vártál?
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Mi történt helyette?
+      description: A teljes hibaüzenet, a `category`, a `code` és a `hint` mezőkkel együtt.
+    validations:
+      required: true

@@ -47,7 +47,7 @@ export async function POST(request: Request) {
 
 A route csak akkor jelöli fizetettnek a rendelést, és csak akkor küld visszaigazolást, ha a rendelés még nem volt fizetett. Így egy ismételten beérkező értesítés nem küld második e-mailt. Ha a feldolgozás hibát dob, a Next.js 500-as státusszal válaszol, és a Számlázz.hu később újraküldi az értesítést.
 
-Az `x-forwarded-for` fejléc csak megbízható proxy mögött használható. Vercelen ez teljesül, más környezetben olvasd el [lent](#az-x-forwarded-for-fejléc), melyik fejlécet használd.
+Az `isSzamlazzIp()` az `x-forwarded-for` fejléc jobb szélső címét vizsgálja, azt, amelyet a hozzád legközelebbi proxy látott. Vercelen ez a kliens címe. Több proxy mögött add meg a `trustedProxies` opciót, a részleteket [lent](#az-x-forwarded-for-fejléc) olvashatod.
 
 ## Más keretrendszerben
 
@@ -100,10 +100,10 @@ Az `x-forwarded-for` fejléc csak megbízható proxy mögött használható. Ver
 
 | Export | Leírás |
 | --- | --- |
-| `readIpnNotification(request: Request)` | Beolvassa a kérést, és `Promise<IpnNotification>`-t ad. `multipart/form-data` törzset is kezel, üres törzsnél az URL query paramétereit olvassa. |
+| `readIpnNotification(request: Request)` | Beolvassa a kérést, és `Promise<IpnNotification>`-t ad. `multipart/form-data` törzset is kezel, üres törzsnél az URL query paramétereit olvassa. A `MAX_IPN_BODY_BYTES` (64 KiB) fölötti törzset `validation` hibával elutasítja. |
 | `parseIpnNotification(input)` | Ugyanez már beolvasott adatból: szövegből, `URLSearchParams`-ból, `FormData`-ból vagy `Record<string, string>` objektumból. |
 | `ipnOkResponse()` | HTTP 200 `Response`, `OK` törzzsel. |
-| `isSzamlazzIp(ip: string)` | `true`, ha a cím a Számlázz.hu egyik küldő címe. |
+| `isSzamlazzIp(ip: string \| null \| undefined, options?)` | `true`, ha a cím a Számlázz.hu egyik küldő címe. Az `options.trustedProxies` a jobbról átugrandó megbízható proxyk száma (alapérték: `0`), az `options.allowedIps` a küldő címek egyedi listája. |
 | `SZAMLAZZ_OUTBOUND_IPS` | A küldő IP-címek listája. |
 | `IPN_FIELDS` | Az `IpnNotification` mezőneveit a Számlázz.hu paraméterneveire képezi. |
 | `parseIpnAmount(value: string)` | Egy IPN összeget alakít számmá, értelmezhetetlen szövegnél `undefined`. |
@@ -166,23 +166,28 @@ A Számlázz.hu az értesítéseket 2025. augusztus 1. óta az alábbi címekrő
 
 <OutboundIpTable />
 
-Az `isSzamlazzIp()` a vizsgálat előtt egységes alakra hozza a címet: vesszővel elválasztott listából az első elemet veszi, levágja a szóközöket és a portot, és kezeli a `[...]:port` alakot és az IPv4-et IPv6-ba ágyazó `::ffff:` előtagot.
+Az `isSzamlazzIp()` a vizsgálat előtt egységes alakra hozza a címet: vesszővel elválasztott listából a jobb szélső elemet veszi (a `trustedProxies` számú megbízható proxy címét átugorva), levágja a szóközöket és a portot, és kezeli a `[...]:port` alakot és az IPv4-et IPv6-ba ágyazó `::ffff:` előtagot.
 
 ### Az x-forwarded-for fejléc
 
 <Callout type="warning" title="A kliens is írhat bele">
-  Az `x-forwarded-for` fejlécet bárki beállíthatja a kérésében. Az `isSzamlazzIp()` a fejléc
-  első címét vizsgálja, ezért ha a proxyd nem felülírja, hanem kiegészíti a fejlécet, egy támadó
-  a Számlázz.hu címével hamis értesítést küldhet. Csak akkor használd, ha biztosan tudod, hogy a
-  proxyd felülírja.
+  Az `x-forwarded-for` fejlécet bárki beállíthatja a kérésében, a proxyk pedig a fejléc **végére**
+  fűzik a látott címet. Ezért az `isSzamlazzIp()` a jobb szélső elemet vizsgálja, a bal oldali
+  részt a kliens hamisíthatja. Ha egynél több proxy áll előtted, a `trustedProxies` opcióval add
+  meg, hány jobb szélső címet ugorjon át. Ha ezt nem teszed, a valódi Számlázz.hu értesítést is
+  elutasíthatja, de hamisat nem fogad el.
 </Callout>
 
 | Környezet | Honnan olvasd a kliens címét? |
 | --- | --- |
-| Vercel | `x-forwarded-for` vagy `x-real-ip`: a Vercel felülírja őket. |
-| Cloudflare (Workers vagy proxy) | `cf-connecting-ip`. Az `x-forwarded-for` elején a kliens által küldött érték maradhat. |
-| Saját nginx | `proxy_set_header X-Real-IP $remote_addr;` után az `x-real-ip`. A `$proxy_add_x_forwarded_for` csak hozzáfűz, így az első címet a kliens adja. |
+| Vercel | `x-forwarded-for` vagy `x-real-ip`: a Vercel felülírja őket, az alapbeállítás megfelel. |
+| Cloudflare (Workers vagy proxy) | `cf-connecting-ip`. Az `x-forwarded-for` jobb szélső eleme is a kliens címe, ha Cloudflare után nincs másik proxy. |
+| Saját nginx | A `$proxy_add_x_forwarded_for` a kliens címét fűzi a fejléc végére, ezt olvassa az alapbeállítás. Ha nginx előtt is van proxy (például load balancer), add meg `{ trustedProxies: 1 }`-et. |
 | Express | `app.set('trust proxy', ...)` beállítás után a `req.ip`, a proxyk számának megfelelő értékkel. |
+
+```ts
+isSzamlazzIp(request.headers.get('x-forwarded-for'), { trustedProxies: 1 })
+```
 
 A Számlázz.hu dokumentációja az értesítéshez nem ír le aláírást, így a küldő címén kívül nincs mivel ellenőrizned a hitelességét. Ha egy értesítés alapján nagy értékű műveletet indítasz (például kiszállítást), előtte kérdezd le a számlát a `kassza.invoices.get()` metódussal, és a `payments` lista alapján dönts.
 

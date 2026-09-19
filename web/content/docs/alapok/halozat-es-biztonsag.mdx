@@ -35,7 +35,7 @@ A lista a kódban is elérhető, és az `isSzamlazzIp()` ellenőrzi, hogy egy c�
 import { ipnOkResponse, isSzamlazzIp, readIpnNotification } from 'kassza/ipn'
 
 export async function POST(request: Request) {
-  const ip = request.headers.get('x-forwarded-for') ?? ''
+  const ip = request.headers.get('x-forwarded-for')
   if (!isSzamlazzIp(ip)) return new Response('Tiltott', { status: 403 })
 
   const ertesites = await readIpnNotification(request)
@@ -45,11 +45,11 @@ export async function POST(request: Request) {
 ```
 
 <Callout type="warning" title="Csak megbízható proxy mögött">
-  Az `x-forwarded-for` fejlécet a kliens is beállíthatja, és az `isSzamlazzIp()` a fejléc első
-  címét vizsgálja. A fenti példa Vercelen biztonságos, mert a Vercel felülírja ezt a fejlécet. A
-  Cloudflare és az nginx szokásos beállítása viszont csak hozzáfűz, ezért ott a `cf-connecting-ip`,
-  illetve a `proxy_set_header X-Real-IP $remote_addr` után az `x-real-ip` fejlécet ellenőrizd.
-  Platformonkénti táblázatot az [IPN](/docs/befizetes-rogzitese/ipn) oldalon találsz.
+  Az `x-forwarded-for` fejlécet a kliens is beállíthatja, ezért az `isSzamlazzIp()` a fejléc jobb
+  szélső címét vizsgálja, azt, amelyet a hozzád legközelebbi proxy fűzött hozzá. Ha egynél több
+  proxy áll előtted, add meg a `trustedProxies` opcióval, hányat ugorjon át. Cloudflare mögött a
+  `cf-connecting-ip` fejlécet is átadhatod. Platformonkénti táblázatot az
+  [IPN](/docs/befizetes-rogzitese/ipn) oldalon találsz.
 </Callout>
 
 ## Időkorlát

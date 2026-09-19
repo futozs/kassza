@@ -1,3 +1,4 @@
+import { decodeUtf8 } from '../core/binary'
 import { SzamlazzError } from '../core/errors'
 
 export type IpnInput = string | URLSearchParams | FormData | Readonly<Record<string, string>>
@@ -25,6 +26,8 @@ export const IPN_FIELDS = {
 } as const
 
 const AMOUNT_TOLERANCE = 0.005
+
+export const MAX_IPN_BODY_BYTES = 65_536
 
 function ipnError(message: string): SzamlazzError {
   return new SzamlazzError(message, { category: 'validation' })
@@ -109,12 +112,49 @@ export function parseIpnNotification(input: IpnInput): IpnNotification {
   }
 }
 
+function bodyTooLarge(): SzamlazzError {
+  return ipnError(
+    `Az IPN kérés törzse túl nagy, legfeljebb ${MAX_IPN_BODY_BYTES} bájt fogadható el.`,
+  )
+}
+
+function assertDeclaredSize(request: Request): void {
+  const declared = Number(request.headers.get('content-length'))
+  if (Number.isFinite(declared) && declared > MAX_IPN_BODY_BYTES) throw bodyTooLarge()
+}
+
+async function readLimitedText(request: Request): Promise<string> {
+  assertDeclaredSize(request)
+  if (!request.body) return ''
+  const reader = request.body.getReader()
+  const chunks: Uint8Array[] = []
+  let total = 0
+  let chunk = await reader.read()
+  while (!chunk.done) {
+    total += chunk.value.byteLength
+    if (total > MAX_IPN_BODY_BYTES) {
+      await reader.cancel().catch(() => undefined)
+      throw bodyTooLarge()
+    }
+    chunks.push(chunk.value)
+    chunk = await reader.read()
+  }
+  const bytes = new Uint8Array(total)
+  let offset = 0
+  for (const part of chunks) {
+    bytes.set(part, offset)
+    offset += part.byteLength
+  }
+  return decodeUtf8(bytes)
+}
+
 export async function readIpnNotification(request: Request): Promise<IpnNotification> {
   const contentType = request.headers.get('content-type')?.toLowerCase() ?? ''
   if (contentType.includes('multipart/form-data')) {
+    assertDeclaredSize(request)
     return parseIpnNotification(await request.formData())
   }
-  const body = await request.text()
+  const body = await readLimitedText(request)
   if (body.trim() === '') {
     return parseIpnNotification(new URL(request.url).searchParams)
   }

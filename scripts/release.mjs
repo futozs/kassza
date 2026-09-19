@@ -28,8 +28,10 @@ const SECTIONS = [
   ['feat', 'Újdonságok'],
   ['fix', 'Javítások'],
   ['perf', 'Gyorsítások'],
-  ['other', 'Egyéb'],
 ]
+
+const RELEASE_TYPES = new Set(['feat', 'fix', 'perf'])
+const NON_LIBRARY_PATHSPEC = ['--', '.', ':(exclude)web']
 
 function log(message) {
   process.stdout.write(`${GREEN}▸${RESET} ${message}\n`)
@@ -79,7 +81,7 @@ function pause(ms) {
 }
 
 function syncWebsite(name, version) {
-  if (!existsSync(join(webRoot, 'package.json'))) return []
+  if (!existsSync(join(webRoot, 'package.json'))) return { files: [], ok: true }
   log(`Weboldal: ${name}@${version} a web/package.json-ba és a lockfájlokba`)
   const install = [
     'install',
@@ -98,17 +100,16 @@ function syncWebsite(name, version) {
       } else {
         log('A bun nem érhető el, a web/bun.lock a következő bun install-nál frissül.')
       }
-      return files
+      return { files, ok: true }
     }
     if (attempt < WEB_SYNC_ATTEMPTS) {
-      log(`Az npm registry még nem adja a ${version}-t, ${WEB_SYNC_DELAY_MS / 1000} mp múlva újra.`)
+      log(
+        `A weboldal függőségének frissítése nem sikerült (az npm hibája fent), ${WEB_SYNC_DELAY_MS / 1000} mp múlva újra.`,
+      )
       pause(WEB_SYNC_DELAY_MS)
     }
   }
-  log(
-    `A weboldal függőségét nem sikerült frissíteni, futtasd kézzel: npm install ${name}@${version} --save-exact --prefix web`,
-  )
-  return []
+  return { files: [], ok: false }
 }
 
 function lastTag() {
@@ -119,9 +120,19 @@ function lastTag() {
   }
 }
 
+function isReleasable(commit) {
+  return commit.breaking || RELEASE_TYPES.has(commit.type)
+}
+
 function readCommits(since) {
   const range = since ? [`${since}..HEAD`] : []
-  const raw = git('log', ...range, '--no-merges', '--pretty=format:%h%x1f%s%x1f%b%x1e')
+  const raw = git(
+    'log',
+    ...range,
+    '--no-merges',
+    '--pretty=format:%h%x1f%s%x1f%b%x1e',
+    ...NON_LIBRARY_PATHSPEC,
+  )
   return raw
     .split(RECORD_SEPARATOR)
     .map((entry) => entry.trim())
@@ -135,7 +146,7 @@ function readCommits(since) {
       const text = match?.[4] ?? subject
       return { hash, type, breaking, text: scope ? `**${scope}:** ${text}` : text }
     })
-    .filter((commit) => commit.breaking || (commit.type !== 'release' && commit.type !== 'chore'))
+    .filter(isReleasable)
 }
 
 function detectBump(commits, currentVersion) {
@@ -155,9 +166,7 @@ function nextVersion(version, bump) {
 }
 
 function sectionOf(commit) {
-  if (commit.breaking) return 'breaking'
-  if (commit.type === 'feat' || commit.type === 'fix' || commit.type === 'perf') return commit.type
-  return 'other'
+  return commit.breaking ? 'breaking' : commit.type
 }
 
 function renderChangelogEntry(version, commits) {
@@ -204,6 +213,10 @@ if (ciMode) log('CI mód: publikálás OIDC Trusted Publisher-en keresztül, npm
 
 const previousTag = lastTag()
 const commits = readCommits(previousTag)
+if (ciMode && commits.length === 0 && !requestedBump) {
+  log('Nincs kiadásra érdemes változás (feat, fix, perf vagy törő változás a web/ mappán kívül).')
+  process.exit(0)
+}
 const bump = detectBump(commits, pkg.version)
 const version = nextVersion(pkg.version, bump)
 const entry = renderChangelogEntry(version, commits)
@@ -265,13 +278,22 @@ if (!run('npm', ['publish', '--ignore-scripts'])) {
 process.removeListener('SIGINT', abort)
 process.removeListener('SIGTERM', abort)
 
-git('add', 'package.json', 'CHANGELOG.md', ...syncWebsite(pkg.name, version))
+const websiteSync = syncWebsite(pkg.name, version)
+git('add', 'package.json', 'CHANGELOG.md', ...websiteSync.files)
 git('commit', '-m', `release: v${version}`)
 git('tag', '-a', `v${version}`, '-m', `v${version}`)
 log(`Kész: https://www.npmjs.com/package/${pkg.name}/v/${version}`)
 
-if (run('git', ['push', '--follow-tags'])) {
+const pushed = run('git', ['push', '--follow-tags'])
+if (pushed) {
   log('A release commit és a tag felment a GitHubra.')
-} else {
-  log('A git push nem sikerült, futtasd kézzel: git push --follow-tags')
 }
+
+const problems = []
+if (!pushed) problems.push('A git push nem sikerült, futtasd kézzel: git push --follow-tags')
+if (!websiteSync.ok) {
+  problems.push(
+    `A weboldal függőségét nem sikerült frissíteni, a tests/web-version.test.ts addig piros marad. Futtasd kézzel: npm install ${pkg.name}@${version} --save-exact --package-lock-only --prefix web`,
+  )
+}
+if (problems.length > 0) fail(`A kiadás kint van az npm-en, de:\n  - ${problems.join('\n  - ')}`)

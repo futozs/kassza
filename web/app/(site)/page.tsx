@@ -200,7 +200,7 @@ export default async function HomePage() {
 
   return (
     <>
-      <Hero code={heroCode} sample={sample} version={site.version} stats={siteStats()} />
+      <Hero code={heroCode} version={site.version} stats={siteStats()} />
       <RouteSection />
       <ComparisonSection rows={mappingRows} />
       <PitfallsSection sample={sample} error={xmlErrorSample()} />

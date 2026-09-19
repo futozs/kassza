@@ -1,0 +1,21 @@
+name: Új funkció
+description: Javaslat egy hiányzó funkcióra
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Mi a probléma, amit ez megoldana?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Hogyan nézne ki a használata?
+      render: ts
+  - type: input
+    id: docs
+    attributes:
+      label: Hivatkozás a Számlázz.hu docsra
+      description: Ha a funkció egy Agent műveletre vagy mezőre épül, add meg a docs oldalát.
+      placeholder: https://docs.szamlazz.hu/hu/agent/

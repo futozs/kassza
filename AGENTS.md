@@ -75,12 +75,14 @@ bun run release minor
 `scripts/release.mjs` performs a release in this order:
 
 1. Checks that the working tree is clean and on `main`, and that you are logged in to npm.
-2. Picks the next version from Conventional Commits since the last `v*` tag. `feat` bumps minor, `fix` and others bump patch, and `!` or `BREAKING CHANGE` bumps major (minor while on 0.x).
+2. Picks the next version from the releasable Conventional Commits since the last `v*` tag: `feat`, `fix`, `perf` and breaking ones, ignoring commits that only touch `web/`. `feat` bumps minor, `fix` and `perf` bump patch, and `!` or `BREAKING CHANGE` bumps major (minor while on 0.x). Other types (`docs`, `test`, `refactor`, `chore`, `ci` and non-conventional messages) never release and never reach the changelog.
 3. Runs `npm run ci`.
 4. Writes `package.json` and prepends the entry to `CHANGELOG.md`.
 5. Runs `npm publish`, which asks for the 2FA code. If publishing fails, it rolls back both files.
-6. Commits `release: vX.Y.Z`, tags `vX.Y.Z` and pushes.
+6. Syncs the pinned `kassza` version in `web/` (`package.json`, `package-lock.json`, `bun.lock`), commits `release: vX.Y.Z`, tags `vX.Y.Z` and pushes. If the `web/` sync or the push fails, the script exits non-zero after publishing, so the workflow turns red instead of leaving `tests/web-version.test.ts` failing silently.
+
+On GitHub, `.github/workflows/release.yml` runs `release:ci` for every push to `main` and exits early when there is no releasable commit. A maintainer can also start it by hand from the Actions tab (`workflow_dispatch`) with `patch`, `minor` or `major` to force a release.
 
 Write commit messages as Conventional Commits (`feat: ...`, `fix: ...`) so the changelog groups them.
 
-Releases and pushes happen only when the owner explicitly asks for them.
+Locally, releases and pushes happen only when the owner explicitly asks for them.

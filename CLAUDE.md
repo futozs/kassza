@@ -1,6 +1,6 @@
 # kassza
 
-Nyílt forráskódú, nem hivatalos Számlázz.hu Számla Agent kliens (TypeScript, npm csomag). A teljes terv, a fázisok és a döntések a `PLAN.md`-ben vannak: munka előtt olvasd el.
+Nyílt forráskódú, nem hivatalos Számlázz.hu Számla Agent kliens (TypeScript, npm csomag). Az architektúra, a konvenciók és a release folyamat az `AGENTS.md`-ben van: munka előtt olvasd el.
 
 ## Források
 - Hivatalos docs: https://docs.szamlazz.hu/hu/agent/
@@ -23,4 +23,4 @@ A részletes útmutató AI agenteknek: `AGENTS.md`.
 - `npm run readme`: a `README.md` generált fájl, kézzel ne szerkeszd. A forrás a `readme/template.md`, a változók (például a weboldal URL-je) a `readme/config.json`-ban vannak. Részletek: `AGENTS.md`.
 
 ## Publikálás
-A `package.json`-ban `"private": true` van, amíg a csomagnév nincs eldöntve. npm publish, GitHub repo létrehozás és push csak a tulajdonos kifejezett kérésére történhet.
+A csomag publikus az npm-en (`kassza`), a kiadást a GitHub Actions végzi a `main`-re érkező `feat`, `fix`, `perf` és törő commitokból (`.github/workflows/release.yml`, `scripts/release.mjs`). Helyi npm publish, commit és push csak a tulajdonos kifejezett kérésére történhet.

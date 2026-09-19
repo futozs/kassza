@@ -17,10 +17,26 @@ const NAMED_ENTITIES: Readonly<Record<string, string>> = {
   apos: "'",
 }
 
+const MAX_CODE_POINT = 0x10ffff
+const MIN_SURROGATE = 0xd800
+const MAX_SURROGATE = 0xdfff
+
+function codePointToString(codePoint: number, fallback: string): string {
+  const isValid =
+    Number.isInteger(codePoint) &&
+    codePoint >= 0 &&
+    codePoint <= MAX_CODE_POINT &&
+    (codePoint < MIN_SURROGATE || codePoint > MAX_SURROGATE)
+  return isValid ? String.fromCodePoint(codePoint) : fallback
+}
+
 function decodeEntities(value: string): string {
   return value.replace(/&(#x[0-9a-fA-F]+|#\d+|[a-zA-Z]+);/g, (match, entity: string) => {
-    if (entity.startsWith('#x')) return String.fromCodePoint(Number.parseInt(entity.slice(2), 16))
-    if (entity.startsWith('#')) return String.fromCodePoint(Number.parseInt(entity.slice(1), 10))
+    if (entity.startsWith('#x')) {
+      return codePointToString(Number.parseInt(entity.slice(2), 16), match)
+    }
+    if (entity.startsWith('#'))
+      return codePointToString(Number.parseInt(entity.slice(1), 10), match)
     return NAMED_ENTITIES[entity] ?? match
   })
 }
@@ -47,6 +63,21 @@ function parseAttributes(source: string): Record<string, string> {
     attributes[name] = decodeEntities(doubleQuoted ?? singleQuoted ?? '')
   }
   return attributes
+}
+
+function findTagEnd(xml: string, from: number): number {
+  let quote: string | undefined
+  for (let index = from; index < xml.length; index++) {
+    const char = xml[index]
+    if (quote !== undefined) {
+      if (char === quote) quote = undefined
+    } else if (char === '"' || char === "'") {
+      quote = char
+    } else if (char === '>') {
+      return index
+    }
+  }
+  return -1
 }
 
 function skipUntil(xml: string, from: number, terminator: string): number {
@@ -93,7 +124,7 @@ export function parseXml(xml: string): XmlElement {
       continue
     }
 
-    const tagEnd = xml.indexOf('>', tagStart)
+    const tagEnd = findTagEnd(xml, tagStart + 1)
     if (tagEnd === -1) throw new XmlParseError('Lezáratlan XML tag')
     const rawTag = xml.slice(tagStart + 1, tagEnd)
     position = tagEnd + 1

@@ -55,6 +55,12 @@ describe('formatXmlNumber', () => {
     expect(() => formatXmlNumber(Number.NaN)).toThrow(RangeError)
     expect(() => formatXmlNumber(Number.POSITIVE_INFINITY)).toThrow(RangeError)
   })
+
+  test('a biztonságos egész tartományon kívüli számra RangeError-t dob', () => {
+    expect(formatXmlNumber(Number.MAX_SAFE_INTEGER)).toBe('9007199254740991')
+    expect(() => formatXmlNumber(1e21)).toThrow(RangeError)
+    expect(() => formatXmlNumber(-(2 ** 60))).toThrow(RangeError)
+  })
 })
 
 describe('buildXmlDocument', () => {
@@ -158,6 +164,23 @@ describe('parseXml', () => {
     const root = parseXml('<a><b>&lt;&gt;&amp;&quot;&apos;&#337;&#x171;&nbsp;</b></a>')
 
     expect(childText(root, 'b')).toBe(`<>&"'őű&nbsp;`)
+  })
+
+  test('az érvénytelen kódpontú numerikus entitást érintetlenül hagyja', () => {
+    const root = parseXml('<a><b>&#x110000;&#99999999999999999999;&#xD800;&#65;</b></a>')
+
+    expect(childText(root, 'b')).toBe('&#x110000;&#99999999999999999999;&#xD800;A')
+  })
+
+  test('a > jelet tartalmazó attribútumértéket nem vágja el', () => {
+    const root = parseXml('<a title="x > y" note=\'a>b\'><b>szöveg</b></a>')
+
+    expect(root.attributes).toEqual({ title: 'x > y', note: 'a>b' })
+    expect(childText(root, 'b')).toBe('szöveg')
+  })
+
+  test('lezáratlan idézőjelű attribútumnál XmlParseError-t dob', () => {
+    expect(() => parseXml('<a title="x>y</a>')).toThrow(XmlParseError)
   })
 
   test('önzáró elemeket és azonos nevű testvéreket is kezel', () => {

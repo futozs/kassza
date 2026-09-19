@@ -30,13 +30,13 @@ describe('memoryCookieStore', () => {
 })
 
 describe('sessionKeyFor', () => {
-  test('determinisztikus, és nem tartalmazza a titkot', () => {
-    const key = sessionKeyFor('titkos-agent-kulcs')
+  test('determinisztikus, és nem tartalmazza a titkot', async () => {
+    const key = await sessionKeyFor('titkos-agent-kulcs')
 
-    expect(key).toBe(sessionKeyFor('titkos-agent-kulcs'))
+    expect(key).toBe(await sessionKeyFor('titkos-agent-kulcs'))
     expect(key).not.toContain('titkos')
-    expect(key).toMatch(/^szamlazz:session:[0-9a-f]{28}$/)
-    expect(sessionKeyFor('masik-kulcs')).not.toBe(key)
+    expect(key).toMatch(/^szamlazz:session:[0-9a-f]{64}$/)
+    expect(await sessionKeyFor('masik-kulcs')).not.toBe(key)
   })
 })
 

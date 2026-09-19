@@ -18,8 +18,8 @@ jobs:
       matrix:
         node: [22, 24, 26]
     steps:
-      - uses: actions/checkout@v5
-      - uses: actions/setup-node@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
         with:
           node-version: ${{ matrix.node }}
           cache: npm
@@ -30,5 +30,10 @@ jobs:
       - run: npm run typecheck
       - run: npm run readme:check
       - run: npm run test:coverage
+      - name: Élő tesztfiók smoke teszt
+        if: matrix.node == 24 && github.event_name == 'push'
+        env:
+          SZAMLAZZ_TEST_AGENT_KEY: ${{ secrets.SZAMLAZZ_TEST_AGENT_KEY }}
+        run: npx vitest run tests/live.test.ts
       - run: npm run build
       - run: npm run check:package

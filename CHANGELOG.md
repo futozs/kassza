@@ -31,17 +31,7 @@
 
 ### Egyéb
 
-- asd (7b88b06)
-- n (8eb15bf)
 - add vercel configuration for Next.js deployment (3978405)
-- asd (810ab5c)
-- asd (cefe99a)
-- asd (9ab4859)
-- aasd (f1c62a0)
-- asd (74a8442)
-- asd (9551457)
-- Create nextjs.yml (abbd379)
-- Initial plan (820d084)
 
 ## 0.4.0 (2026-09-18)
 

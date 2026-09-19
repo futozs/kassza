@@ -3,6 +3,7 @@ import { SzamlazzError } from '../core/errors'
 import {
   IPN_FIELDS,
   ipnOkResponse,
+  MAX_IPN_BODY_BYTES,
   parseIpnAmount,
   parseIpnNotification,
   readIpnNotification,
@@ -224,6 +225,66 @@ describe('readIpnNotification', () => {
     const request = new Request('https://example.hu/ipn', { method: 'POST', body: '' })
 
     await expect(readIpnNotification(request)).rejects.toMatchObject({ category: 'validation' })
+  })
+
+  test('a túl nagy törzset a content-length alapján elutasítja', async () => {
+    const request = new Request('https://example.hu/ipn', {
+      method: 'POST',
+      headers: { 'content-length': String(MAX_IPN_BODY_BYTES + 1) },
+      body: FULL_BODY,
+    })
+
+    await expect(readIpnNotification(request)).rejects.toMatchObject({ category: 'validation' })
+  })
+
+  test('a content-length nélkül érkező túl nagy törzset olvasás közben állítja le', async () => {
+    const chunk = new Uint8Array(MAX_IPN_BODY_BYTES / 2 + 1)
+    let sent = 0
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        sent += 1
+        controller.enqueue(chunk)
+        if (sent > 4) controller.close()
+      },
+    })
+    const request = new Request('https://example.hu/ipn', {
+      method: 'POST',
+      body: stream,
+      duplex: 'half',
+    } as RequestInit)
+
+    await expect(readIpnNotification(request)).rejects.toMatchObject({ category: 'validation' })
+    expect(sent).toBeLessThan(5)
+  })
+
+  test('a multipart törzsnél is ellenőrzi a deklarált méretet', async () => {
+    const formData = new FormData()
+    for (const [key, value] of Object.entries(FULL_FIELDS)) formData.append(key, value)
+    const request = new Request('https://example.hu/ipn', {
+      method: 'POST',
+      headers: { 'content-length': String(MAX_IPN_BODY_BYTES + 1) },
+      body: formData,
+    })
+
+    await expect(readIpnNotification(request)).rejects.toMatchObject({ category: 'validation' })
+  })
+
+  test('a limiten belüli, több darabban érkező törzset összefűzi', async () => {
+    const bytes = new TextEncoder().encode(FULL_BODY)
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(bytes.slice(0, 10))
+        controller.enqueue(bytes.slice(10))
+        controller.close()
+      },
+    })
+    const request = new Request('https://example.hu/ipn', {
+      method: 'POST',
+      body: stream,
+      duplex: 'half',
+    } as RequestInit)
+
+    await expect(readIpnNotification(request)).resolves.toEqual(EXPECTED_FULL)
   })
 })
 

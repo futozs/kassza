@@ -152,6 +152,16 @@ async function ignoreStoreFailure<T>(operation: () => T | Promise<T>): Promise<T
   }
 }
 
+function callHook<T>(hook: ((event: T) => void) | undefined, event: T): void {
+  if (!hook) return
+  try {
+    const result: unknown = hook(event)
+    if (result instanceof Promise) result.catch(() => undefined)
+  } catch {
+    return
+  }
+}
+
 function clampAttempts(value: number | undefined): number {
   if (value === undefined) return DEFAULT_SAFE_ATTEMPTS
   if (!Number.isInteger(value) || value < 1) {
@@ -172,12 +182,17 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
   const retryDelayMs = options.retryDelayMs ?? DEFAULT_RETRY_DELAY_MS
   const cookieStore =
     options.cookieStore === false ? undefined : (options.cookieStore ?? memoryCookieStore())
-  const sessionKey = sessionKeyFor(credentials.map((node) => String(node.content)).join('|'))
+  const sessionSecret = credentials.map((node) => String(node.content)).join('|')
+  let sessionKeyPromise: Promise<string> | undefined
+  const resolveSessionKey = (): Promise<string> => {
+    sessionKeyPromise ??= sessionKeyFor(sessionSecret)
+    return sessionKeyPromise
+  }
   const hooks = options.hooks ?? {}
 
   async function send(request: AgentRequest): Promise<AgentResponse> {
     const cookie = cookieStore
-      ? await ignoreStoreFailure(() => cookieStore.get(sessionKey))
+      ? await ignoreStoreFailure(async () => cookieStore.get(await resolveSessionKey()))
       : undefined
     request.signal?.throwIfAborted()
     const headers = new Headers({ Accept: 'application/xml, application/pdf, text/plain, */*' })
@@ -187,6 +202,7 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     const signal = request.signal ? AbortSignal.any([request.signal, timeoutSignal]) : timeoutSignal
 
     let response: Response
+    let body: Uint8Array
     try {
       response = await fetchImpl(endpoint, {
         method: 'POST',
@@ -194,6 +210,7 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
         body: buildFormData(request),
         signal,
       })
+      body = new Uint8Array(await response.arrayBuffer())
     } catch (error) {
       if (request.signal?.aborted) throw request.signal.reason
       if (timeoutSignal.aborted || isAbortError(error)) {
@@ -210,17 +227,21 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
       })
     }
 
-    const body = new Uint8Array(await response.arrayBuffer())
     if (cookieStore) {
       const merged = mergeSetCookies(cookie, response.headers)
-      if (merged)
-        await ignoreStoreFailure(() => cookieStore.set(sessionKey, merged, SESSION_TTL_SECONDS))
+      if (merged) {
+        await ignoreStoreFailure(async () =>
+          cookieStore.set(await resolveSessionKey(), merged, SESSION_TTL_SECONDS),
+        )
+      }
     }
     return createAgentResponse(request.action, response.status, response.headers, body)
   }
 
   async function resetSession(): Promise<void> {
-    if (cookieStore) await ignoreStoreFailure(() => cookieStore.delete(sessionKey))
+    if (cookieStore) {
+      await ignoreStoreFailure(async () => cookieStore.delete(await resolveSessionKey()))
+    }
   }
 
   async function execute<T>(
@@ -230,10 +251,10 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     const maxAttempts = request.safeToRetry ? safeAttempts : 1
     for (let attempt = 1; ; attempt++) {
       const startedAt = Date.now()
-      hooks.onRequest?.({ action: request.action, attempt })
+      callHook(hooks.onRequest, { action: request.action, attempt })
       try {
         const response = await send(request)
-        hooks.onResponse?.({
+        callHook(hooks.onResponse, {
           action: request.action,
           attempt,
           status: response.status,
@@ -243,7 +264,7 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
       } catch (error) {
         if (!(error instanceof SzamlazzError)) throw error
         const willRetry = error.retryable && attempt < maxAttempts
-        hooks.onError?.({ action: request.action, attempt, error, willRetry })
+        callHook(hooks.onError, { action: request.action, attempt, error, willRetry })
         if (error.category === 'auth') await resetSession()
         if (!willRetry) throw error
         await sleep(retryDelayMs * 2 ** (attempt - 1), request.signal)

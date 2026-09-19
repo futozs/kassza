@@ -12,6 +12,17 @@ import { parseResponseXml, throwIfAnyError, throwIfXmlFailure } from './response
 
 const XML = '<?xml version="1.0" encoding="UTF-8"?><root/>'
 
+function erroringResponse(error: unknown): Response {
+  return new Response(
+    new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(error)
+      },
+    }),
+    { status: 200 },
+  )
+}
+
 describe('createAgentContext', () => {
   test('a megfelelő form mezőben, fájlként küldi az XML-t', async () => {
     const { ctx, agent } = createTestContext({ body: 'ok' })
@@ -93,6 +104,66 @@ describe('createAgentContext', () => {
 
     expect(error).toBeInstanceOf(SzamlazzError)
     expect(error).toMatchObject({ category: 'network', retryable: true, action: 'createInvoice' })
+  })
+
+  test('a válasz törzsének olvasása közbeni hibát network kategóriájú hibává alakítja', async () => {
+    const fetch = vi.fn(async () => erroringResponse(new TypeError('terminated')))
+    const ctx = createAgentContext({ agentKey: TEST_AGENT_KEY, fetch })
+
+    const error = await ctx
+      .execute({ action: 'getInvoicePdf', xml: XML }, () => undefined)
+      .catch((caught: unknown) => caught)
+
+    expect(error).toBeInstanceOf(SzamlazzError)
+    expect(error).toMatchObject({ category: 'network', retryable: true, action: 'getInvoicePdf' })
+  })
+
+  test('a törzs olvasása közbeni időtúllépést timeout kategóriájú hibává alakítja', async () => {
+    const fetch = vi.fn(async () =>
+      erroringResponse(new DOMException('The operation timed out.', 'TimeoutError')),
+    )
+    const ctx = createAgentContext({ agentKey: TEST_AGENT_KEY, fetch })
+
+    await expect(
+      ctx.execute({ action: 'getInvoicePdf', xml: XML }, () => undefined),
+    ).rejects.toMatchObject({ category: 'timeout', retryable: true })
+  })
+
+  test('a törzs olvasása közbeni hibánál a biztonságos művelet újrapróbálkozik', async () => {
+    const fetch = vi
+      .fn<() => Promise<Response>>()
+      .mockResolvedValueOnce(erroringResponse(new TypeError('terminated')))
+      .mockResolvedValueOnce(new Response('ok'))
+    const ctx = createAgentContext({ agentKey: TEST_AGENT_KEY, fetch, retryDelayMs: 0 })
+
+    await expect(
+      ctx.execute({ action: 'getInvoicePdf', xml: XML, safeToRetry: true }, (response) =>
+        response.text(),
+      ),
+    ).resolves.toBe('ok')
+    expect(fetch).toHaveBeenCalledTimes(2)
+  })
+
+  test('a törzs olvasása közben a felhasználói megszakítás okát adja vissza', async () => {
+    const fetch = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          init?.signal?.addEventListener('abort', () => controller.error(init.signal?.reason))
+        },
+      })
+      return new Response(stream)
+    })
+    const ctx = createAgentContext({ agentKey: TEST_AGENT_KEY, fetch })
+    const controller = new AbortController()
+
+    const pending = ctx.execute(
+      { action: 'getInvoicePdf', xml: XML, signal: controller.signal },
+      () => undefined,
+    )
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalled())
+    controller.abort(new Error('megszakítva'))
+
+    await expect(pending).rejects.toThrow('megszakítva')
   })
 
   test('nem biztonságos műveletet hálózati hiba után sem küld újra', async () => {
@@ -214,6 +285,35 @@ describe('createAgentContext', () => {
       expect.objectContaining({ action: 'createInvoice', status: 200 }),
     )
     expect(onError).toHaveBeenCalledWith(expect.objectContaining({ willRetry: false }))
+  })
+
+  test('a hook kivétele nem töri meg a kérést, és nem hiúsítja meg a sikeres választ', async () => {
+    const throwing = vi.fn(() => {
+      throw new Error('logger hiba')
+    })
+    const rejecting = vi.fn(() => Promise.reject(new Error('aszinkron logger hiba')))
+    const { ctx, agent } = createTestContext(
+      { body: 'ok' },
+      { hooks: { onRequest: throwing, onResponse: rejecting } },
+    )
+
+    await expect(
+      ctx.execute({ action: 'createInvoice', xml: XML }, (response) => response.text()),
+    ).resolves.toBe('ok')
+    expect(agent.calls).toHaveLength(1)
+    expect(throwing).toHaveBeenCalledTimes(1)
+    expect(rejecting).toHaveBeenCalledTimes(1)
+  })
+
+  test('az onError hook kivétele mellett is az eredeti hiba érkezik', async () => {
+    const onError = vi.fn(() => {
+      throw new Error('logger hiba')
+    })
+    const { ctx } = createTestContext(textErrorResponse('Hiba', 57), { hooks: { onError } })
+
+    await expect(
+      ctx.execute({ action: 'createInvoice', xml: XML }, throwIfAnyError),
+    ).rejects.toMatchObject({ code: 57 })
   })
 
   test('XML válasz sikertelen jelzését típusos hibává alakítja', async () => {

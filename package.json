@@ -1,7 +1,11 @@
 {
   "name": "kassza",
   "version": "0.6.0",
-  "author": "futozs",
+  "author": {
+    "name": "futozs",
+    "url": "https://github.com/futozs",
+    "email": "zsombi.futo@gmail.com"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/futozs/kassza.git"
@@ -11,7 +15,7 @@
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@biomejs/biome": "^2.5.13",
-    "@types/node": "^26.6.0",
+    "@types/node": "^22.19.0",
     "@vitest/coverage-v8": "^5.0.1",
     "opentype.js": "^2.0.0",
     "publint": "^0.3.24",
@@ -112,7 +116,6 @@
   "files": [
     "dist",
     "agents",
-    "assets",
     "llms.txt"
   ],
   "homepage": "https://kassza-amber.vercel.app",
@@ -157,5 +160,30 @@
   },
   "sideEffects": false,
   "type": "module",
-  "types": "./dist/index.d.ts"
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "*": {
+      "money": [
+        "./dist/money/index.d.ts"
+      ],
+      "validators": [
+        "./dist/validators/index.d.ts"
+      ],
+      "ipn": [
+        "./dist/ipn/index.d.ts"
+      ],
+      "storage": [
+        "./dist/storage/index.d.ts"
+      ],
+      "storage/fs": [
+        "./dist/storage/fs.d.ts"
+      ],
+      "cookie-stores": [
+        "./dist/cookie-stores/index.d.ts"
+      ],
+      "testing": [
+        "./dist/testing/index.d.ts"
+      ]
+    }
+  }
 }

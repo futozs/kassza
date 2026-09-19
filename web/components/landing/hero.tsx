@@ -4,13 +4,11 @@ import type { ReactNode } from 'react'
 import { ButtonLink } from './button-link'
 import { HeroTape, type SiteStats } from './hero-tape'
 import { InstallCommand } from './install-command'
-import { type RoundingSample, SAMPLE_ITEM_NAME, sampleInvoice } from './sample-invoice'
 import { LandingContainer } from './section-heading'
 import { installSnippet } from './snippets'
 
 interface HeroProps {
   code: ReactNode
-  sample: RoundingSample
   version: string
   stats: SiteStats
 }
@@ -33,7 +31,7 @@ function RecipesAnnouncement({ count }: { count: number }) {
   )
 }
 
-export function Hero({ code, sample, version, stats }: HeroProps) {
+export function Hero({ code, version, stats }: HeroProps) {
   return (
     <section
       aria-labelledby="hero-title"

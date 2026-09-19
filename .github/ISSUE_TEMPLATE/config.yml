@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Biztonsági hiba bejelentése
+    url: https://github.com/futozs/kassza/security/advisories/new
+    about: Sebezhetőséget ne nyilvános issue-ban jelents, használd a privát bejelentést.
+  - name: Számlázz.hu Agent dokumentáció
+    url: https://docs.szamlazz.hu/hu/agent/
+    about: A Számlázz.hu működésével kapcsolatos kérdésekre a hivatalos docs ad választ.

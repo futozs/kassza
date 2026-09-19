@@ -30,7 +30,7 @@ Read this before writing any code that issues invoices or receipts. These rules 
 | `registerPayment` | `additive` defaults to `true` and appends to earlier payments | Use `clearPayments` to wipe them |
 | Session cookie | Expires after 90 minutes of inactivity; the in-memory store is per process | In serverless, pass a shared `cookieStore` from `kassza/cookie-stores` |
 | IPN webhook | Retried every 3 minutes, at most 10 times; only the latest one per invoice is sent | Respond with HTTP 200 quickly and process idempotently |
-| IPN source check | `isSzamlazzIp` trusts the first `x-forwarded-for` entry | Use it only behind a proxy you control |
+| IPN source check | `isSzamlazzIp` checks the rightmost `x-forwarded-for` entry, the address your nearest proxy saw; the left side is client-controlled | Behind several proxies pass `{ trustedProxies: n }`; never feed it a header that no proxy of yours writes |
 | `buyer.groupTaxNumber`, item `dataDeletionCode` | Documented on docs.szamlazz.hu, but missing from the downloadable `xmlszamla.xsd` (and `torloKod` from `xmlnyugtacreate.xsd`) | Use them only when needed; if you get error 57, remove them |
 | NAV receipt data reporting | Mandatory since 2026-09-01, with a grace period until 2026-12-31 | No code change needed yet; watch the kassza changelog |
 

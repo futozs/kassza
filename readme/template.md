@@ -591,8 +591,10 @@ Csak a Számlázz.hu IP-címeiről jövő kérést érdemes elfogadni:
 ```ts
 import { isSzamlazzIp } from 'kassza/ipn'
 
-isSzamlazzIp(request.headers.get('x-forwarded-for') ?? '')
+isSzamlazzIp(request.headers.get('x-forwarded-for'))
 ```
+
+Az `x-forwarded-for` fejlécből a **jobb szélső** címet vizsgálja, vagyis azt, amit a hozzád legközelebbi proxy látott, mert a fejléc bal oldalát a kliens is írhatja. Ha több megbízható proxy van előtted, add meg a számukat: `isSzamlazzIp(fejlec, { trustedProxies: 1 })`.
 
 {{more:befizetes-rogzitese/ipn|}}
 

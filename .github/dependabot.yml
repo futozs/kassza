@@ -1,0 +1,31 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      dev-dependencies:
+        dependency-type: development
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope
+    ignore:
+      - dependency-name: kassza
+    groups:
+      web-dependencies:
+        patterns: ['*']
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: chore
+      include: scope

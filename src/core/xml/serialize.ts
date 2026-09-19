@@ -46,6 +46,11 @@ export function formatXmlNumber(value: number): string {
   if (!Number.isFinite(value)) {
     throw new RangeError(`Az XML-be csak véges szám írható, kapott: ${value}`)
   }
+  if (Math.abs(value) > Number.MAX_SAFE_INTEGER) {
+    throw new RangeError(
+      `Az XML-be írható szám abszolút értéke legfeljebb 2^53 - 1 lehet, kapott: ${value}`,
+    )
+  }
   if (Number.isInteger(value)) return value.toString()
   const fixed = value.toFixed(10).replace(/0+$/, '').replace(/\.$/, '')
   return fixed === '-0' ? '0' : fixed
