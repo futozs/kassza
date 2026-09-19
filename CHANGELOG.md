@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.8.0 (2026-09-19)
+
+### Újdonságok
+
+- implement version management for kassza and update installation process (95459f5)
+
 ## 0.7.0 (2026-09-19)
 
 ### Újdonságok
