@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.7.0 (2026-09-19)
+
+### Újdonságok
+
+- add support for trusted proxies in isSzamlazzIp function (5d0ac8e)
+
 ## 0.6.0 (2026-09-18)
 
 ### Újdonságok
