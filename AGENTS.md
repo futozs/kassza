@@ -79,9 +79,9 @@ bun run release minor
 3. Runs `npm run ci`.
 4. Writes `package.json` and prepends the entry to `CHANGELOG.md`.
 5. Runs `npm publish`, which asks for the 2FA code. If publishing fails, it rolls back both files.
-6. Writes the released version to `web/kassza-version.json`, commits `release: vX.Y.Z` with it, tags `vX.Y.Z` and pushes. If the push fails, the script exits non-zero after publishing, so the workflow turns red.
+6. Waits until `npm view` shows the new version (up to 10 minutes, then continues anyway), so the Vercel build that the push triggers finds the package. Then writes the released version to `web/kassza-version.json`, commits `release: vX.Y.Z` with it, tags `vX.Y.Z` and pushes. If the push fails, the script exits non-zero after publishing, so the workflow turns red.
 
-The website never lists `kassza` in its own `package.json` or lockfiles. `web/scripts/install-kassza.mjs` reads `web/kassza-version.json` and unpacks exactly that version from npm into `web/node_modules/kassza` before `dev`, `build`, `typecheck` and `test` (the `pre*` scripts), retrying for about two minutes while the registry catches up. `web/lib/site.ts` shows the same version. `tests/web-version.test.ts` checks that the file matches the root `package.json`.
+The website never lists `kassza` in its own `package.json` or lockfiles. `web/scripts/install-kassza.mjs` reads `web/kassza-version.json` and unpacks exactly that version from npm into `web/node_modules/kassza` before `dev`, `build`, `typecheck` and `test` (the `pre*` scripts). While the registry catches up it retries every 15 seconds for up to 20 minutes (`KASSZA_INSTALL_DELAY_MS` and `KASSZA_INSTALL_MAX_WAIT_MS` override this) and then fails with the real npm error. It unpacks inside `node_modules`, so the final rename never crosses a filesystem boundary. `web/lib/site.ts` shows the same version. `tests/web-version.test.ts` checks that the file matches the root `package.json`.
 
 On GitHub, `.github/workflows/release.yml` runs `release:ci` for every push to `main` and exits early when there is no releasable commit. A maintainer can also start it by hand from the Actions tab (`workflow_dispatch`) with `patch`, `minor` or `major` to force a release.
 

@@ -1,6 +1,7 @@
 import { execFileSync, spawnSync } from 'node:child_process'
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -8,6 +9,8 @@ const packagePath = join(root, 'package.json')
 const changelogPath = join(root, 'CHANGELOG.md')
 const webRoot = join(root, 'web')
 const webVersionPath = join(webRoot, 'kassza-version.json')
+const REGISTRY_WAIT_MS = 10 * 60_000
+const REGISTRY_POLL_MS = 15_000
 
 const args = process.argv.slice(2)
 const dryRun = args.includes('--dry-run')
@@ -60,6 +63,37 @@ function isPublished(name, version) {
   } catch {
     return false
   }
+}
+
+function isVisibleOnRegistry(name, version) {
+  try {
+    return (
+      execFileSync('npm', ['view', `${name}@${version}`, 'version', '--prefer-online'], {
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'ignore'],
+      }).trim() === version
+    )
+  } catch {
+    return false
+  }
+}
+
+async function waitForRegistry(name, version) {
+  const startedAt = Date.now()
+  while (!isVisibleOnRegistry(name, version)) {
+    const elapsed = Date.now() - startedAt
+    if (elapsed >= REGISTRY_WAIT_MS) {
+      log(
+        `A ${name}@${version} ${Math.round(elapsed / 60_000)} perc után sem látszik az npm registryben, a kiadással tovább megyek. A weboldal build a saját újrapróbálásával várja meg.`,
+      )
+      return
+    }
+    log(
+      `A ${name}@${version} még nem látszik az npm registryben, ${REGISTRY_POLL_MS / 1000} mp múlva újra.`,
+    )
+    await sleep(REGISTRY_POLL_MS)
+  }
+  log(`A ${name}@${version} elérhető az npm registryben.`)
 }
 
 function run(command, commandArgs) {
@@ -239,6 +273,8 @@ if (!run('npm', ['publish', '--ignore-scripts'])) {
 
 process.removeListener('SIGINT', abort)
 process.removeListener('SIGTERM', abort)
+
+await waitForRegistry(pkg.name, version)
 
 git('add', 'package.json', 'CHANGELOG.md', ...writeWebVersion(version))
 git('commit', '-m', `release: v${version}`)

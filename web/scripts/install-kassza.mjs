@@ -1,16 +1,26 @@
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawnSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync } from 'node:fs'
-import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const versionFile = join(root, 'kassza-version.json')
-const target = join(root, 'node_modules', 'kassza')
-const ATTEMPTS = 12
-const DELAY_MS = 10_000
+const modulesDir = join(root, 'node_modules')
+const target = join(modulesDir, 'kassza')
 const SEMVER = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/
+
+function positiveNumber(value, fallback) {
+  const parsed = Number(value)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+const MAX_WAIT_MS = positiveNumber(process.env.KASSZA_INSTALL_MAX_WAIT_MS, 20 * 60_000)
+const DELAY_MS = positiveNumber(process.env.KASSZA_INSTALL_DELAY_MS, 15_000)
+
+function log(message) {
+  process.stdout.write(`▸ ${message}\n`)
+}
 
 function readVersion(path) {
   try {
@@ -21,12 +31,8 @@ function readVersion(path) {
   }
 }
 
-function log(message) {
-  process.stdout.write(`▸ ${message}\n`)
-}
-
-function download(version, directory) {
-  execFileSync(
+function pack(version, directory) {
+  const result = spawnSync(
     'npm',
     [
       'pack',
@@ -35,46 +41,58 @@ function download(version, directory) {
       directory,
       '--prefer-online',
       '--ignore-scripts',
-      '--silent',
+      '--loglevel',
+      'error',
     ],
-    { cwd: root, stdio: ['ignore', 'ignore', 'pipe'] },
+    { cwd: root, encoding: 'utf8' },
   )
-  const staging = join(directory, 'extracted')
-  mkdirSync(staging)
-  execFileSync('tar', ['-xzf', join(directory, `kassza-${version}.tgz`), '-C', staging])
-  return join(staging, 'package')
+  if (result.status === 0) return undefined
+  const output = `${result.stderr ?? ''}${result.error?.message ?? ''}`.trim()
+  const lines = output.split('\n').map((line) => line.replace(/^npm error\s*/, '').trim())
+  const summary = lines.filter((line) => line !== '').slice(0, 2)
+  return summary.length > 0 ? summary.join(' · ') : `az npm pack kilépési kódja: ${result.status}`
+}
+
+async function downloadTarball(version, directory) {
+  const startedAt = Date.now()
+  for (let attempt = 1; ; attempt++) {
+    const failure = pack(version, directory)
+    if (failure === undefined) return
+    const elapsed = Date.now() - startedAt
+    if (elapsed + DELAY_MS > MAX_WAIT_MS) {
+      throw new Error(
+        `${Math.round(elapsed / 1000)} mp alatt sem lett elérhető az npm-en. Az utolsó npm hiba: ${failure}`,
+      )
+    }
+    log(
+      `A kassza@${version} még nem érhető el az npm-en (${attempt}. próba, ${Math.round(elapsed / 1000)} mp), ${DELAY_MS / 1000} mp múlva újra. npm: ${failure}`,
+    )
+    await sleep(DELAY_MS)
+  }
 }
 
 async function install(version) {
-  const directory = mkdtempSync(join(tmpdir(), 'kassza-'))
+  mkdirSync(modulesDir, { recursive: true })
+  const staging = mkdtempSync(join(modulesDir, '.kassza-install-'))
   try {
-    for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
-      try {
-        const extracted = download(version, directory)
-        if (readVersion(join(extracted, 'package.json')) !== version) {
-          throw new Error('A letöltött csomag verziója nem egyezik a kért verzióval.')
-        }
-        rmSync(target, { recursive: true, force: true })
-        mkdirSync(dirname(target), { recursive: true })
-        renameSync(extracted, target)
-        return
-      } catch (error) {
-        if (attempt === ATTEMPTS) throw error
-        log(
-          `A kassza@${version} még nem érhető el az npm-en (${attempt}/${ATTEMPTS}), ${DELAY_MS / 1000} mp múlva újra.`,
-        )
-        rmSync(join(directory, 'extracted'), { recursive: true, force: true })
-        await sleep(DELAY_MS)
-      }
+    await downloadTarball(version, staging)
+    const extracted = join(staging, 'extracted')
+    mkdirSync(extracted)
+    execFileSync('tar', ['-xzf', join(staging, `kassza-${version}.tgz`), '-C', extracted])
+    const unpacked = join(extracted, 'package')
+    if (readVersion(join(unpacked, 'package.json')) !== version) {
+      throw new Error('A letöltött csomag verziója nem egyezik a kért verzióval.')
     }
+    rmSync(target, { recursive: true, force: true })
+    renameSync(unpacked, target)
   } finally {
-    rmSync(directory, { recursive: true, force: true })
+    rmSync(staging, { recursive: true, force: true })
   }
 }
 
 const version = readVersion(versionFile)
 if (version === undefined || !SEMVER.test(version)) {
-  process.stderr.write(`✖ A web/kassza-version.json hiányzik vagy érvénytelen verziót tartalmaz.\n`)
+  process.stderr.write('✖ A web/kassza-version.json hiányzik vagy érvénytelen verziót tartalmaz.\n')
   process.exit(1)
 }
 
