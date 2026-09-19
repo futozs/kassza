@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.9.0 (2026-09-19)
+
+### Újdonságok
+
+- enhance release process with registry visibility checks and improved installation logic (c33a599)
+
 ## 0.8.0 (2026-09-19)
 
 ### Újdonságok
