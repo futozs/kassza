@@ -81,7 +81,7 @@ function configureTypeScript(monaco: Monaco, typesUrl: string): Promise<void> {
       target: ts.ScriptTarget.ES2020,
       module: ts.ModuleKind.ESNext,
       moduleResolution: ts.ModuleResolutionKind.NodeJs,
-      lib: ['es2023', 'dom'],
+      lib: ['lib.es2023.d.ts', 'lib.dom.d.ts'],
       strict: true,
       allowNonTsExtensions: true,
       noEmit: true,
