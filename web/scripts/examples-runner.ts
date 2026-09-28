@@ -30,6 +30,11 @@ export async function runExamples(root: string): Promise<GeneratedExample[]> {
     const code = (
       await readFile(join(root, 'sandbox/examples', `${example.slug}.ts`), 'utf8')
     ).trimEnd()
+    if (!example.console && /\bconsole\./.test(code)) {
+      throw new Error(
+        `A(z) "${example.slug}" példa console-t használ, de a catalog.ts-ben nincs console: true jelölése. A Számla Agent példák kimenete az Agent panel, konzol nélkül.`,
+      )
+    }
     const output: ConsoleEntry[] = []
     const calls: SimulatedCall[] = []
     const result = await runSandboxCode(code, {

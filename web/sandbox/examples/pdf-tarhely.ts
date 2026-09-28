@@ -11,7 +11,5 @@ const szamla = await kassza.invoices.create({
 })
 
 if (szamla.pdf) {
-  const fajl = await storePdf(tarhely, invoicePdfKey({ number: szamla.number }), szamla.pdf)
-  console.log(fajl)
-  console.log('Letöltési cím:', await tarhely.getUrl(fajl.key))
+  await storePdf(tarhely, invoicePdfKey({ number: szamla.number }), szamla.pdf)
 }

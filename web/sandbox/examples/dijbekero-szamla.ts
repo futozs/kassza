@@ -20,9 +20,8 @@ const dijbekero = await kassza.invoices.create({
   buyer: vevo,
   items: tetelek,
 })
-console.log('Díjbekérő:', dijbekero.number, dijbekero.grossTotal)
 
-const szamla = await kassza.invoices.create({
+await kassza.invoices.create({
   proformaNumber: dijbekero.number,
   orderNumber: 'NEV-2026-042',
   paymentMethod: 'átutalás',
@@ -30,4 +29,3 @@ const szamla = await kassza.invoices.create({
   buyer: vevo,
   items: tetelek,
 })
-console.log('Számla:', szamla.number, 'hátralék:', szamla.outstanding)

@@ -10,16 +10,9 @@ const dijbekero = await kassza.invoices.create({
 })
 
 await kassza.invoices.deleteProforma({ orderNumber: 'NEV-2026-077' })
-console.log('Törölt díjbekérő:', dijbekero.number)
 
 try {
   await kassza.invoices.deleteProforma(dijbekero.number)
 } catch (error) {
   if (!isSzamlazzError(error)) throw error
-  console.log({
-    kod: error.code,
-    kategoria: error.category,
-    uzenet: error.message,
-    tipp: error.hint,
-  })
 }

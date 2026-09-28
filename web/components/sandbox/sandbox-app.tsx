@@ -27,7 +27,7 @@ import { useShortcutLabel } from '@/lib/use-shortcut-label'
 import type { ExampleGroup } from '@/sandbox/examples/catalog'
 import { formatPreview } from '@/sandbox/runtime/serialize'
 import type { EditorMarker } from './code-editor'
-import { NetworkPanel, RunNotice } from './output-panels'
+import { ConsolePanel, NetworkPanel, RunNotice } from './output-panels'
 import { useSandboxRunner } from './use-sandbox-runner'
 
 export interface SandboxExample {
@@ -36,6 +36,7 @@ export interface SandboxExample {
   readonly group: ExampleGroup
   readonly description: string
   readonly docs?: string | undefined
+  readonly console?: boolean | undefined
   readonly code: string
 }
 
@@ -177,6 +178,13 @@ export function SandboxApp({
 
   const modified = example ? code !== example.code : false
   const running = state.status === 'running'
+  const showConsole = example
+    ? example.console === true
+    : state.entries.length > 0 && state.calls.length === 0
+  const agentLabel = `Számla Agent${state.calls.length ? ` · ${state.calls.length}` : ''}`
+  const panelLabel = showConsole
+    ? `Konzol${state.entries.length ? ` · ${state.entries.length}` : ''}`
+    : agentLabel
   const marker: EditorMarker | undefined =
     state.result?.error?.line !== undefined
       ? {
@@ -354,9 +362,7 @@ export function SandboxApp({
                     : 'text-muted',
                 )}
               >
-                {view === 'kod'
-                  ? 'Kód'
-                  : `Számla Agent${state.calls.length ? ` (${state.calls.length})` : ''}`}
+                {view === 'kod' ? 'Kód' : panelLabel}
               </button>
             ))}
           </div>
@@ -382,7 +388,7 @@ export function SandboxApp({
             />
           </section>
           <section
-            aria-label="Számla Agent"
+            aria-label={showConsole ? 'Konzol' : 'Számla Agent'}
             className={cn(
               'flex min-h-0 min-w-0 flex-col border-rule bg-paper lg:border-l',
               mobileView === 'kod' && 'hidden lg:flex',
@@ -390,7 +396,7 @@ export function SandboxApp({
           >
             <div className="flex items-center gap-1 border-b border-rule px-2">
               <h2 className="relative px-3 py-2.5 text-sm font-medium whitespace-nowrap text-accent after:absolute after:inset-x-3 after:-bottom-px after:h-0.5 after:rounded-full after:bg-accent">
-                Számla Agent{state.calls.length ? ` · ${state.calls.length}` : ''}
+                {panelLabel}
               </h2>
               {running ? (
                 <LoaderCircle className="ml-auto size-4 animate-spin text-muted" aria-label="Fut" />
@@ -407,7 +413,23 @@ export function SandboxApp({
                 status={state.status}
                 pdfUrls={state.pdfUrls}
               />
-              <NetworkPanel calls={state.calls} status={state.status} />
+              {showConsole ? (
+                <ConsolePanel
+                  entries={state.entries}
+                  status={state.status}
+                  pdfUrls={state.pdfUrls}
+                />
+              ) : (
+                <NetworkPanel calls={state.calls} status={state.status} />
+              )}
+              {showConsole && state.calls.length > 0 ? (
+                <>
+                  <h2 className="border-b border-rule px-5 pt-5 pb-2.5 text-sm font-medium text-accent">
+                    {agentLabel}
+                  </h2>
+                  <NetworkPanel calls={state.calls} status={state.status} />
+                </>
+              ) : null}
             </div>
           </section>
         </div>

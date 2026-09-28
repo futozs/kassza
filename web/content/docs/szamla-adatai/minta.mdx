@@ -4,7 +4,7 @@ description: Számla kiállítása, az adatai lekérése rendelésszám alapján
 official: https://docs.szamlazz.hu/hu/agent/querying_xml/xml
 ---
 
-A példa kiállít egy kártyával kifizetett számlát két tétellel, majd a rendelésszám alapján lekéri az adatait, és kiírja a fejlécet, az összegeket és a befizetéseket. Végül a `find()` egy nem létező rendelésszámra `null`-t ad hiba helyett. Az **Elküldött XML** fülön a számlakészítés mellett mindkét `xmlszamlaxml` kérést látod, a **Válasz** fülön pedig a `szamla` XML-t és a nem létező rendelésre kapott 7-es hibát.
+A példa kiállít egy kártyával kifizetett számlát két tétellel, majd a rendelésszám alapján lekéri a fejlécét, az összegeit és a befizetéseit. Végül a `find()` egy nem létező rendelésszámra `null`-t ad hiba helyett. Az **Elküldött XML** fülön a számlakészítés mellett mindkét `xmlszamlaxml` kérést látod, a **Válasz** fülön pedig a `szamla` XML-t és a nem létező rendelésre kapott 7-es hibát.
 
 <Example slug="szamla-adatai" />
 

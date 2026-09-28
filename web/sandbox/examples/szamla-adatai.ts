@@ -19,10 +19,6 @@ await kassza.invoices.create({
   ],
 })
 
-const adatok = await kassza.invoices.get({ orderNumber: 'REND-4001' })
-console.log(adatok.header)
-console.log(adatok.totals)
-console.log(adatok.payments)
+await kassza.invoices.get({ orderNumber: 'REND-4001' })
 
-const nincs = await kassza.invoices.find({ orderNumber: 'REND-9999' })
-console.log('Nem létező rendelés:', nincs)
+await kassza.invoices.find({ orderNumber: 'REND-9999' })

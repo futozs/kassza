@@ -1,5 +1,4 @@
 import { createKassza } from 'kassza'
-import { simulator } from 'kassza-sandbox'
 
 const kassza = createKassza({
   defaults: { receipt: { prefix: 'NYGT', paymentMethod: 'bankkártya' } },
@@ -17,5 +16,3 @@ await kassza.receipts.send({
   subject: `Nyugta a vásárlásodról (${nyugta.number})`,
   text: 'Köszönjük a vásárlást! A nyugtát csatolva küldjük.',
 })
-
-console.log('Címzettek:', simulator.account().receipts[0]?.sentTo)

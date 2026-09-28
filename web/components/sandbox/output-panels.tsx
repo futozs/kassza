@@ -2,9 +2,9 @@
 
 import type { AGENT_ACTIONS } from 'kassza'
 import { AlertTriangle, ChevronRight, CircleX, Mail, RotateCcw, Unplug } from 'lucide-react'
-import { useState } from 'react'
+import { type ReactNode, useState } from 'react'
 import { cn } from '@/lib/cn'
-import type { RunResult } from '@/sandbox/runtime/protocol'
+import type { ConsoleEntry, RunResult } from '@/sandbox/runtime/protocol'
 import type { SimulatedCall } from '@/sandbox/simulator'
 import { PreviewValue } from './preview-value'
 import type { RunStatus, SandboxLogEntry } from './use-sandbox-runner'
@@ -29,6 +29,80 @@ function EmptyState({ title, children }: { title: string; children: string }) {
     <div className="flex h-full flex-col items-start justify-center gap-1.5 px-6 py-10">
       <p className="font-medium text-ink">{title}</p>
       <p className="max-w-sm text-sm text-muted">{children}</p>
+    </div>
+  )
+}
+
+const levelStyles: Readonly<Record<ConsoleEntry['level'], string>> = {
+  log: '',
+  debug: 'text-muted',
+  info: 'text-[var(--info-ink)]',
+  warn: 'bg-warning-bg/70 text-warning-ink',
+  error: 'bg-danger-bg/70 text-danger-ink',
+}
+
+function LogArguments({
+  entry,
+  pdfUrls,
+  defaultOpen,
+}: {
+  entry: SandboxLogEntry
+  pdfUrls: Readonly<Record<string, string>>
+  defaultOpen: boolean
+}) {
+  const nodes: ReactNode[] = []
+  for (const [position, arg] of entry.args.entries()) {
+    nodes.push(
+      <span key={`${entry.id}.${position}`} className="mr-2 inline">
+        <PreviewValue preview={arg} pdfUrls={pdfUrls} topLevel defaultOpen={defaultOpen} />
+      </span>,
+    )
+  }
+  return <>{nodes}</>
+}
+
+export function ConsolePanel({
+  entries,
+  status,
+  pdfUrls,
+}: {
+  entries: readonly SandboxLogEntry[]
+  status: RunStatus
+  pdfUrls: Readonly<Record<string, string>>
+}) {
+  if (status === 'idle') {
+    return (
+      <EmptyState title="Még nem futtattad a kódot.">
+        Nyomd meg a Futtatás gombot (⌘/Ctrl + Enter). A kód a böngésződben fut, semmilyen kérés nem
+        hagyja el a gépedet.
+      </EmptyState>
+    )
+  }
+  const defaultOpen = entries.length < 12
+  return (
+    <div className="font-mono text-[0.8rem] leading-relaxed">
+      {entries.map((entry) => (
+        <div
+          key={entry.id}
+          className={cn('flex gap-2 border-b border-rule/70 px-4 py-1.5', levelStyles[entry.level])}
+        >
+          {entry.level === 'warn' ? (
+            <AlertTriangle className="mt-1 size-3.5 shrink-0" aria-label="Figyelmeztetés" />
+          ) : entry.level === 'error' ? (
+            <CircleX className="mt-1 size-3.5 shrink-0" aria-label="Hiba" />
+          ) : (
+            <span className="mt-1 size-3.5 shrink-0" aria-hidden="true" />
+          )}
+          <div className="min-w-0 flex-1 break-words">
+            <LogArguments entry={entry} pdfUrls={pdfUrls} defaultOpen={defaultOpen} />
+          </div>
+        </div>
+      ))}
+      {status === 'done' && entries.length === 0 ? (
+        <p className="px-4 py-3 font-sans text-sm text-muted">
+          A kód lefutott, de nem írt a konzolra.
+        </p>
+      ) : null}
     </div>
   )
 }

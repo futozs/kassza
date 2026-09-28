@@ -2,7 +2,7 @@ import { createKassza } from 'kassza'
 
 const kassza = createKassza()
 
-const szamla = await kassza.invoices.create({
+await kassza.invoices.create({
   orderNumber: 'REND-1001',
   paymentMethod: 'átutalás',
   paymentDueInDays: 8,
@@ -19,8 +19,3 @@ const szamla = await kassza.invoices.create({
     { name: 'Tárhely, 12 hónap', netUnitPrice: 24_000, vat: 27 },
   ],
 })
-
-console.log(szamla.number)
-console.log({ netto: szamla.netTotal, brutto: szamla.grossTotal, hatralek: szamla.outstanding })
-console.log(szamla.items)
-console.log(szamla.pdf)

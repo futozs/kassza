@@ -18,6 +18,7 @@ export interface GeneratedExample {
   readonly group: string
   readonly description: string
   readonly docs?: string
+  readonly console?: true
   readonly code: string
   readonly output: readonly { readonly level: string; readonly text: string }[]
   readonly calls: readonly GeneratedExampleCall[]

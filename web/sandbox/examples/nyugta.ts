@@ -4,7 +4,7 @@ const kassza = createKassza({
   defaults: { receipt: { prefix: 'NYGT', paymentMethod: 'készpénz' } },
 })
 
-const nyugta = await kassza.receipts.create({
+await kassza.receipts.create({
   callId: 'PENZTAR-2026-0001',
   orderNumber: 'PENZTAR-2026-0001',
   items: [
@@ -12,11 +12,3 @@ const nyugta = await kassza.receipts.create({
     { name: 'Kifli', grossUnitPrice: 250, vat: 5 },
   ],
 })
-
-console.log(nyugta.number, nyugta.type, nyugta.issueDate)
-console.log(nyugta.totals)
-console.log(
-  nyugta.items.map(
-    (tetel) => `${tetel.name}: ${tetel.netAmount} + ${tetel.vatAmount} = ${tetel.grossAmount}`,
-  ),
-)

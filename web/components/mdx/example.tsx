@@ -69,10 +69,12 @@ export async function Example({
       </Fragment>,
     )
   }
-  const output = await highlightCode(
-    example.output.map((line) => line.text).join('\n') || 'A példa nem írt a konzolra.',
-    { lang: 'text', title: 'Konzol' },
-  )
+  const output = example.console
+    ? await highlightCode(
+        example.output.map((line) => line.text).join('\n') || 'A példa nem írt a konzolra.',
+        { lang: 'text', title: 'Konzol' },
+      )
+    : null
 
   return (
     <section className="not-prose my-6" aria-label={title ?? example.title}>
@@ -98,12 +100,12 @@ export async function Example({
           {calls.length > 0 ? (
             <CodeBlockTabsTrigger value="valasz">Válasz</CodeBlockTabsTrigger>
           ) : null}
-          <CodeBlockTabsTrigger value="konzol">Konzol</CodeBlockTabsTrigger>
+          {output ? <CodeBlockTabsTrigger value="konzol">Konzol</CodeBlockTabsTrigger> : null}
         </CodeBlockTabsList>
         <CodeBlockTab value="kod">{code}</CodeBlockTab>
         {calls.length > 0 ? <CodeBlockTab value="keres">{requests}</CodeBlockTab> : null}
         {calls.length > 0 ? <CodeBlockTab value="valasz">{responses}</CodeBlockTab> : null}
-        <CodeBlockTab value="konzol">{output}</CodeBlockTab>
+        {output ? <CodeBlockTab value="konzol">{output}</CodeBlockTab> : null}
       </CodeBlockTabs>
     </section>
   )

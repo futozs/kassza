@@ -34,7 +34,6 @@ async function szamlazRendelest(rendeles: Rendeles): Promise<string> {
   } catch (error) {
     const bizonytalan = ['network', 'timeout', 'partial_success', 'duplicate']
     if (isSzamlazzError(error) && bizonytalan.includes(error.category)) {
-      console.warn(`Bizonytalan kimenet (${error.category}), ellenőrzés rendelésszám alapján…`)
       const letrejott = await kassza.invoices.find({ orderNumber })
       if (letrejott) return `${letrejott.header.number} (a hiba ellenére elkészült)`
     }
@@ -50,6 +49,5 @@ const rendeles: Rendeles = {
 }
 
 simulator.failNext('createInvoice', 56)
-console.log('Első próbálkozás:', await szamlazRendelest(rendeles))
-console.log('A webhook újraküldése:', await szamlazRendelest(rendeles))
-console.log('Számlák a fiókban:', simulator.account().invoices.length)
+await szamlazRendelest(rendeles)
+await szamlazRendelest(rendeles)

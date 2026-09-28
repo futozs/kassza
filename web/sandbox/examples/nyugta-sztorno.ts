@@ -9,15 +9,7 @@ const nyugta = await kassza.receipts.create({
   items: [{ name: 'Mozijegy', quantity: 2, grossUnitPrice: 2_990, vat: 5 }],
 })
 
-const sztorno = await kassza.receipts.reverse({
+await kassza.receipts.reverse({
   receiptNumber: nyugta.number,
   callId: 'PENZTAR-2026-0107-STORNO',
-})
-
-console.log({
-  eredeti: nyugta.number,
-  sztorno: sztorno.number,
-  tipus: sztorno.type,
-  hivatkozas: sztorno.reversedReceiptNumber,
-  brutto: sztorno.totals.grossAmount,
 })

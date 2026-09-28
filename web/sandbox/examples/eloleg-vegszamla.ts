@@ -17,7 +17,7 @@ const eloleg = await kassza.invoices.create({
   items: [{ name: 'Előleg a webáruház fejlesztésére', netUnitPrice: 300_000, vat: 27 }],
 })
 
-const vegszamla = await kassza.invoices.create({
+await kassza.invoices.create({
   type: 'final',
   advanceInvoiceNumber: eloleg.number,
   orderNumber: 'PROJ-7',
@@ -26,11 +26,4 @@ const vegszamla = await kassza.invoices.create({
     { name: 'Webáruház fejlesztése', netUnitPrice: 1_000_000, vat: 27 },
     { name: 'Előleg levonása', quantity: -1, netUnitPrice: 300_000, vat: 27 },
   ],
-})
-
-console.log({
-  elolegszamla: eloleg.number,
-  eloleg: eloleg.grossTotal,
-  vegszamla: vegszamla.number,
-  fizetendo: vegszamla.grossTotal,
 })

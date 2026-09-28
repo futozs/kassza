@@ -9,7 +9,7 @@ const kassza = createKassza({
   },
 })
 
-const szamla = await kassza.invoices.create({
+await kassza.invoices.create({
   orderNumber: 'WEB-58213',
   paymentMethod: 'bankkártya',
   paid: true,
@@ -26,11 +26,3 @@ const szamla = await kassza.invoices.create({
     { name: 'Házhoz szállítás', grossUnitPrice: 1_490, vat: 27 },
   ],
 })
-
-console.log(szamla.number, 'bruttó:', szamla.grossTotal, 'hátralék:', szamla.outstanding)
-
-for (const tetel of szamla.items) {
-  console.log(
-    `${tetel.name}: nettó ${tetel.netAmount}, áfa ${tetel.vatAmount}, bruttó ${tetel.grossAmount}`,
-  )
-}

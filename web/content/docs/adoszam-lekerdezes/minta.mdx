@@ -4,7 +4,7 @@ description: Adószám előellenőrzése, lekérdezése és a számla vevőjéne
 official: https://docs.szamlazz.hu/hu/agent/querying_taxpayer/xml
 ---
 
-A példa a `kassza/validators` modullal ellenőrzi a beírt adószámot, lekérdezi a NAV-tól, és a válaszból összerakja a számla vevőjét. Utána egy ismeretlen törzsszámot is lekérdez, amelyre `valid: false` jön. Az **Elküldött XML** fülön mindkét `xmltaxpayer` kérést látod, a **Válasz** fülön a `QueryTaxpayerResponse` XML-t.
+A példa a `kassza/validators` modullal ellenőrzi a beírt adószámot, lekérdezi a NAV-tól, és a válaszból összerakott vevővel számlát állít ki. Utána egy ismeretlen törzsszámot is lekérdez, amelyre `valid: false` jön. Az **Elküldött XML** fülön mindkét `xmltaxpayer` kérést és a számla kérését is látod, a **Válasz** fülön a `QueryTaxpayerResponse` XML-t.
 
 <Example slug="adoszam" />
 

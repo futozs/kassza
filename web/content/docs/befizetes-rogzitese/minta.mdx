@@ -10,7 +10,7 @@ A példa kiállít egy 127 000 bruttó végösszegű számlát, és három lép�
 2. egy kérésben hozzáad két további befizetést (20 000 készpénzben és 57 000 bankkártyával), így a befizetések összege eléri a végösszeget,
 3. a `clearPayments()` hívással törli a számla összes befizetését.
 
-Minden lépés után a konzolon a hátralék (`outstanding`) látszik. Az **Elküldött XML** fülön az összes kérést megtalálod, köztük a három `xmlszamlakifiz` dokumentumot. A törlő kérésben nincs `kifizetes` elem, és az `additiv` értéke `false`.
+Minden lépés után a válaszban ott a hátralék. Az **Elküldött XML** fülön az összes kérést megtalálod, köztük a három `xmlszamlakifiz` dokumentumot. A törlő kérésben nincs `kifizetes` elem, és az `additiv` értéke `false`.
 
 <Example slug="befizetes" />
 

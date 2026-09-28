@@ -20,9 +20,6 @@ export const SAMPLE_CODE = [
   "    { name: 'Tárhely, 12 hónap', netUnitPrice: 24_000, vat: 27 },",
   '  ],',
   '})',
-  '',
-  'console.log(szamla.number)',
-  'console.log({ netto: szamla.netTotal, brutto: szamla.grossTotal })',
 ]
 
 const SAMPLE_INPUT = {

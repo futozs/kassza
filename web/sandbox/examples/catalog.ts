@@ -6,6 +6,7 @@ export interface ExampleMeta {
   readonly group: ExampleGroup
   readonly description: string
   readonly docs?: string
+  readonly console?: true
 }
 
 export const EXAMPLE_GROUPS: readonly ExampleGroup[] = [
@@ -149,12 +150,13 @@ export const EXAMPLES: readonly ExampleMeta[] = [
     group: 'Hibakezelés',
     description: 'Kliensoldali és szerveroldali hibák kategóriával, kóddal és javítási tippel.',
     docs: '/docs/alapok/hibakezeles',
+    console: true,
   },
   {
     slug: 'kulcs-ellenorzes',
     title: 'Agent kulcs ellenőrzése',
     group: 'Hibakezelés',
-    description: 'verifyCredentials jó és rossz kulccsal, és a nagybetűs kulcs elutasítása.',
+    description: 'verifyCredentials jó és rossz kulccsal: a rossz kulcsra hibát ad a Számla Agent.',
     docs: '/docs/alapok/hitelesites',
   },
   {
@@ -177,6 +179,7 @@ export const EXAMPLES: readonly ExampleMeta[] = [
     group: 'Eszközök',
     description: 'createMockKassza: hívásnapló, bizonylatok, és szimulált hálózati hiba.',
     docs: '/docs/kiegeszitok/teszteles',
+    console: true,
   },
   {
     slug: 'kerekites',
@@ -184,6 +187,7 @@ export const EXAMPLES: readonly ExampleMeta[] = [
     group: 'Eszközök',
     description: 'Nettó és bruttó alapú számítás, nyugta kerekítés, deviza, áfabontás.',
     docs: '/docs/kiegeszitok/penzszamitas',
+    console: true,
   },
   {
     slug: 'validatorok',
@@ -191,6 +195,7 @@ export const EXAMPLES: readonly ExampleMeta[] = [
     group: 'Eszközök',
     description: 'Adószám CDV, bankszámla, IBAN, EU adószám és cím feldolgozása.',
     docs: '/docs/kiegeszitok/validatorok',
+    console: true,
   },
   {
     slug: 'ipn',
@@ -198,6 +203,7 @@ export const EXAMPLES: readonly ExampleMeta[] = [
     group: 'Eszközök',
     description: 'Webhook kérés feldolgozása és a Számlázz.hu IP-címének ellenőrzése.',
     docs: '/docs/befizetes-rogzitese/ipn',
+    console: true,
   },
   {
     slug: 'pdf-tarhely',

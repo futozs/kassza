@@ -21,6 +21,7 @@ export default function SandboxPage() {
         group: example.group as ExampleGroup,
         description: example.description,
         docs: example.docs,
+        console: 'console' in example && example.console === true,
         code: example.code,
       }))}
       manifest={manifest}
