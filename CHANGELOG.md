@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.10.0 (2026-09-28)
+
+### Újdonságok
+
+- add console output support to examples and update documentation (477a9cd)
+
 ## 0.9.0 (2026-09-19)
 
 ### Újdonságok
