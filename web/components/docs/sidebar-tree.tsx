@@ -6,6 +6,12 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { type ReactNode, useEffect, useId, useState } from 'react'
 import { cn } from '@/lib/cn'
+import {
+  sidebarItemActiveClass,
+  sidebarItemClass,
+  sidebarItemIdleClass,
+  sidebarSeparatorClass,
+} from './sidebar-styles'
 
 function normalize(path: string): string {
   return path.length > 1 ? path.replace(/\/+$/, '') : path
@@ -54,11 +60,7 @@ function SidebarNode({
   onNavigate: (() => void) | undefined
 }) {
   if (node.type === 'separator') {
-    return (
-      <li className="mt-5 mb-1 px-3 text-[0.72rem] font-semibold tracking-[0.08em] text-muted uppercase">
-        {node.name}
-      </li>
-    )
+    return <li className={sidebarSeparatorClass}>{node.name}</li>
   }
   if (node.type === 'page') {
     return (
@@ -77,8 +79,7 @@ function SidebarNode({
   return <SidebarFolder folder={node} pathname={pathname} onNavigate={onNavigate} />
 }
 
-const itemClass =
-  'flex min-h-9 w-full items-center rounded-[var(--radius-sm)] px-3 py-1.5 text-left text-[0.9375rem] leading-snug transition-colors duration-150 ease-out'
+const itemClass = sidebarItemClass
 
 function SidebarLink({
   href,
@@ -100,12 +101,7 @@ function SidebarLink({
       aria-current={active ? 'page' : undefined}
       target={external ? '_blank' : undefined}
       rel={external ? 'noreferrer' : undefined}
-      className={cn(
-        itemClass,
-        active
-          ? 'bg-accent-soft font-medium text-accent'
-          : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
-      )}
+      className={cn(itemClass, active ? sidebarItemActiveClass : sidebarItemIdleClass)}
     >
       {children}
     </Link>

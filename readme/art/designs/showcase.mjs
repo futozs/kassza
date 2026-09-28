@@ -194,37 +194,16 @@ function sidebar(scope, type, theme, site) {
   const parts = [
     el('rect', { y: BODY_TOP, width: SIDEBAR, height: WINDOW.height, fill: theme.paper }),
     el('path', { d: `M${SIDEBAR} ${BODY_TOP}V${WINDOW.height}`, stroke: theme.rule }),
-    scope.text('Sandbox', {
-      font: 'sansSemibold',
-      size: 19,
-      x: 20,
-      y: BODY_TOP + 38,
-      fill: theme.ink,
-    }),
-    scope.text('Futtatható példák egy szimulált', {
-      font: 'sans',
-      size: 13,
-      x: 20,
-      y: BODY_TOP + 61,
-      fill: theme.muted,
-    }),
-    scope.text('Számlázz.hu ellen.', {
-      font: 'sans',
-      size: 13,
-      x: 20,
-      y: BODY_TOP + 79,
-      fill: theme.muted,
-    }),
   ]
-  let y = BODY_TOP + 116
+  let y = BODY_TOP + 34
   let group = null
   site.examples.forEach((example, index) => {
     if (example.group !== group) {
       group = example.group
-      if (index > 0) y += 16
+      if (index > 0) y += 20
       parts.push(
         scope.text(group.toLocaleUpperCase('hu-HU'), {
-          font: 'monoMedium',
+          font: 'sansSemibold',
           size: 11.5,
           x: 20,
           y,
@@ -232,22 +211,22 @@ function sidebar(scope, type, theme, site) {
           fill: theme.muted,
         }),
       )
-      y += 28
+      y += 30
     }
     const active = index === 0
     if (active) {
       parts.push(
         el('rect', {
-          x: 10,
-          y: y - 19,
-          width: SIDEBAR - 22,
-          height: 29,
+          x: 8,
+          y: y - 23,
+          width: SIDEBAR - 16,
+          height: 36,
           rx: 7,
           fill: theme.accentSoft,
         }),
       )
     }
-    const options = { font: active ? 'sansMedium' : 'sans', size: 14 }
+    const options = { font: active ? 'sansMedium' : 'sans', size: 15 }
     parts.push(
       scope.text(fitText(type, example.title, SIDEBAR - 44, options), {
         ...options,
@@ -256,7 +235,7 @@ function sidebar(scope, type, theme, site) {
         fill: active ? theme.accent : theme.ink2,
       }),
     )
-    y += 31
+    y += 38
   })
   return parts.join('')
 }
@@ -425,11 +404,7 @@ function editor(scope, type, theme) {
 }
 
 function panelTabs(scope, type, theme, left) {
-  const tabs = [
-    { label: 'Konzol · 4', active: false },
-    { label: 'Számla Agent · 1', active: true },
-    { label: 'Szimulált fiók', active: false },
-  ]
+  const tabs = [{ label: 'Számla Agent · 1', active: true }]
   let cursor = left + 20
   const parts = []
   for (const tab of tabs) {

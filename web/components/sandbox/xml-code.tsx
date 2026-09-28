@@ -28,9 +28,20 @@ function renderAttributes(source: string, keyPrefix: string): ReactNode[] {
   return nodes
 }
 
+const LONG_TEXT = />([^<\n]{160,})</g
+const KEEP_CHARS = 64
+
+export function shortenLongText(code: string): string {
+  return code.replace(
+    LONG_TEXT,
+    (_, content: string) =>
+      `>${content.slice(0, KEEP_CHARS)}… (${content.length.toLocaleString('hu-HU')} karakter)<`,
+  )
+}
+
 export function XmlCode({ code }: { code: string }) {
   const nodes: ReactNode[] = []
-  for (const match of code.matchAll(TOKEN)) {
+  for (const match of shortenLongText(code).matchAll(TOKEN)) {
     const offset = match.index ?? 0
     const key = `t${offset}`
     if (match[1] || match[2] || match[3]) {
@@ -53,7 +64,7 @@ export function XmlCode({ code }: { code: string }) {
     }
   }
   return (
-    <code className="block min-w-max font-mono text-[0.78rem] leading-[1.65] text-[var(--code-foreground)]">
+    <code className="block min-w-max font-mono text-[0.78rem] leading-[1.65] whitespace-pre text-[var(--code-foreground)]">
       {nodes}
     </code>
   )

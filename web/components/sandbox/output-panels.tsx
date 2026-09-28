@@ -1,11 +1,11 @@
 'use client'
 
 import type { AGENT_ACTIONS } from 'kassza'
-import { AlertTriangle, ChevronRight, CircleX, Info, Mail, RotateCcw, Unplug } from 'lucide-react'
-import { type ReactNode, useState } from 'react'
+import { AlertTriangle, ChevronRight, CircleX, Mail, RotateCcw, Unplug } from 'lucide-react'
+import { useState } from 'react'
 import { cn } from '@/lib/cn'
-import type { ConsoleEntry, RunResult } from '@/sandbox/runtime/protocol'
-import type { AccountSnapshot, SimulatedCall } from '@/sandbox/simulator'
+import type { RunResult } from '@/sandbox/runtime/protocol'
+import type { SimulatedCall } from '@/sandbox/simulator'
 import { PreviewValue } from './preview-value'
 import type { RunStatus, SandboxLogEntry } from './use-sandbox-runner'
 import { XmlCode } from './xml-code'
@@ -24,34 +24,6 @@ const ACTION_LABELS: Readonly<Record<keyof typeof AGENT_ACTIONS, string>> = {
   queryTaxpayer: 'Adószám lekérdezés',
 }
 
-const levelStyles: Readonly<Record<ConsoleEntry['level'], string>> = {
-  log: '',
-  debug: 'text-muted',
-  info: 'text-[var(--info-ink)]',
-  warn: 'bg-warning-bg/70 text-warning-ink',
-  error: 'bg-danger-bg/70 text-danger-ink',
-}
-
-function LogArguments({
-  entry,
-  pdfUrls,
-  defaultOpen,
-}: {
-  entry: SandboxLogEntry
-  pdfUrls: Readonly<Record<string, string>>
-  defaultOpen: boolean
-}) {
-  const nodes: ReactNode[] = []
-  for (const [position, arg] of entry.args.entries()) {
-    nodes.push(
-      <span key={`${entry.id}.${position}`} className="mr-2 inline">
-        <PreviewValue preview={arg} pdfUrls={pdfUrls} topLevel defaultOpen={defaultOpen} />
-      </span>,
-    )
-  }
-  return <>{nodes}</>
-}
-
 function EmptyState({ title, children }: { title: string; children: string }) {
   return (
     <div className="flex h-full flex-col items-start justify-center gap-1.5 px-6 py-10">
@@ -61,7 +33,7 @@ function EmptyState({ title, children }: { title: string; children: string }) {
   )
 }
 
-export function ConsolePanel({
+export function RunNotice({
   entries,
   result,
   status,
@@ -72,59 +44,46 @@ export function ConsolePanel({
   status: RunStatus
   pdfUrls: Readonly<Record<string, string>>
 }) {
-  const expandByDefault = entries.length < 12
-  if (status === 'idle') {
+  if (result?.error) {
     return (
-      <EmptyState title="Még nem futtattad a kódot.">
-        Nyomd meg a Futtatás gombot (⌘/Ctrl + Enter). A kassza a böngésződben fut, egy szimulált
-        Számlázz.hu ellen, így semmilyen kérés nem hagyja el a gépedet.
-      </EmptyState>
+      <div className="flex gap-2 border-b border-danger-border bg-danger-bg px-4 py-3 text-danger-ink">
+        <CircleX className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+        <div className="min-w-0 flex-1 font-mono text-[0.8rem] leading-relaxed break-words">
+          <p className="mb-1 font-sans text-xs font-semibold tracking-wide uppercase">
+            Kezeletlen hiba{result.error.line ? ` · ${result.error.line}. sor` : ''}
+          </p>
+          <PreviewValue preview={result.error.preview} pdfUrls={pdfUrls} topLevel defaultOpen />
+        </div>
+      </div>
     )
   }
+  if (status === 'timeout') {
+    return (
+      <p className="flex gap-2 border-b border-warning-border bg-warning-bg px-4 py-3 text-sm text-warning-ink">
+        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />A futás 20 másodperc
+        után leállt. Végtelen ciklus vagy le nem záródó Promise lehet a kódban.
+      </p>
+    )
+  }
+  const last = entries.at(-1)
+  if (status !== 'failed' || result || !last) return null
+  const message = last.args.map((arg) => (arg.t === 'string' ? arg.v : '')).join(' ')
   return (
-    <div className="font-mono text-[0.8rem] leading-relaxed" role="log" aria-live="polite">
-      {entries.map((entry) => (
-        <div
-          key={entry.id}
-          className={cn('flex gap-2 border-b border-rule/70 px-4 py-1.5', levelStyles[entry.level])}
-        >
-          {entry.level === 'warn' ? (
-            <AlertTriangle className="mt-1 size-3.5 shrink-0" aria-label="Figyelmeztetés" />
-          ) : entry.level === 'error' ? (
-            <CircleX className="mt-1 size-3.5 shrink-0" aria-label="Hiba" />
-          ) : entry.level === 'info' ? (
-            <Info className="mt-1 size-3.5 shrink-0" aria-label="Információ" />
-          ) : (
-            <span className="mt-1 size-3.5 shrink-0" aria-hidden="true" />
-          )}
-          <div className="min-w-0 flex-1 break-words">
-            <LogArguments entry={entry} pdfUrls={pdfUrls} defaultOpen={expandByDefault} />
-          </div>
-        </div>
-      ))}
-      {result?.error ? (
-        <div className="flex gap-2 border-b border-danger-border bg-danger-bg px-4 py-3 text-danger-ink">
-          <CircleX className="mt-1 size-3.5 shrink-0" aria-hidden="true" />
-          <div className="min-w-0 flex-1">
-            <p className="mb-1 font-sans text-xs font-semibold tracking-wide uppercase">
-              Kezeletlen hiba{result.error.line ? ` · ${result.error.line}. sor` : ''}
-            </p>
-            <PreviewValue preview={result.error.preview} pdfUrls={pdfUrls} topLevel defaultOpen />
-          </div>
-        </div>
-      ) : null}
-      {status === 'timeout' ? (
-        <div className="border-b border-warning-border bg-warning-bg px-4 py-3 font-sans text-sm text-warning-ink">
-          A futás 20 másodperc után leállt. Végtelen ciklus vagy le nem záródó Promise lehet a
-          kódban.
-        </div>
-      ) : null}
-      {status === 'done' && entries.length === 0 ? (
-        <p className="px-4 py-3 font-sans text-sm text-muted">
-          A kód lefutott, de nem írt a konzolra.
-        </p>
-      ) : null}
-    </div>
+    <p
+      className={cn(
+        'flex gap-2 border-b px-4 py-3 text-sm',
+        last.level === 'warn'
+          ? 'border-warning-border bg-warning-bg text-warning-ink'
+          : 'border-danger-border bg-danger-bg text-danger-ink',
+      )}
+    >
+      {last.level === 'warn' ? (
+        <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      ) : (
+        <CircleX className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
+      )}
+      {message}
+    </p>
   )
 }
 
@@ -262,6 +221,14 @@ export function NetworkPanel({
   calls: readonly SimulatedCall[]
   status: RunStatus
 }) {
+  if (status === 'idle') {
+    return (
+      <EmptyState title="Még nem futtattad a kódot.">
+        Nyomd meg a Futtatás gombot (⌘/Ctrl + Enter). A kassza a böngésződben fut, egy szimulált
+        Számlázz.hu ellen, így semmilyen kérés nem hagyja el a gépedet.
+      </EmptyState>
+    )
+  }
   if (calls.length === 0) {
     return (
       <EmptyState
@@ -278,130 +245,5 @@ export function NetworkPanel({
         <CallRow key={call.id} call={call} defaultOpen={call.id === calls[0]?.id} />
       ))}
     </ol>
-  )
-}
-
-const typeLabels: Readonly<Record<string, string>> = {
-  SZ: 'Számla',
-  D: 'Díjbekérő',
-  ES: 'Előlegszámla',
-  VS: 'Végszámla',
-  HS: 'Helyesbítő',
-  SS: 'Sztornó',
-  SL: 'Szállítólevél',
-  NY: 'Nyugta',
-  SN: 'Sztornó nyugta',
-}
-
-const amount = new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 2 })
-
-export function AccountPanel({ account }: { account: AccountSnapshot | undefined }) {
-  if (!account) {
-    return (
-      <EmptyState title="A szimulált fiók üres.">
-        Futtatás után itt látod, milyen bizonylatok jöttek létre, mennyi a hátralék, és mi lett
-        sztornózva vagy törölve. Minden futtatás tiszta fiókkal indul.
-      </EmptyState>
-    )
-  }
-  return (
-    <div className="flex flex-col gap-6 p-4 text-sm">
-      <section>
-        <h3 className="mb-2 font-semibold text-ink">Eladó</h3>
-        <p className="text-ink-2">
-          {account.seller.name} · {account.seller.taxNumber}
-        </p>
-        <p className="text-muted">
-          Regisztrált számlaelőtagok:{' '}
-          {account.invoicePrefixes.map((prefix) => (
-            <code
-              key={prefix}
-              className="mr-1 rounded border border-rule bg-surface px-1 font-mono text-xs text-ink"
-            >
-              {prefix}
-            </code>
-          ))}
-        </p>
-      </section>
-      <section>
-        <h3 className="mb-2 font-semibold text-ink">Számlák ({account.invoices.length})</h3>
-        {account.invoices.length === 0 ? (
-          <p className="text-muted">Nem jött létre számla.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-[var(--radius-md)] border border-rule">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface text-muted">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Szám</th>
-                  <th className="px-3 py-2 font-medium">Típus</th>
-                  <th className="px-3 py-2 text-right font-medium">Bruttó</th>
-                  <th className="px-3 py-2 text-right font-medium">Befizetve</th>
-                  <th className="px-3 py-2 font-medium">Állapot</th>
-                </tr>
-              </thead>
-              <tbody>
-                {account.invoices.map((invoice) => {
-                  const gross = invoice.items.reduce((sum, item) => sum + item.gross, 0)
-                  const paid = invoice.payments.reduce((sum, payment) => sum + payment.amount, 0)
-                  return (
-                    <tr key={invoice.number} className="border-t border-rule">
-                      <td className="px-3 py-2 font-mono whitespace-nowrap text-ink">
-                        {invoice.number}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        {typeLabels[invoice.typeCode]}
-                      </td>
-                      <td className="tnum px-3 py-2 text-right whitespace-nowrap">
-                        {amount.format(gross)}{' '}
-                        {invoice.currency === 'HUF' ? 'Ft' : invoice.currency}
-                      </td>
-                      <td className="tnum px-3 py-2 text-right whitespace-nowrap">
-                        {amount.format(paid)}
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap text-muted">
-                        {invoice.deleted ? 'törölve' : invoice.reversed ? 'sztornózva' : 'érvényes'}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-      <section>
-        <h3 className="mb-2 font-semibold text-ink">Nyugták ({account.receipts.length})</h3>
-        {account.receipts.length === 0 ? (
-          <p className="text-muted">Nem jött létre nyugta.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-[var(--radius-md)] border border-rule">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-surface text-muted">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Szám</th>
-                  <th className="px-3 py-2 font-medium">Típus</th>
-                  <th className="px-3 py-2 text-right font-medium">Bruttó</th>
-                  <th className="px-3 py-2 font-medium">Kiküldve</th>
-                </tr>
-              </thead>
-              <tbody>
-                {account.receipts.map((receipt) => (
-                  <tr key={receipt.number} className="border-t border-rule">
-                    <td className="px-3 py-2 font-mono whitespace-nowrap text-ink">
-                      {receipt.number}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap">{typeLabels[receipt.typeCode]}</td>
-                    <td className="tnum px-3 py-2 text-right whitespace-nowrap">
-                      {amount.format(receipt.items.reduce((sum, item) => sum + item.gross, 0))}
-                    </td>
-                    <td className="px-3 py-2 text-muted">{receipt.sentTo.join(', ') || '–'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
   )
 }
