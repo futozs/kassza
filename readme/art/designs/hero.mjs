@@ -1,4 +1,4 @@
-import { el, icon, logoDefs, num, receiptPath, svgDocument } from '../svg.mjs'
+import { el, icon, num, receiptPath, svgDocument } from '../svg.mjs'
 import { lockup, measureLockup, TAGLINE } from './lockup.mjs'
 import {
   backdrop,
@@ -342,10 +342,9 @@ function metaRow(scope, type, theme, baseline) {
 function defs(theme) {
   const shadowOpacity = theme.name === 'dark' ? 0.7 : 0.16
   return [
-    logoDefs('hero-logo'),
     cardClip('hero-card', { width: WIDTH, height: HEIGHT, radius: RADIUS }),
     backdropDefs('hero', theme),
-    `<linearGradient id="hero-paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${theme.receipt}"/><stop offset="1" stop-color="${theme.receiptEdge}"/></linearGradient>`,
+    `<linearGradient id="hero-paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${theme.receipt}"/><stop offset="1" stop-color="${theme.receipt}"/></linearGradient>`,
     `<radialGradient id="hero-shadow"><stop offset="0" stop-color="${theme.shadow}" stop-opacity="${shadowOpacity}"/><stop offset="1" stop-color="${theme.shadow}" stop-opacity="0"/></radialGradient>`,
   ].join('')
 }
@@ -359,7 +358,6 @@ export function heroDocument({ type, theme, site }) {
     y: lockupTop,
     iconSize: ICON_SIZE,
     fontSize: WORD_SIZE,
-    prefix: 'hero-logo',
     ring: theme.name === 'dark' ? 'rgba(255,255,255,.14)' : undefined,
     colors: { word: theme.ink, bar: theme.amber, tag: theme.muted },
   })

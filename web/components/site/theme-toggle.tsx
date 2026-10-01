@@ -3,9 +3,11 @@
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { cn } from '@/lib/cn'
+import { DARK_MODE_ENABLED } from '@/lib/theme'
 
 export function ThemeToggle({ className }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme()
+  if (!DARK_MODE_ENABLED) return null
 
   return (
     <button

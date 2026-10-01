@@ -1,6 +1,6 @@
 import { highlightTs, highlightXml } from '../code.mjs'
 import { SAMPLE_CODE } from '../sample.mjs'
-import { el, icon, logoDefs, logoMark, shadowFilter, svgDocument } from '../svg.mjs'
+import { el, icon, logoMark, shadowFilter, svgDocument } from '../svg.mjs'
 import { backdrop, backdropDefs, cardBorder, cardClip, sliceRuns } from './parts.mjs'
 
 const WIDTH = 1280
@@ -126,7 +126,7 @@ function navbar(scope, type, theme) {
   return [
     el('rect', { y: CHROME, width: WINDOW.width, height: NAVBAR, fill: theme.paper }),
     el('path', { d: `M0 ${BODY_TOP}H${WINDOW.width}`, stroke: theme.rule }),
-    logoMark('showcase-logo', { x: 20, y: CHROME + 14, size: 28 }),
+    logoMark({ x: 20, y: CHROME + 14, size: 28 }),
     scope.text('kassza', {
       font: 'display',
       size: 21,
@@ -605,7 +605,6 @@ export function showcaseDocument(context) {
   const scope = type.scope()
   const fadeTop = HEIGHT - 170
   const defs = [
-    logoDefs('showcase-logo'),
     cardClip('showcase-card', { width: WIDTH, height: HEIGHT, radius: RADIUS }),
     cardClip('showcase-window', { width: WINDOW.width, height: WINDOW.height, radius: 16 }),
     backdropDefs('showcase', theme),

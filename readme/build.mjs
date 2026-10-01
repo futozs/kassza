@@ -107,7 +107,7 @@ function createRenderer({ config, pkg, site, assetNames }) {
 
   function badges() {
     const color = config.badgeColor
-    const style = { style: 'flat-square', labelColor: '1c2620', color }
+    const style = { style: 'flat-square', labelColor: '28313d', color }
     const items = [
       [urls.npm, shieldsUrl(`npm/v/${pkg.name}`, { label: 'npm', ...style }), 'npm verzió'],
       [
@@ -117,7 +117,7 @@ function createRenderer({ config, pkg, site, assetNames }) {
       ],
       [
         `${urls.repo}/blob/${config.branch}/package.json`,
-        `https://img.shields.io/badge/${staticBadgePart('függőség')}-0-${color}?style=flat-square&labelColor=1c2620`,
+        `https://img.shields.io/badge/${staticBadgePart('függőség')}-0-${color}?style=flat-square&labelColor=28313d`,
         '0 futásidejű függőség',
       ],
       [urls.license, shieldsUrl(`npm/l/${pkg.name}`, { label: 'licenc', ...style }), 'MIT licenc'],

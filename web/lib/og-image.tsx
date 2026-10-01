@@ -45,22 +45,9 @@ export function receiptEdgePath(width: number): string {
 function LogoMark({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-      <defs>
-        <linearGradient id="og-tile" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor={brandColors.brand} />
-          <stop offset="1" stopColor={brandColors.brandDeep} />
-        </linearGradient>
-        <linearGradient id="og-paper" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={brandColors.receipt} />
-          <stop offset="1" stopColor={brandColors.receiptEdge} />
-        </linearGradient>
-      </defs>
-      <rect width="512" height="512" rx="112" fill="url(#og-tile)" />
-      <path d={logoPaths.receipt} fill="#000" opacity=".22" transform="translate(0 10)" />
-      <path d={logoPaths.receipt} fill="url(#og-paper)" />
-      <path d={logoPaths.letter} fill={brandColors.brand} />
-      <rect x="160" y="368" width="120" height="12" rx="6" fill={brandColors.brand} opacity=".28" />
-      <rect x="304" y="368" width="48" height="12" rx="6" fill={brandColors.amber} />
+      <rect width="512" height="512" rx="112" fill={brandColors.brand} />
+      <path d={logoPaths.stem} fill={brandColors.brandInk} />
+      <path d={logoPaths.chevron} fill={brandColors.amber} />
     </svg>
   )
 }

@@ -1,6 +1,6 @@
-const RECEIPT_PATH =
-  'M146 84H366A20 20 0 0 1 386 104V428l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18V104A20 20 0 0 1 146 84Z'
-const LETTER_PATH = 'M170 136h40v88l76-88h50l-80 90 86 116h-50l-62-86-20 22v64h-40z'
+const LOGO_TILE = '#28313D'
+const LOGO_STEM = 'M106 96H194V416L183 400L172 416L161 400L150 416L139 400L128 416L117 400L106 416Z'
+const LOGO_CHEVRON = 'M194 296L290 200H414L306 308L414 416H290L194 320Z'
 
 const ICONS = {
   arrowRight: 'M5 12h14M13 6l6 6-6 6',
@@ -83,14 +83,7 @@ export function icon(name, { x, y, size = 24, stroke = 'none', fill = 'none', wi
   })
 }
 
-export function logoDefs(prefix) {
-  return [
-    `<linearGradient id="${prefix}-tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#14532D"/><stop offset="1" stop-color="#052E16"/></linearGradient>`,
-    `<linearGradient id="${prefix}-paper" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFDF5"/><stop offset="1" stop-color="#F3EBD3"/></linearGradient>`,
-  ].join('')
-}
-
-export function logoMark(prefix, { x, y, size, ring }) {
+export function logoMark({ x, y, size, ring }) {
   const scale = size / 512
   const ringStroke = ring
     ? el('rect', {
@@ -108,12 +101,9 @@ export function logoMark(prefix, { x, y, size, ring }) {
     'g',
     { transform: `translate(${num(x)} ${num(y)}) scale(${num(scale, 5)})` },
     [
-      el('rect', { width: 512, height: 512, rx: 112, fill: `url(#${prefix}-tile)` }),
-      el('path', { d: RECEIPT_PATH, fill: '#000', opacity: 0.22, transform: 'translate(0 10)' }),
-      el('path', { d: RECEIPT_PATH, fill: `url(#${prefix}-paper)` }),
-      el('path', { d: LETTER_PATH, fill: '#14532D' }),
-      el('rect', { x: 160, y: 368, width: 120, height: 12, rx: 6, fill: '#14532D', opacity: 0.28 }),
-      el('rect', { x: 304, y: 368, width: 48, height: 12, rx: 6, fill: '#F59E0B' }),
+      el('rect', { width: 512, height: 512, rx: 112, fill: LOGO_TILE }),
+      el('path', { d: LOGO_STEM, fill: '#FFFFFF' }),
+      el('path', { d: LOGO_CHEVRON, fill: '#F26B21' }),
       ringStroke,
     ].join(''),
   )

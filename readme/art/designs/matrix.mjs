@@ -1,4 +1,4 @@
-import { el, icon, logoDefs, logoMark, num, svgDocument } from '../svg.mjs'
+import { el, icon, logoMark, num, svgDocument } from '../svg.mjs'
 import { backdrop, backdropDefs, cardBorder, cardClip } from './parts.mjs'
 
 const WIDTH = 1280
@@ -156,7 +156,7 @@ function row(scope, theme, pack, index) {
         stroke: theme.accent,
         'stroke-opacity': 0.35,
       }),
-      logoMark('matrix-logo', { x: NAME_X, y: center - 15, size: 30 }),
+      logoMark({ x: NAME_X, y: center - 15, size: 30 }),
       scope.text(pack.name, {
         font: 'display',
         size: 25,
@@ -255,7 +255,6 @@ export function matrixDocument({ type, theme }) {
     title: 'Számla Agent műveletek, 11-ből',
     description: describe(),
     defs: [
-      logoDefs('matrix-logo'),
       cardClip('matrix-card', { width: WIDTH, height: HEIGHT, radius: RADIUS }),
       backdropDefs('matrix', theme),
       scope.defs(),

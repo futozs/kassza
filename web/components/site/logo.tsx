@@ -1,31 +1,12 @@
-import { useId } from 'react'
+import { brandColors, logoPaths } from '@/lib/brand'
 import { cn } from '@/lib/cn'
 
-const RECEIPT_PATH =
-  'M146 84H366A20 20 0 0 1 386 104V428l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18 l-13 -18 l-13 18V104A20 20 0 0 1 146 84Z'
-
 export function LogoMark({ className }: { className?: string }) {
-  const id = useId()
-  const tile = `${id}-tile`
-  const paper = `${id}-paper`
   return (
     <svg viewBox="0 0 512 512" aria-hidden="true" className={cn('size-8 shrink-0', className)}>
-      <defs>
-        <linearGradient id={tile} x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="#14532D" />
-          <stop offset="1" stopColor="#052E16" />
-        </linearGradient>
-        <linearGradient id={paper} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#FFFDF5" />
-          <stop offset="1" stopColor="#F3EBD3" />
-        </linearGradient>
-      </defs>
-      <rect width="512" height="512" rx="112" fill={`url(#${tile})`} />
-      <path d={RECEIPT_PATH} fill="#000" opacity=".22" transform="translate(0 10)" />
-      <path d={RECEIPT_PATH} fill={`url(#${paper})`} />
-      <path d="M170 136h40v88l76-88h50l-80 90 86 116h-50l-62-86-20 22v64h-40z" fill="#14532D" />
-      <rect x="160" y="368" width="120" height="12" rx="6" fill="#14532D" opacity=".28" />
-      <rect x="304" y="368" width="48" height="12" rx="6" fill="#F59E0B" />
+      <rect width="512" height="512" rx="112" fill={brandColors.brand} />
+      <path d={logoPaths.stem} fill={brandColors.brandInk} />
+      <path d={logoPaths.chevron} fill={brandColors.amber} />
     </svg>
   )
 }

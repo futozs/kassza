@@ -6,8 +6,8 @@
     .title{fill:#111827;font-size:22px;font-weight:700}.sub{fill:#6B7280;font-size:14px}
     .label{fill:#374151;font-size:15px}.label.hi{fill:#111827;font-weight:700}
     .value{fill:#374151;font-size:15px;font-variant-numeric:tabular-nums}.value.hi{fill:#111827;font-weight:700}
-    .bar{fill:#9CA3AF}.bar.hi{fill:#14532D}.track{fill:#E5E7EB}.card{fill:#FFFFFF;stroke:#E5E7EB}
-    @media (prefers-color-scheme:dark){.title,.label.hi,.value.hi{fill:#F9FAFB}.sub{fill:#9CA3AF}.label,.value{fill:#D1D5DB}.bar{fill:#6B7280}.bar.hi{fill:#22C55E}.track{fill:#1F2937}.card{fill:#0D1117;stroke:#30363D}}
+    .bar{fill:#9CA3AF}.bar.hi{fill:#F26B21}.track{fill:#E5E7EB}.card{fill:#FFFFFF;stroke:#E5E7EB}
+    @media (prefers-color-scheme:dark){.title,.label.hi,.value.hi{fill:#F9FAFB}.sub{fill:#9CA3AF}.label,.value{fill:#D1D5DB}.bar{fill:#6B7280}.bar.hi{fill:#F26B21}.track{fill:#1F2937}.card{fill:#0D1117;stroke:#30363D}}
   </style>
   <rect class="card" x="0.5" y="0.5" width="759" height="343" rx="12"/>
   <text class="title" x="16" y="34">Számla Agent műveletek, 11-ből</text>

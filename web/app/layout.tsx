@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Geist, Geist_Mono } from 'next/font/google'
 import type { ReactNode } from 'react'
 import { RootProviders } from '@/components/site/root-providers'
 import { site } from '@/lib/site'
+import { DARK_MODE_ENABLED, DARK_THEME_COLOR, LIGHT_THEME_COLOR } from '@/lib/theme'
 import './globals.css'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -57,13 +58,15 @@ export const metadata: Metadata = {
   },
 }
 
-export const viewport: Viewport = {
-  themeColor: [
-    { media: '(prefers-color-scheme: light)', color: '#fffdf7' },
-    { media: '(prefers-color-scheme: dark)', color: '#0d1511' },
-  ],
-  colorScheme: 'light dark',
-}
+export const viewport: Viewport = DARK_MODE_ENABLED
+  ? {
+      themeColor: [
+        { media: '(prefers-color-scheme: light)', color: LIGHT_THEME_COLOR },
+        { media: '(prefers-color-scheme: dark)', color: DARK_THEME_COLOR },
+      ],
+      colorScheme: 'light dark',
+    }
+  : { themeColor: LIGHT_THEME_COLOR, colorScheme: 'light' }
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

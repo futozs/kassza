@@ -10,10 +10,10 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/v/kassza?label=npm&style=flat-square&labelColor=1c2620&color=167337" alt="npm verzió"></a>
-  <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/dm/kassza?label=let%C3%B6lt%C3%A9s&style=flat-square&labelColor=1c2620&color=167337" alt="havi letöltés"></a>
-  <a href="https://github.com/futozs/kassza/blob/main/package.json"><img src="https://img.shields.io/badge/f%C3%BCgg%C5%91s%C3%A9g-0-167337?style=flat-square&labelColor=1c2620" alt="0 futásidejű függőség"></a>
-  <a href="https://github.com/futozs/kassza/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/kassza?label=licenc&style=flat-square&labelColor=1c2620&color=167337" alt="MIT licenc"></a>
+  <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/v/kassza?label=npm&style=flat-square&labelColor=28313d&color=c2501a" alt="npm verzió"></a>
+  <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/dm/kassza?label=let%C3%B6lt%C3%A9s&style=flat-square&labelColor=28313d&color=c2501a" alt="havi letöltés"></a>
+  <a href="https://github.com/futozs/kassza/blob/main/package.json"><img src="https://img.shields.io/badge/f%C3%BCgg%C5%91s%C3%A9g-0-c2501a?style=flat-square&labelColor=28313d" alt="0 futásidejű függőség"></a>
+  <a href="https://github.com/futozs/kassza/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/kassza?label=licenc&style=flat-square&labelColor=28313d&color=c2501a" alt="MIT licenc"></a>
 </p>
 
 <p align="center">

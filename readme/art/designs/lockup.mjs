@@ -1,4 +1,4 @@
-import { el, logoDefs, logoMark, svgDocument } from '../svg.mjs'
+import { el, logoMark, svgDocument } from '../svg.mjs'
 import { oklch } from '../theme.mjs'
 
 export const TAGLINE = 'Számlázz.hu, TypeScriptben'
@@ -42,7 +42,7 @@ export function measureLockup(type, { iconSize, fontSize }) {
 }
 
 export function lockup(scope, type, options) {
-  const { x, y, iconSize, fontSize, prefix, colors, ring } = options
+  const { x, y, iconSize, fontSize, colors, ring } = options
   const layout = measureLockup(type, { iconSize, fontSize })
   const centerY = y + layout.height / 2
   const baseline = centerY - (layout.inkTop + layout.inkBottom) / 2
@@ -51,7 +51,7 @@ export function lockup(scope, type, options) {
   const barHeight = fontSize * BAR_HEIGHT
   const tagBaseline = baseline + layout.tagBaseline
   const markup = [
-    logoMark(prefix, { x, y: centerY - iconSize / 2, size: iconSize, ring }),
+    logoMark({ x, y: centerY - iconSize / 2, size: iconSize, ring }),
     scope.text(WORD, {
       font: 'display',
       size: fontSize,
@@ -93,15 +93,14 @@ export function wordmarkDocument({ type }) {
     y: padding,
     iconSize,
     fontSize,
-    prefix: 'logo',
-    colors: { word: oklch(56, 0.13, 150), bar: '#F59E0B', tag: oklch(59, 0.012, 150) },
+    colors: { word: '#28313D', bar: '#F26B21', tag: oklch(52, 0.02, 258) },
   })
   return svgDocument({
     width,
     height,
     title: 'kassza',
     description: `kassza logó: ${TAGLINE}`,
-    defs: logoDefs('logo') + scope.defs(),
+    defs: scope.defs(),
     body: markup,
   })
 }
