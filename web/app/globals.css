@@ -29,6 +29,8 @@
   --color-accent: var(--accent);
   --color-accent-hover: var(--accent-hover);
   --color-accent-soft: var(--accent-soft);
+  --color-tint: var(--tint);
+  --color-tint-edge: var(--tint-edge);
   --color-amber: var(--amber);
   --color-amber-soft: var(--amber-soft);
   --color-amber-ink: var(--amber-ink);

@@ -30,7 +30,7 @@ export function Navbar({ tree }: { tree?: PageTree.Root }) {
         <Link
           href="/"
           aria-label="kassza főoldal"
-          className="mr-3 rounded-[var(--radius-md)] px-1 py-1 lg:mr-5"
+          className="mr-3 flex items-center rounded-[var(--radius-md)] px-1 py-1 lg:mr-5"
         >
           <Wordmark />
         </Link>

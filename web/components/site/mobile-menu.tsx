@@ -36,7 +36,12 @@ export function MobileMenu({ tree }: { tree?: PageTree.Root | undefined }) {
         <Dialog.Popup className="fixed inset-y-0 left-0 z-[var(--z-modal)] flex w-[min(21rem,86vw)] flex-col bg-paper-raised shadow-[var(--shadow-overlay)] transition-transform duration-300 ease-out outline-none data-[ending-style]:-translate-x-full data-[starting-style]:-translate-x-full lg:hidden">
           <Dialog.Title className="sr-only">Navigáció</Dialog.Title>
           <div className="flex h-[var(--navbar-height)] shrink-0 items-center justify-between border-b border-rule px-3">
-            <Link href="/" onClick={close} aria-label="kassza főoldal" className="px-1">
+            <Link
+              href="/"
+              onClick={close}
+              aria-label="kassza főoldal"
+              className="flex items-center px-1"
+            >
               <Wordmark />
             </Link>
             <div className="flex items-center gap-1">

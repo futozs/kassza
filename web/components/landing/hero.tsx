@@ -1,87 +1,79 @@
-import { ArrowRight } from 'lucide-react'
-import Link from 'next/link'
-import type { ReactNode } from 'react'
 import { ButtonLink } from './button-link'
-import { HeroTape, type SiteStats } from './hero-tape'
+import { CodeSwitch, type CodeTab } from './code-switch'
 import { InstallCommand } from './install-command'
-import { LandingContainer } from './section-heading'
+import { Accent, Eyebrow, LandingContainer } from './section-heading'
 import { installSnippet } from './snippets'
 
-interface HeroProps {
-  code: ReactNode
-  version: string
-  stats: SiteStats
+export interface HeroFacts {
+  readonly operations: number
+  readonly examples: number
+  readonly recipes: number
+  readonly version: string
 }
 
-function RecipesAnnouncement({ count }: { count: number }) {
-  return (
-    <Link
-      href="/docs/receptek"
-      className="group inline-flex max-w-full items-center gap-2.5 rounded-full border border-rule-strong bg-paper-raised py-1 pr-3 pl-1 text-sm text-ink-2 transition-[border-color,color] duration-200 ease-out hover:border-ink-2 hover:text-ink active:translate-y-px"
-    >
-      <span className="shrink-0 rounded-full bg-amber px-2 py-0.5 font-mono text-[0.7rem] font-bold tracking-[0.1em] text-[var(--amber-tag-ink)]">
-        ÚJ
-      </span>
-      <span className="truncate">{count} kész recept: Stripe, IPN, Workers</span>
-      <ArrowRight
-        className="size-3.5 shrink-0 text-accent transition-transform duration-200 ease-out group-hover:translate-x-0.5"
-        aria-hidden="true"
-      />
-    </Link>
-  )
-}
+const TAGS = ['típusos', 'nulla függőség', 'nyílt forráskód'] as const
 
-export function Hero({ code, version, stats }: HeroProps) {
+export function Hero({
+  tabs,
+  xmlLines,
+  facts,
+}: {
+  tabs: readonly CodeTab[]
+  xmlLines: number
+  facts: HeroFacts
+}) {
+  const factList: readonly string[] = [
+    `${facts.operations}/${facts.operations} Agent művelet`,
+    `${facts.examples} futtatható példa`,
+    `${facts.recipes} kész recept`,
+    `v${facts.version} · MIT`,
+  ]
   return (
-    <section
-      aria-labelledby="hero-title"
-      className="relative isolate flex min-h-[calc(100svh-var(--navbar-height))] flex-col border-b border-rule"
-    >
-      <div
-        aria-hidden="true"
-        className="hero-backdrop pointer-events-none absolute inset-0 -z-10"
-      />
-      <LandingContainer className="grid flex-1 content-center items-center gap-12 py-10 sm:py-14 lg:grid-cols-[minmax(0,5fr)_minmax(0,6fr)] lg:gap-10 lg:py-12 xl:gap-14 short:py-6">
+    <section aria-labelledby="hero-title" className="border-b border-rule">
+      <LandingContainer className="grid items-center gap-14 py-16 sm:py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16 lg:py-24">
         <div className="flex min-w-0 flex-col items-start">
-          <RecipesAnnouncement count={stats.recipes} />
+          <div className="flex flex-wrap gap-2">
+            {TAGS.map((tag) => (
+              <Eyebrow key={tag}>{tag}</Eyebrow>
+            ))}
+          </div>
           <h1
             id="hero-title"
-            className="mt-7 font-display short:mt-5 text-[length:var(--text-display-s)] leading-[1.02] font-extrabold tracking-[-0.035em] text-balance text-ink [overflow-wrap:anywhere]"
+            className="mt-6 font-display text-[length:var(--text-display-s)] leading-[1.04] font-semibold tracking-[-0.03em] text-balance text-ink [overflow-wrap:anywhere]"
           >
-            A Számlázz.hu Agent XML-t vár.{' '}
-            <span className="block text-accent">Te írj TypeScriptet.</span>
+            Számlázz és nyugtázz <Accent>TypeScriptből.</Accent>
           </h1>
-          <p className="mt-6 max-w-[34rem] text-[length:var(--text-lede)] leading-relaxed text-ink-2 short:mt-4">
-            A kassza nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. A Számlázz.hu
-            XML-t vár; te típusos objektumot adsz át, a kassza pedig elkészíti a helyes kérést.
+          <p className="mt-6 max-w-[33rem] text-[length:var(--text-lede)] leading-relaxed text-pretty text-ink-2">
+            A kassza a Számlázz.hu Számla Agent kliense. Te megadod a vevőt és a tételeket, ő
+            elkészíti a hibátlan XML-t, kiszámolja az összegeket, és nem enged dupla számlát
+            kiállítani.
           </p>
-          <InstallCommand command={installSnippet} className="mt-8 short:mt-5" />
-          <div className="mt-4 flex flex-wrap items-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-3">
             <ButtonLink href="/docs/alapok/telepites">Első lépések</ButtonLink>
             <ButtonLink href="/sandbox" variant="secondary">
-              Próbáld ki a sandboxban
+              Kipróbálom a sandboxban
             </ButtonLink>
           </div>
-          <p className="tnum mt-7 font-mono text-xs leading-relaxed text-muted short:hidden">
-            v{version} · MIT licenc · nem hivatalos
-          </p>
+          <InstallCommand command={installSnippet} className="mt-6" />
+          <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
+            {factList.map((fact) => (
+              <li key={fact} className="tnum">
+                {fact}
+              </li>
+            ))}
+          </ul>
         </div>
 
-        <div className="relative min-w-0">
-          <div className="hero-code">{code}</div>
-          <p className="mt-5 max-w-[32rem] text-sm leading-relaxed text-muted xl:mt-4 short:hidden">
-            A számla összegeit a kassza hivatalos kerekítése adja, pont úgy, ahogy a Számlázz.hu
-            ellenőrzi.{' '}
-            <a
-              href="#ket-nyelven"
-              className="whitespace-nowrap text-accent underline decoration-current/40 underline-offset-4 hover:decoration-current"
-            >
-              Mutasd az XML-t
-            </a>
-          </p>
-        </div>
+        <CodeSwitch
+          tabs={tabs}
+          caption={
+            <>
+              Ugyanaz a számla két nyelven. A {xmlLines} soros XML-t a kassza építi fel helyetted,
+              kötött sorrendben, hivatalos kerekítéssel.
+            </>
+          }
+        />
       </LandingContainer>
-      <HeroTape stats={stats} />
     </section>
   )
 }
