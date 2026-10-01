@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.11.0 (2026-10-01)
+
+### Újdonságok
+
+- update badge colors and styles in README (c88ae63)
+
 ## 0.10.0 (2026-09-28)
 
 ### Újdonságok
