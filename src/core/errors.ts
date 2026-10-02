@@ -8,6 +8,8 @@ export type SzamlazzErrorCategory =
   | 'partial_success'
   | 'not_found'
   | 'maintenance'
+  | 'rate_limit'
+  | 'attempt_limit'
   | 'network'
   | 'timeout'
   | 'configuration'
@@ -41,6 +43,16 @@ export const AGENT_ERROR_CODES: Readonly<Record<number, AgentErrorCodeInfo>> = {
   7: {
     message: 'Hiányzó adat: ismeretlen számlaszám, rendelésszám vagy külső azonosító.',
     category: 'not_found',
+  },
+  8: {
+    message: 'Nincs jogosultság vagy megfelelő díjcsomag a művelet elvégzéséhez.',
+    category: 'account',
+    hint: 'Az Agentes nyugtakibocsátás a #free csomagban nem érhető el, vagy a felhasználó szerepköre nem engedi. Megbízottként a megbízott díjcsomagja számít.',
+  },
+  17: {
+    message: 'Nem megengedett művelet.',
+    category: 'account',
+    hint: 'Megbízotti felhasználó például nem ismételhet számlát.',
   },
   49: {
     message: 'A tanúsítvány használatához jelszó szükséges.',
@@ -77,10 +89,20 @@ export const AGENT_ERROR_CODES: Readonly<Record<number, AgentErrorCodeInfo>> = {
     category: 'validation',
     hint: 'A küldött XML nem felel meg az XSD-nek. A részleteket a hibaüzenet tartalmazza.',
   },
+  68: {
+    message: 'Már létezik cég ezzel az adószámmal és számlaszám-előtaggal.',
+    category: 'validation',
+    hint: 'A megbízói fiók csatlakozásához egyeztess másik megbízotti előtagot a megbízóval.',
+  },
   71: {
     message: 'Már létező rendelésszám.',
     category: 'duplicate',
     hint: 'A fiókban be van kapcsolva a rendelésszám ismétlődés tiltása. Ez a bizonylat valószínűleg már elkészült.',
+  },
+  101: {
+    message: 'A bejelentkezési név már foglalt.',
+    category: 'validation',
+    hint: 'Új megbízói fiók létrehozásakor másik dedikált felhasználói e-mail címet adj meg.',
   },
   135: {
     message: 'Számla Agent futtatásához lépj ki a Számlázz.hu rendszerből a böngészőben.',
@@ -91,6 +113,11 @@ export const AGENT_ERROR_CODES: Readonly<Record<number, AgentErrorCodeInfo>> = {
     category: 'account',
     hint: 'Lejárt előfizetés vagy rendezetlen díj. Ellenőrizd a Szolgáltatáscsomagom menüpontot.',
   },
+  137: {
+    message: 'Nincs engedély számlázási fiók létrehozására Számla Agenten keresztül.',
+    category: 'account',
+    hint: 'Az action-agent_ceg_mb interfész engedélyét a Számlázz.hu ügyfélszolgálatán kell kérni, tesztfiókra is.',
+  },
   152: {
     message: 'Már létező rendelésszám.',
     category: 'duplicate',
@@ -99,17 +126,28 @@ export const AGENT_ERROR_CODES: Readonly<Record<number, AgentErrorCodeInfo>> = {
   164: {
     message: 'A funkciót csak egyetlen fiókhoz hozzáférő felhasználó használhatja.',
     category: 'auth',
-    hint: 'Használj Agent kulcsot felhasználónév és jelszó helyett.',
+    hint: 'Használj Agent kulcsot felhasználónév és jelszó helyett. Megbízottként minden megbízóhoz külön dedikált felhasználó kell.',
+  },
+  167: {
+    message: 'A tesztfiókban túllépted a rövid idő alatt kiállítható bizonylatok számát.',
+    category: 'rate_limit',
+    hint: 'Tesztfiókban legfeljebb 500 bizonylat készíthető 10 percenként. Várj néhány percet, ne próbáld újra automatikusan.',
+  },
+  200: {
+    message: 'Ezt az előtagot ugyanezzel az adószámmal egy másik számlázási fiók használja.',
+    category: 'validation',
+    hint: 'Válassz másik előtagot.',
   },
   202: {
     message: 'A megadott számlaszám előtag nem megfelelő.',
     category: 'validation',
-    hint: 'Csak a Beállítások / Előtagok menüpontban rögzített előtag használható.',
+    hint: 'Csak a Beállítások / Előtagok menüpontban rögzített és engedélyezett előtag használható.',
   },
   250: {
-    message: 'A meghatalmazás nincs elfogadva.',
+    message:
+      'A fiók nem használható, mert a fiókgazda még nem vette birtokba, vagy a meghatalmazás nincs elfogadva.',
     category: 'account',
-    hint: 'A könyvelői vagy aggregátor meghatalmazást a Számlázz.hu felületén kell elfogadni.',
+    hint: 'Megbízotti kapcsolatnál a megbízónak birtokba kell vennie a fiókot. Könyvelői vagy aggregátor meghatalmazást a Számlázz.hu felületén kell elfogadni.',
   },
   259: {
     message: 'A tétel nettó értéke nem megfelelő.',
@@ -158,11 +196,55 @@ export const AGENT_ERROR_CODES: Readonly<Record<number, AgentErrorCodeInfo>> = {
     hint: 'Ezzel a callId-val már készült nyugta, kérdezd le a meglévőt.',
   },
   339: { message: 'A nyugtaszám nem létezik.', category: 'not_found' },
+  309: {
+    message: 'Érvénytelen adat.',
+    category: 'validation',
+    hint: 'Ellenőrizd a hibaüzenetben megnevezett mezőt, adószámnál előtte a taxpayer.query() hívással.',
+  },
   340: { message: 'A kifizetett összeg eltér a bruttó végösszegtől.', category: 'validation' },
   352: {
     message: 'A számla kelte csak a mai nap lehet.',
     category: 'validation',
     hint: 'A dátumot magyar idő (Europe/Budapest) szerint kell megadni, nem UTC szerint.',
+  },
+  353: {
+    message: 'Nincs egyetlen érvényes számlaszám-előtag sem.',
+    category: 'account',
+    hint: 'A Beállítások / Előtagok oldalon hozz létre vagy engedélyezz egy előtagot.',
+  },
+  354: {
+    message: 'Ez a számlaszám-előtag nem használható.',
+    category: 'validation',
+    hint: 'Megbízottként csak a megbízóval egyeztetett, a cégedhez kötött előtagot használhatod.',
+  },
+  356: {
+    message: 'A megadott számlaszám-előtag helyett másikat kell használni.',
+    category: 'validation',
+    hint: 'A hibaüzenet megnevezi a használandó előtagot, a suggestedPrefix() kiolvassa.',
+  },
+  357: {
+    message: 'Add meg a számlaszám-előtagot.',
+    category: 'validation',
+    hint: 'Megbízotti számlázásnál mindig küldd el az egyeztetett előtagot (prefix).',
+  },
+  358: {
+    message: 'Ezt a számlát csak a fiók tulajdonosa sztornózhatja.',
+    category: 'account',
+  },
+  359: {
+    message:
+      'Ez a számla megbízott számlakibocsátás keretében készült, a sztornót a megbízott végezheti.',
+    category: 'account',
+  },
+  360: {
+    message: 'Az előtag nem módosítható, mert már készült vele bizonylat.',
+    category: 'validation',
+    hint: 'Hozz létre új számlatömböt új előtaggal.',
+  },
+  362: {
+    message: 'Ezt az előtagot ez az adószám korábban már használta.',
+    category: 'validation',
+    hint: 'Válassz másik előtagot.',
   },
   363: {
     message: 'A tétel bruttó értékének egész számnak kell lennie.',
@@ -188,6 +270,40 @@ export const AGENT_ERROR_CODES: Readonly<Record<number, AgentErrorCodeInfo>> = {
     message: 'A megadott dátum túl korai.',
     category: 'validation',
     hint: 'A kelte és a teljesítés dátuma nem lehet a lezárt időszakban.',
+  },
+  489: {
+    message:
+      'Ez a számla megbízott számlakibocsátás keretében készült, az ismétlést a megbízott végezheti.',
+    category: 'account',
+  },
+  491: {
+    message: 'Új kata adónem mellett vállalkozás felé nem állítható ki bizonylat.',
+    category: 'account',
+    hint: 'A fiókban bekapcsolt KATA-védelem tiltja. Hagyd el a vevő adószámát, vagy kapcsold ki a védelmet a saját felelősségedre.',
+  },
+  493: {
+    message: 'Ezt a számlát csak a fiók tulajdonosa helyesbítheti.',
+    category: 'account',
+  },
+  494: {
+    message:
+      'Ez a számla megbízott számlakibocsátás keretében készült, a helyesbítést a megbízott végezheti.',
+    category: 'account',
+  },
+  506: {
+    message: 'A jelszó túl rövid.',
+    category: 'validation',
+    hint: 'A dedikált felhasználó jelszava legalább 8 karakter legyen.',
+  },
+  507: {
+    message: 'A jelszó túl hosszú.',
+    category: 'validation',
+    hint: 'A dedikált felhasználó jelszava legfeljebb 128 karakter lehet.',
+  },
+  524: {
+    message: 'A nyugtaszám-előtag nincs engedélyezve.',
+    category: 'account',
+    hint: 'A Beállítások / Előtagok oldalon engedélyezd az előtag használatát. Meglévő nyugta sztornója ettől még működik.',
   },
   537: { message: 'Egy tételhez legfeljebb 400 adattörlő kód adható.', category: 'validation' },
   538: { message: 'Adattörlő kód demo- és tesztfiókban nem használható.', category: 'account' },
@@ -241,6 +357,7 @@ export interface SzamlazzErrorOptions {
   readonly action?: AgentAction | undefined
   readonly httpStatus?: number | undefined
   readonly rawResponse?: string | undefined
+  readonly details?: Readonly<Record<string, string>> | undefined
   readonly cause?: unknown
 }
 
@@ -253,6 +370,7 @@ export class SzamlazzError extends Error {
   readonly action: AgentAction | undefined
   readonly httpStatus: number | undefined
   readonly rawResponse: string | undefined
+  readonly details: Readonly<Record<string, string>> | undefined
 
   constructor(message: string, options: SzamlazzErrorOptions) {
     super(message, options.cause === undefined ? undefined : { cause: options.cause })
@@ -263,6 +381,7 @@ export class SzamlazzError extends Error {
     this.action = options.action
     this.httpStatus = options.httpStatus
     this.rawResponse = options.rawResponse
+    this.details = options.details
   }
 
   get isDuplicate(): boolean {
@@ -299,6 +418,13 @@ export function createAgentError(input: AgentErrorInput): SzamlazzError {
     httpStatus: input.httpStatus,
     rawResponse: input.rawResponse,
   })
+}
+
+const SUGGESTED_PREFIX_PATTERN = /haszn[áa]ld ezt:\s*\(?\s*([A-Z0-9]+)\s*\)?/i
+
+export function suggestedPrefix(error: unknown): string | undefined {
+  if (!(error instanceof SzamlazzError) || error.code !== 356) return undefined
+  return SUGGESTED_PREFIX_PATTERN.exec(error.message)?.[1]?.toUpperCase()
 }
 
 export function parseErrorCode(value: string | null | undefined): number | undefined {

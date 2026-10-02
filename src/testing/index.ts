@@ -1,13 +1,18 @@
-import type { Kassza, KasszaDefaults } from '../client'
+import type { InvoicesApi, Kassza, KasszaDefaults, ReceiptsApi } from '../client'
 import { toAgentDate } from '../core/dates'
+import { type DocumentHook, emitDocumentEvent } from '../core/document-events'
 import { SzamlazzError } from '../core/errors'
+import { createInvoiceOnce } from '../invoices/create-once'
 import { resolveInvoice } from '../invoices/create-resolve'
 import type { CreatedInvoice, CreateInvoiceInput, InvoiceType } from '../invoices/create-types'
 import type { InvoiceDetails, InvoiceDetailsPayment } from '../invoices/get'
 import type { PaymentEntry, RegisterPaymentInput } from '../invoices/payment'
 import type { InvoiceReference } from '../invoices/reference'
 import { summarizeItems } from '../money/items'
+import { issueForPayment } from '../payments/issue'
+import { convertReceiptToInvoice } from '../receipts/convert'
 import { buildCreateReceiptXml, calculateReceiptItems } from '../receipts/create'
+import { createReceiptOnce } from '../receipts/create-once'
 import type { CreateReceiptInput, Receipt, SendReceiptInput } from '../receipts/types'
 import type { TaxpayerInfo } from '../taxpayer/query-taxpayer'
 
@@ -19,6 +24,7 @@ export interface MockInvoiceRecord {
   readonly number: string
   readonly type: InvoiceType | 'reversal'
   readonly input: CreateInvoiceInput | undefined
+  readonly externalId?: string | undefined
   readonly details: InvoiceDetails
   payments: InvoiceDetailsPayment[]
   reversed: boolean
@@ -40,14 +46,24 @@ export interface MockKasszaOptions {
   readonly taxpayers?: Readonly<Record<string, TaxpayerInfo>>
   readonly credentialsValid?: boolean
   readonly now?: () => Date
+  readonly hooks?: { readonly onDocument?: DocumentHook | undefined } | undefined
+}
+
+export interface MockFailureOptions {
+  readonly afterSuccess?: boolean | undefined
 }
 
 export interface MockKassza extends Kassza {
   readonly calls: readonly MockCall[]
   readonly invoiceRecords: ReadonlyMap<string, MockInvoiceRecord>
   readonly receiptRecords: ReadonlyMap<string, MockReceiptRecord>
-  failNext(method: string, error?: SzamlazzError): void
+  failNext(method: string, error?: SzamlazzError, options?: MockFailureOptions): void
   reset(): void
+}
+
+interface PendingFailure {
+  readonly error: SzamlazzError
+  readonly afterSuccess: boolean
 }
 
 function notFound(code: number, message: string): SzamlazzError {
@@ -71,7 +87,7 @@ function referenceMatches(record: MockInvoiceRecord, reference: InvoiceReference
   if (typeof reference === 'string') return record.number === reference
   if ('invoiceNumber' in reference) return record.number === reference.invoiceNumber
   if ('orderNumber' in reference) return record.input?.orderNumber === reference.orderNumber
-  return record.input?.externalId === reference.externalId
+  return (record.externalId ?? record.input?.externalId) === reference.externalId
 }
 
 function normalizePayments(input: RegisterPaymentInput, today: string): PaymentEntry[] {
@@ -89,7 +105,8 @@ function normalizePayments(input: RegisterPaymentInput, today: string): PaymentE
 export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
   const now = options.now ?? (() => new Date())
   const calls: MockCall[] = []
-  const failures = new Map<string, SzamlazzError>()
+  const failures = new Map<string, PendingFailure>()
+  const onDocument = options.hooks?.onDocument
   const invoices = new Map<string, MockInvoiceRecord>()
   const receipts = new Map<string, MockReceiptRecord>()
   const sequences = new Map<string, number>()
@@ -103,13 +120,10 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
     return `${key}-${next}`
   }
 
-  const record = (method: string, args: readonly unknown[]): void => {
-    calls.push({ method, args })
+  const takeFailure = (method: string): PendingFailure | undefined => {
     const failure = failures.get(method)
-    if (failure) {
-      failures.delete(method)
-      throw failure
-    }
+    if (failure) failures.delete(method)
+    return failure
   }
 
   const findInvoice = (reference: InvoiceReference): MockInvoiceRecord => {
@@ -233,9 +247,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
     }
   }
 
-  const createReceiptRecord = (input: CreateReceiptInput, callId?: string): Receipt => {
-    const defaults = options.defaults?.receipt ?? {}
-    buildCreateReceiptXml([], defaults, input)
+  const assertUniqueCallId = (callId: string | undefined): void => {
     if (
       callId !== undefined &&
       [...receipts.values()].some((entry) => entry.receipt.callId === callId)
@@ -245,6 +257,12 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
         code: 338,
       })
     }
+  }
+
+  const createReceiptRecord = (input: CreateReceiptInput, callId?: string): Receipt => {
+    const defaults = options.defaults?.receipt ?? {}
+    buildCreateReceiptXml([], defaults, input)
+    assertUniqueCallId(callId)
     const currency = input.currency ?? defaults.currency ?? 'HUF'
     const calculated = calculateReceiptItems(input.items, currency)
     const totals = summarizeItems(calculated.map((item) => item.amounts))
@@ -294,9 +312,17 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
       : receipt
   }
 
-  const run = async <T>(method: string, args: readonly unknown[], fn: () => T): Promise<T> => {
-    record(method, args)
-    return fn()
+  const run = async <T>(
+    method: string,
+    args: readonly unknown[],
+    fn: () => T | Promise<T>,
+  ): Promise<T> => {
+    calls.push({ method, args })
+    const failure = takeFailure(method)
+    if (failure && !failure.afterSuccess) throw failure.error
+    const result = await fn()
+    if (failure) throw failure.error
+    return result
   }
 
   const nullIfMissing = async <T>(promise: Promise<T>): Promise<T | null> => {
@@ -321,16 +347,253 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
       return downloadPdf ? { ...found.receipt, pdf: MOCK_PDF } : found.receipt
     })
 
+  const invoicesApi: InvoicesApi = {
+    async create(input) {
+      const document = await run('invoices.create', [input], () => createInvoiceRecord(input))
+      await emitDocumentEvent(onDocument, {
+        kind: 'invoice',
+        action: 'created',
+        number: document.number,
+        document,
+        input,
+      })
+      return document
+    },
+    createOnce: (input, requestOptions) =>
+      run('invoices.createOnce', [input], () =>
+        createInvoiceOnce(invoicesApi, input, { recoveryDelayMs: 0, ...requestOptions }),
+      ),
+    preview: (input) =>
+      run('invoices.preview', [input], () => {
+        const resolved = resolveInvoice(options.defaults?.invoice ?? {}, input, now())
+        const items = resolved.items.map((item) => item.amounts)
+        const totals = summarizeItems(items)
+        return {
+          pdf: MOCK_PDF,
+          netTotal: totals.netAmount,
+          grossTotal: totals.grossAmount,
+          items,
+        }
+      }),
+    async reverse(input) {
+      const invoiceNumber = typeof input === 'string' ? input : input.invoiceNumber
+      const document = await run('invoices.reverse', [input], () => {
+        const original = findInvoice(invoiceNumber)
+        if (original.type === 'reversal') {
+          throw new SzamlazzError('Sztornó számla nem sztornózható.', { category: 'validation' })
+        }
+        if (original.reversed) {
+          throw new SzamlazzError(`A(z) ${invoiceNumber} számlát már sztornózták.`, {
+            category: 'validation',
+          })
+        }
+        original.reversed = true
+        const number = nextNumber('E-STORNO')
+        const totals = original.details.totals
+        invoices.set(number, {
+          number,
+          type: 'reversal',
+          input: undefined,
+          externalId: typeof input === 'string' ? undefined : input.externalId,
+          details: {
+            ...original.details,
+            header: {
+              ...original.details.header,
+              number,
+              type: 'reversal',
+              typeCode: 'SS',
+              referencedInvoiceNumber: invoiceNumber,
+            },
+            totals: {
+              netAmount: -totals.netAmount,
+              vatAmount: -totals.vatAmount,
+              grossAmount: -totals.grossAmount,
+              byVat: [],
+            },
+          },
+          payments: [],
+          reversed: false,
+          deleted: false,
+        })
+        const downloadPdf = typeof input === 'string' || (input.downloadPdf ?? true)
+        return {
+          number,
+          netTotal: -totals.netAmount,
+          grossTotal: -totals.grossAmount,
+          ...(downloadPdf ? { pdf: MOCK_PDF } : {}),
+        }
+      })
+      await emitDocumentEvent(onDocument, {
+        kind: 'invoice',
+        action: 'reversed',
+        number: document.number,
+        reversedNumber: invoiceNumber,
+        document,
+      })
+      return document
+    },
+    async registerPayment(input) {
+      const document = await run('invoices.registerPayment', [input], () => {
+        const found = findInvoice(input.invoiceNumber)
+        const today = toAgentDate(now())
+        const entries = normalizePayments(input, today).map((entry) => ({
+          date: toAgentDate(entry.date ?? today),
+          method: entry.method,
+          amount: entry.amount,
+          comment: entry.description,
+        }))
+        found.payments = input.additive === false ? entries : [...found.payments, ...entries]
+        const paid = found.payments.reduce((sum, payment) => sum + payment.amount, 0)
+        return {
+          invoiceNumber: found.number,
+          netTotal: found.details.totals.netAmount,
+          grossTotal: found.details.totals.grossAmount,
+          outstanding: Math.max(0, found.details.totals.grossAmount - paid),
+        }
+      })
+      await emitDocumentEvent(onDocument, {
+        kind: 'invoice',
+        action: 'payment',
+        number: document.invoiceNumber,
+        document,
+      })
+      return document
+    },
+    async clearPayments(input) {
+      const document = await run('invoices.clearPayments', [input], () => {
+        const found = findInvoice(typeof input === 'string' ? input : input.invoiceNumber)
+        found.payments = []
+        return {
+          invoiceNumber: found.number,
+          netTotal: found.details.totals.netAmount,
+          grossTotal: found.details.totals.grossAmount,
+          outstanding: found.details.totals.grossAmount,
+        }
+      })
+      await emitDocumentEvent(onDocument, {
+        kind: 'invoice',
+        action: 'payment',
+        number: document.invoiceNumber,
+        document,
+      })
+      return document
+    },
+    getPdf: (reference) =>
+      run('invoices.getPdf', [reference], () => {
+        const found = findInvoice(reference)
+        return {
+          pdf: MOCK_PDF,
+          number: found.number,
+          netTotal: found.details.totals.netAmount,
+          grossTotal: found.details.totals.grossAmount,
+        }
+      }),
+    get: (reference, query) => getInvoice(reference, query?.includePdf),
+    find: (reference, query) => nullIfMissing(getInvoice(reference, query?.includePdf)),
+    deleteProforma: (reference) =>
+      run('invoices.deleteProforma', [reference], () => {
+        const target: InvoiceReference =
+          typeof reference === 'string'
+            ? reference
+            : 'proformaNumber' in reference
+              ? reference.proformaNumber
+              : { orderNumber: reference.orderNumber }
+        const proforma = [...invoices.values()]
+          .filter((candidate) => candidate.type === 'proforma' && !candidate.deleted)
+          .findLast((candidate) => referenceMatches(candidate, target))
+        if (!proforma) throw notFound(335, 'A hivatkozott díjbekérő nem található.')
+        proforma.deleted = true
+      }),
+  }
+
+  const receiptsApi: ReceiptsApi = {
+    async create(input) {
+      const document = await run('receipts.create', [input], () =>
+        createReceiptRecord(input, input.callId),
+      )
+      await emitDocumentEvent(onDocument, {
+        kind: 'receipt',
+        action: 'created',
+        number: document.number,
+        document,
+      })
+      return document
+    },
+    createOnce: (input, requestOptions) =>
+      run('receipts.createOnce', [input], () =>
+        createReceiptOnce(receiptsApi, input, { recoveryDelayMs: 0, ...requestOptions }),
+      ),
+    async reverse(input) {
+      const receiptNumber = typeof input === 'string' ? input : input.receiptNumber
+      const callId = typeof input === 'string' ? undefined : input.callId
+      const document = await run('receipts.reverse', [input], () => {
+        assertUniqueCallId(callId)
+        const original = findReceipt(receiptNumber)
+        if (original.receipt.type === 'reversal') {
+          throw new SzamlazzError(
+            'Hiányzó adat: sztornózandó nyugta (ez a nyugta egy sztornónyugta)',
+            { category: 'validation' },
+          )
+        }
+        if (original.receipt.isReversed) {
+          throw new SzamlazzError(
+            `Hiányzó adat: sztornózandó nyugta (ezt a nyugtát már sztornózták: ${receiptNumber})`,
+            { category: 'validation' },
+          )
+        }
+        original.receipt = { ...original.receipt, isReversed: true }
+        receiptId += 1
+        const reversal: Receipt = {
+          ...original.receipt,
+          id: receiptId,
+          number: nextNumber(`${original.receipt.number.split('-')[0] ?? 'NY'}-STORNO`),
+          callId,
+          type: 'reversal',
+          isReversed: false,
+          reversedReceiptNumber: receiptNumber,
+          issueDate: toAgentDate(now()),
+        }
+        receipts.set(reversal.number, { receipt: reversal, sentTo: [] })
+        return { ...reversal, pdf: MOCK_PDF }
+      })
+      await emitDocumentEvent(onDocument, {
+        kind: 'receipt',
+        action: 'reversed',
+        number: document.number,
+        reversedNumber: receiptNumber,
+        document,
+      })
+      return document
+    },
+    get: getReceipt,
+    find: (input, requestOptions) => nullIfMissing(getReceipt(input, requestOptions)),
+    send: (input: SendReceiptInput) =>
+      run('receipts.send', [input], () => {
+        const found = findReceipt(input.receiptNumber)
+        const emails =
+          typeof input.emails === 'string' ? input.emails.split(/[,;]/) : [...input.emails]
+        found.sentTo.push(emails.map((email) => email.trim()).filter(Boolean))
+      }),
+    convertToInvoice: (input, requestOptions) =>
+      run('receipts.convertToInvoice', [input], () =>
+        convertReceiptToInvoice({ receipts: receiptsApi, invoices: invoicesApi }, input, {
+          recoveryDelayMs: 0,
+          ...requestOptions,
+        }),
+      ),
+  }
+
   return {
     calls,
     invoiceRecords: invoices,
     receiptRecords: receipts,
-    failNext(method, error) {
-      failures.set(
-        method,
-        error ??
+    failNext(method, error, failureOptions) {
+      failures.set(method, {
+        error:
+          error ??
           new SzamlazzError('Hálózati hiba a Számlázz.hu elérésekor.', { category: 'network' }),
-      )
+        afterSuccess: failureOptions?.afterSuccess === true,
+      })
     },
     reset() {
       calls.length = 0
@@ -340,147 +603,8 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
       sequences.clear()
       receiptId = 0
     },
-    invoices: {
-      create: (input) => run('invoices.create', [input], () => createInvoiceRecord(input)),
-      preview: (input) =>
-        run('invoices.preview', [input], () => {
-          const resolved = resolveInvoice(options.defaults?.invoice ?? {}, input, now())
-          const items = resolved.items.map((item) => item.amounts)
-          const totals = summarizeItems(items)
-          return {
-            pdf: MOCK_PDF,
-            netTotal: totals.netAmount,
-            grossTotal: totals.grossAmount,
-            items,
-          }
-        }),
-      reverse: (input) =>
-        run('invoices.reverse', [input], () => {
-          const invoiceNumber = typeof input === 'string' ? input : input.invoiceNumber
-          const original = findInvoice(invoiceNumber)
-          original.reversed = true
-          const number = nextNumber('E-STORNO')
-          const totals = original.details.totals
-          invoices.set(number, {
-            number,
-            type: 'reversal',
-            input: undefined,
-            details: {
-              ...original.details,
-              header: {
-                ...original.details.header,
-                number,
-                type: 'reversal',
-                typeCode: 'SS',
-                referencedInvoiceNumber: invoiceNumber,
-              },
-              totals: {
-                netAmount: -totals.netAmount,
-                vatAmount: -totals.vatAmount,
-                grossAmount: -totals.grossAmount,
-                byVat: [],
-              },
-            },
-            payments: [],
-            reversed: false,
-            deleted: false,
-          })
-          const downloadPdf = typeof input === 'string' || (input.downloadPdf ?? true)
-          return {
-            number,
-            netTotal: -totals.netAmount,
-            grossTotal: -totals.grossAmount,
-            ...(downloadPdf ? { pdf: MOCK_PDF } : {}),
-          }
-        }),
-      registerPayment: (input) =>
-        run('invoices.registerPayment', [input], () => {
-          const found = findInvoice(input.invoiceNumber)
-          const today = toAgentDate(now())
-          const entries = normalizePayments(input, today).map((entry) => ({
-            date: toAgentDate(entry.date ?? today),
-            method: entry.method,
-            amount: entry.amount,
-            comment: entry.description,
-          }))
-          found.payments = input.additive === false ? entries : [...found.payments, ...entries]
-          const paid = found.payments.reduce((sum, payment) => sum + payment.amount, 0)
-          return {
-            invoiceNumber: found.number,
-            netTotal: found.details.totals.netAmount,
-            grossTotal: found.details.totals.grossAmount,
-            outstanding: Math.max(0, found.details.totals.grossAmount - paid),
-          }
-        }),
-      clearPayments: (input) =>
-        run('invoices.clearPayments', [input], () => {
-          const found = findInvoice(typeof input === 'string' ? input : input.invoiceNumber)
-          found.payments = []
-          return {
-            invoiceNumber: found.number,
-            netTotal: found.details.totals.netAmount,
-            grossTotal: found.details.totals.grossAmount,
-            outstanding: found.details.totals.grossAmount,
-          }
-        }),
-      getPdf: (reference) =>
-        run('invoices.getPdf', [reference], () => {
-          const found = findInvoice(reference)
-          return {
-            pdf: MOCK_PDF,
-            number: found.number,
-            netTotal: found.details.totals.netAmount,
-            grossTotal: found.details.totals.grossAmount,
-          }
-        }),
-      get: (reference, query) => getInvoice(reference, query?.includePdf),
-      find: (reference, query) => nullIfMissing(getInvoice(reference, query?.includePdf)),
-      deleteProforma: (reference) =>
-        run('invoices.deleteProforma', [reference], () => {
-          const target: InvoiceReference =
-            typeof reference === 'string'
-              ? reference
-              : 'proformaNumber' in reference
-                ? reference.proformaNumber
-                : { orderNumber: reference.orderNumber }
-          const proforma = [...invoices.values()]
-            .filter((candidate) => candidate.type === 'proforma' && !candidate.deleted)
-            .findLast((candidate) => referenceMatches(candidate, target))
-          if (!proforma) throw notFound(335, 'A hivatkozott díjbekérő nem található.')
-          proforma.deleted = true
-        }),
-    },
-    receipts: {
-      create: (input) =>
-        run('receipts.create', [input], () => createReceiptRecord(input, input.callId)),
-      reverse: (input) =>
-        run('receipts.reverse', [input], () => {
-          const receiptNumber = typeof input === 'string' ? input : input.receiptNumber
-          const original = findReceipt(receiptNumber)
-          original.receipt = { ...original.receipt, isReversed: true }
-          receiptId += 1
-          const reversal: Receipt = {
-            ...original.receipt,
-            id: receiptId,
-            number: nextNumber(`${original.receipt.number.split('-')[0] ?? 'NY'}-STORNO`),
-            type: 'reversal',
-            isReversed: false,
-            reversedReceiptNumber: receiptNumber,
-            issueDate: toAgentDate(now()),
-          }
-          receipts.set(reversal.number, { receipt: reversal, sentTo: [] })
-          return { ...reversal, pdf: MOCK_PDF }
-        }),
-      get: getReceipt,
-      find: (input, requestOptions) => nullIfMissing(getReceipt(input, requestOptions)),
-      send: (input: SendReceiptInput) =>
-        run('receipts.send', [input], () => {
-          const found = findReceipt(input.receiptNumber)
-          const emails =
-            typeof input.emails === 'string' ? input.emails.split(/[,;]/) : [...input.emails]
-          found.sentTo.push(emails.map((email) => email.trim()).filter(Boolean))
-        }),
-    },
+    invoices: invoicesApi,
+    receipts: receiptsApi,
     taxpayer: {
       query: (taxNumber) =>
         run('taxpayer.query', [taxNumber], () => {
@@ -490,5 +614,13 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
     },
     verifyCredentials: () => run('verifyCredentials', [], () => options.credentialsValid ?? true),
     resetSession: () => run('resetSession', [], () => undefined),
+    resetAttempts: (target) => run('resetAttempts', [target], () => undefined),
+    issueForPayment: (payment, issueOptions) =>
+      run('issueForPayment', [payment], () =>
+        issueForPayment({ invoices: invoicesApi, receipts: receiptsApi }, payment, {
+          recoveryDelayMs: 0,
+          ...issueOptions,
+        }),
+      ),
   }
 }

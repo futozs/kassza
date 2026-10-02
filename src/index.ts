@@ -13,6 +13,11 @@ export {
   MAX_INVOICE_ATTACHMENTS,
   SZAMLAZZ_AGENT_URL,
 } from './core/actions'
+export {
+  ATTEMPT_LEDGER_KEY_PREFIX,
+  ATTEMPT_LEDGER_TTL_SECONDS,
+  attemptLedgerKey,
+} from './core/attempt-ledger'
 export { bytesToBase64 } from './core/binary'
 export type {
   AgentAttachment,
@@ -23,15 +28,41 @@ export type {
   SzamlazzHooks,
   SzamlazzOptions,
 } from './core/context'
-export { addBudapestDays, type DateInput, toBudapestDate, todayInBudapest } from './core/dates'
+export {
+  addBudapestDays,
+  type DateInput,
+  toBudapestDate,
+  toBudapestTimestamp,
+  todayInBudapest,
+} from './core/dates'
+export type {
+  DocumentEvent,
+  DocumentHook,
+  InvoiceCreatedEvent,
+  InvoicePaymentEvent,
+  InvoiceReversedEvent,
+  ReceiptCreatedEvent,
+  ReceiptReversedEvent,
+} from './core/document-events'
 export {
   AGENT_ERROR_CODES,
   type AgentErrorCodeInfo,
   isSzamlazzError,
   SzamlazzError,
   type SzamlazzErrorCategory,
+  suggestedPrefix,
 } from './core/errors'
+export type { CreateOnceOptions } from './core/once'
 export { type CookieStore, memoryCookieStore } from './core/session'
+export {
+  type ChooseDocumentBuyer,
+  type ChooseDocumentInput,
+  chooseDocument,
+  type DocumentChoice,
+  type DocumentDecision,
+  RECEIPT_MAX_GROSS_HUF,
+} from './documents/choose'
+export { type InvoiceOnceResult, invoiceOnceExternalId } from './invoices/create-once'
 export type {
   BuyerLedger,
   CorrectiveInvoiceInput,
@@ -82,6 +113,34 @@ export type { InvoiceReference } from './invoices/reference'
 export type { ReversedInvoice, ReverseInvoiceInput } from './invoices/reverse'
 export type { ItemAmounts, ItemPriceInput } from './money/items'
 export type { VatRate } from './money/vat'
+export {
+  buyerFromCustomer,
+  type IssuedDocument,
+  type IssuedInvoice,
+  type IssuedReceipt,
+  type IssuedReversal,
+  type IssueForPaymentOptions,
+  issueForPayment,
+  type PaymentDocumentItem,
+  type PaymentDocumentsApi,
+  paymentOrderNumber,
+  type SkippedPayment,
+} from './payments/issue'
+export type {
+  PaymentAddress,
+  PaymentAmount,
+  PaymentCustomer,
+  PaymentEvent,
+  PaymentEventKind,
+  PaymentLineItem,
+  PaymentProvider,
+} from './payments/types'
+export {
+  type ConvertedReceipt,
+  type ConvertReceiptInput,
+  conversionExternalId,
+} from './receipts/convert'
+export type { ReceiptOnceResult } from './receipts/create-once'
 export type {
   CreateReceiptInput,
   GetReceiptInput,
@@ -89,6 +148,7 @@ export type {
   ReceiptDefaults,
   ReceiptItem,
   ReceiptItemInput,
+  ReceiptOnlyVatCode,
   ReceiptPayment,
   ReceiptPaymentInput,
   ReceiptPdfTemplate,

@@ -10,3 +10,4 @@ coverage/
 # vannak itt (szerzői jog miatt nem kerülnek a publikus repóba).
 .research/
 .xsd-cache/
+.roadmap/

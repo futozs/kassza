@@ -4,13 +4,16 @@ export type XmlContent = XmlScalar | null | undefined | readonly XmlChild[]
 
 export type XmlChild = XmlNode | false | null | undefined
 
+export type XmlAttributes = Readonly<Record<string, string>>
+
 export interface XmlNode {
   readonly name: string
   readonly content: XmlContent
+  readonly attributes?: XmlAttributes | undefined
 }
 
-export function el(name: string, content: XmlContent): XmlNode {
-  return { name, content }
+export function el(name: string, content: XmlContent, attributes?: XmlAttributes): XmlNode {
+  return attributes === undefined ? { name, content } : { name, content, attributes }
 }
 
 export function optionalEl(name: string, content: XmlContent): XmlNode | undefined {
@@ -66,33 +69,46 @@ function isPresent(child: XmlChild): child is XmlNode {
   return Boolean(child)
 }
 
+function renderAttributes(attributes: XmlAttributes | undefined): string {
+  if (attributes === undefined) return ''
+  return Object.entries(attributes)
+    .map(([key, value]) => ` ${key}="${escapeXml(value)}"`)
+    .join('')
+}
+
 function renderNode(node: XmlNode, depth: number): string {
   const indent = '  '.repeat(depth)
   const { name, content } = node
-  if (content === undefined || content === null) return `${indent}<${name}></${name}>`
+  const open = `${name}${renderAttributes(node.attributes)}`
+  if (content === undefined || content === null) return `${indent}<${open}></${name}>`
   if (!Array.isArray(content)) {
-    return `${indent}<${name}>${formatScalar(content as XmlScalar)}</${name}>`
+    return `${indent}<${open}>${formatScalar(content as XmlScalar)}</${name}>`
   }
   const children = (content as readonly XmlChild[]).filter(isPresent)
-  if (children.length === 0) return `${indent}<${name}></${name}>`
+  if (children.length === 0) return `${indent}<${open}></${name}>`
   const inner = children.map((child) => renderNode(child, depth + 1)).join('\n')
-  return `${indent}<${name}>\n${inner}\n${indent}</${name}>`
+  return `${indent}<${open}>\n${inner}\n${indent}</${name}>`
 }
+
+export const XSI_NAMESPACE = 'http://www.w3.org/2001/XMLSchema-instance'
 
 export interface XmlDocumentOptions {
   readonly root: string
   readonly namespace: string
+  readonly namespaces?: Readonly<Record<string, string>> | undefined
   readonly schemaLocation?: string
   readonly children: readonly XmlChild[]
 }
 
 export function buildXmlDocument(options: XmlDocumentOptions): string {
-  const attributes = [`xmlns="${options.namespace}"`]
+  const declarations = new Map<string, string>([['xmlns', options.namespace]])
+  for (const [prefix, uri] of Object.entries(options.namespaces ?? {})) {
+    declarations.set(`xmlns:${prefix}`, uri)
+  }
+  if (options.schemaLocation !== undefined) declarations.set('xmlns:xsi', XSI_NAMESPACE)
+  const attributes = [...declarations].map(([name, value]) => `${name}="${escapeXml(value)}"`)
   if (options.schemaLocation !== undefined) {
-    attributes.push(
-      'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"',
-      `xsi:schemaLocation="${options.namespace} ${options.schemaLocation}"`,
-    )
+    attributes.push(`xsi:schemaLocation="${options.namespace} ${options.schemaLocation}"`)
   }
   const body = options.children
     .filter(isPresent)

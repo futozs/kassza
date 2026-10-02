@@ -1,7 +1,7 @@
 <!-- Ezt a fájlt a readme/build.mjs generálja a readme/template.md alapján. Ne szerkeszd kézzel: írd át a sablont, és futtasd az npm run readme parancsot. -->
 
 <p align="center">
-  <a href="https://kassza-amber.vercel.app"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/hero-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/hero-light.svg" alt="kassza: Számlázz.hu, TypeScriptben. Telepítés: npm i kassza" width="100%"></picture></a>
+  <a href="https://kasszajs.hu"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/hero-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/hero-light.svg" alt="kassza: Számlázz.hu, TypeScriptben. Telepítés: npm i kassza" width="100%"></picture></a>
 </p>
 
 <p align="center">
@@ -17,11 +17,11 @@
 </p>
 
 <p align="center">
-  <a href="https://kassza-amber.vercel.app"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-web-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-web-light.svg" alt="Weboldal: kassza-amber.vercel.app" width="428"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-light.svg" alt="Dokumentáció: 92 oldal, magyarul" width="428"></picture></a>
+  <a href="https://kasszajs.hu"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-web-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-web-light.svg" alt="Weboldal: kasszajs.hu" width="428"></picture></a>
+  <a href="https://kasszajs.hu/docs"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-light.svg" alt="Dokumentáció: 92 oldal, magyarul" width="428"></picture></a>
   <br>
-  <a href="https://kassza-amber.vercel.app/sandbox"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-light.svg" alt="Sandbox: 27 futtatható példa" width="428"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-recipes-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-recipes-light.svg" alt="Receptek: 11 kész integráció" width="428"></picture></a>
+  <a href="https://kasszajs.hu/sandbox"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-light.svg" alt="Sandbox: 27 futtatható példa" width="428"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-recipes-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-recipes-light.svg" alt="Receptek: 11 kész integráció" width="428"></picture></a>
 </p>
 
 ```bash
@@ -44,8 +44,8 @@ console.log(szamla.number, szamla.grossTotal)
 Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hibakezelést a kassza intézi, a vevő pedig e-mailben megkapja a számlát.
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/alapok/telepites"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Telepítés" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Számla kiállítása" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/alapok/telepites"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Telepítés" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Számla kiállítása" height="44"></picture></a>
 </p>
 
 ## Miért kassza?
@@ -83,7 +83,7 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/alapok/mi-a-kassza"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Mi a kassza?" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/alapok/mi-a-kassza"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Mi a kassza?" height="44"></picture></a>
 </p>
 
 ## Tartalom
@@ -98,47 +98,47 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 
 ## Weboldal, sandbox és receptek
 
-A teljes magyar dokumentáció, a sandbox és a receptek a **[kassza-amber.vercel.app](https://kassza-amber.vercel.app)** oldalon vannak.
+A teljes magyar dokumentáció, a sandbox és a receptek a **[kasszajs.hu](https://kasszajs.hu)** oldalon vannak.
 
 <p align="center">
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/showcase-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/showcase-light.svg" alt="A kassza sandbox: futtatható példák, TypeScript kód és a ténylegesen elküldött XML" width="100%"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/showcase-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/showcase-light.svg" alt="A kassza sandbox: futtatható példák, TypeScript kód és a ténylegesen elküldött XML" width="100%"></picture></a>
 </p>
 
-- 📖 **[Dokumentáció](https://kassza-amber.vercel.app/docs)**: 92 oldal magyarul. Minden Agent művelethez kérés, válasz és futtatható minta, a beállítások, a szabályok és az összes ismert hibakód.
-- ▶️ **[Sandbox](https://kassza-amber.vercel.app/sandbox)**: 27 példa, amit a böngészőben futtathatsz Agent kulcs nélkül, szimulált Számlázz.hu ellen, a ténylegesen elküldött XML-lel. A saját kódodat linkként meg is oszthatod.
-- 🍳 **[Receptek](https://kassza-amber.vercel.app/docs/receptek)**: 11 teljes, bemásolható integráció webshophoz, Stripe és IPN webhookhoz, díjbekérőhöz, pénztári nyugtához, PDF tárhelyhez, Cloudflare Workershez és tesztekhez.
-- 🤖 **[llms.txt](https://kassza-amber.vercel.app/llms.txt)**: a dokumentáció tartalomjegyzéke AI asszisztenseknek, a teljes szöveg egy fájlban: [llms-full.txt](https://kassza-amber.vercel.app/llms-full.txt).
+- 📖 **[Dokumentáció](https://kasszajs.hu/docs)**: 92 oldal magyarul. Minden Agent művelethez kérés, válasz és futtatható minta, a beállítások, a szabályok és az összes ismert hibakód.
+- ▶️ **[Sandbox](https://kasszajs.hu/sandbox)**: 27 példa, amit a böngészőben futtathatsz Agent kulcs nélkül, szimulált Számlázz.hu ellen, a ténylegesen elküldött XML-lel. A saját kódodat linkként meg is oszthatod.
+- 🍳 **[Receptek](https://kasszajs.hu/docs/receptek)**: 11 teljes, bemásolható integráció webshophoz, Stripe és IPN webhookhoz, díjbekérőhöz, pénztári nyugtához, PDF tárhelyhez, Cloudflare Workershez és tesztekhez.
+- 🤖 **[llms.txt](https://kasszajs.hu/llms.txt)**: a dokumentáció tartalomjegyzéke AI asszisztenseknek, a teljes szöveg egy fájlban: [llms-full.txt](https://kasszajs.hu/llms-full.txt).
 - 📦 **[npm csomag](https://www.npmjs.com/package/kassza)** · 🏛️ **[Hivatalos Számlázz.hu Agent dokumentáció](https://docs.szamlazz.hu/hu/agent/)**
 
 <details>
 <summary>🍳 <b>Mind a 11 recept</b></summary>
 
-- **[Közös kliens](https://kassza-amber.vercel.app/docs/receptek/kozos-kliens)**: Egyetlen szerveroldali kassza kliens alapbeállításokkal, hibanaplózással és közös munkamenettel, amelyet a többi recept importál.
-- **[Fizetett rendelés számlája](https://kassza-amber.vercel.app/docs/receptek/fizetett-rendeles-szamla)**: Idempotens számlázás rendelésszámmal.
-- **[Stripe webhook](https://kassza-amber.vercel.app/docs/receptek/stripe-webhook)**: Számla a Stripe Checkout checkout.session.completed eseményéből.
-- **[Nevezés díjbekérővel](https://kassza-amber.vercel.app/docs/receptek/nevezes-dijbekerovel)**: Versenynevezés vagy rendezvényjelentkezés átutalásos fizetéssel.
-- **[IPN webhook](https://kassza-amber.vercel.app/docs/receptek/ipn-webhook)**: A Számlázz.hu fizetési értesítésének (IPN) fogadása Next.js route handlerben, IP-ellenőrzéssel, a számla állapotának visszaellenőrzésével és idempotens mentéssel.
-- **[Pénztári nyugta](https://kassza-amber.vercel.app/docs/receptek/penztari-nyugta)**: Nyugta egy pénztári eladásról hívásazonosítóval, a dupla nyugta kezelésével és e-mail kiküldéssel, Next.js route handlerben.
-- **[PDF mentése S3-ba vagy R2-be](https://kassza-amber.vercel.app/docs/receptek/pdf-mentes-s3-r2)**: A számla PDF-jének mentése saját Amazon S3 vagy Cloudflare R2 tárhelyre AWS SDK nélkül, stabil kulccsal és rövid ideig érvényes letöltési linkkel.
-- **[Adószám alapú kitöltés](https://kassza-amber.vercel.app/docs/receptek/adoszam-urlap)**: Számlázási űrlap, amely a beírt adószám alapján a NAV adataiból tölti ki a cégnevet és a székhely címét.
-- **[Devizás számla EU-s cégnek](https://kassza-amber.vercel.app/docs/receptek/devizas-eu-szamla)**: Euróban kiállított, angol nyelvű számla másik tagállambeli cégnek, közösségi adószámmal, MNB árfolyammal és angol értesítő e-maillel.
-- **[Cloudflare Workers](https://kassza-amber.vercel.app/docs/receptek/cloudflare-workers)**: Cloudflare Worker, amely a kasszával lekérdezi a számlákat, a munkamenetet KV-ben tartja, a számla PDF-eket pedig R2-ben gyorsítótárazza.
-- **[Egységtesztek](https://kassza-amber.vercel.app/docs/receptek/egysegtesztek)**: Vitest tesztek a receptek kódjához mock klienssel.
+- **[Közös kliens](https://kasszajs.hu/docs/receptek/kozos-kliens)**: Egyetlen szerveroldali kassza kliens alapbeállításokkal, hibanaplózással és közös munkamenettel, amelyet a többi recept importál.
+- **[Fizetett rendelés számlája](https://kasszajs.hu/docs/receptek/fizetett-rendeles-szamla)**: Idempotens számlázás rendelésszámmal.
+- **[Stripe webhook](https://kasszajs.hu/docs/receptek/stripe-webhook)**: Számla a Stripe Checkout checkout.session.completed eseményéből.
+- **[Nevezés díjbekérővel](https://kasszajs.hu/docs/receptek/nevezes-dijbekerovel)**: Versenynevezés vagy rendezvényjelentkezés átutalásos fizetéssel.
+- **[IPN webhook](https://kasszajs.hu/docs/receptek/ipn-webhook)**: A Számlázz.hu fizetési értesítésének (IPN) fogadása Next.js route handlerben, IP-ellenőrzéssel, a számla állapotának visszaellenőrzésével és idempotens mentéssel.
+- **[Pénztári nyugta](https://kasszajs.hu/docs/receptek/penztari-nyugta)**: Nyugta egy pénztári eladásról hívásazonosítóval, a dupla nyugta kezelésével és e-mail kiküldéssel, Next.js route handlerben.
+- **[PDF mentése S3-ba vagy R2-be](https://kasszajs.hu/docs/receptek/pdf-mentes-s3-r2)**: A számla PDF-jének mentése saját Amazon S3 vagy Cloudflare R2 tárhelyre AWS SDK nélkül, stabil kulccsal és rövid ideig érvényes letöltési linkkel.
+- **[Adószám alapú kitöltés](https://kasszajs.hu/docs/receptek/adoszam-urlap)**: Számlázási űrlap, amely a beírt adószám alapján a NAV adataiból tölti ki a cégnevet és a székhely címét.
+- **[Devizás számla EU-s cégnek](https://kasszajs.hu/docs/receptek/devizas-eu-szamla)**: Euróban kiállított, angol nyelvű számla másik tagállambeli cégnek, közösségi adószámmal, MNB árfolyammal és angol értesítő e-maillel.
+- **[Cloudflare Workers](https://kasszajs.hu/docs/receptek/cloudflare-workers)**: Cloudflare Worker, amely a kasszával lekérdezi a számlákat, a munkamenetet KV-ben tartja, a számla PDF-eket pedig R2-ben gyorsítótárazza.
+- **[Egységtesztek](https://kasszajs.hu/docs/receptek/egysegtesztek)**: Vitest tesztek a receptek kódjához mock klienssel.
 
 </details>
 
 <details>
 <summary>▶️ <b>Mind a 27 sandbox példa</b></summary>
 
-**Számlák:** [Számla kiállítása](https://kassza-amber.vercel.app/sandbox?pelda=szamla) · [Webshop számla bruttó árakkal](https://kassza-amber.vercel.app/sandbox?pelda=szamla-brutto) · [Díjbekérő, majd számla](https://kassza-amber.vercel.app/sandbox?pelda=dijbekero-szamla) · [Előleg- és végszámla](https://kassza-amber.vercel.app/sandbox?pelda=eloleg-vegszamla) · [Helyesbítő számla](https://kassza-amber.vercel.app/sandbox?pelda=helyesbito-szamla) · [Devizás számla EU-s vevőnek](https://kassza-amber.vercel.app/sandbox?pelda=devizas-szamla) · [Számlaelőnézet](https://kassza-amber.vercel.app/sandbox?pelda=elonezet) · [Számla sztornózása](https://kassza-amber.vercel.app/sandbox?pelda=sztorno) · [Befizetések rögzítése](https://kassza-amber.vercel.app/sandbox?pelda=befizetes) · [PDF lekérése utólag](https://kassza-amber.vercel.app/sandbox?pelda=pdf-lekeres) · [Számla adatainak lekérése](https://kassza-amber.vercel.app/sandbox?pelda=szamla-adatai) · [Díjbekérő törlése](https://kassza-amber.vercel.app/sandbox?pelda=dijbekero-torlese)
+**Számlák:** [Számla kiállítása](https://kasszajs.hu/sandbox?pelda=szamla) · [Webshop számla bruttó árakkal](https://kasszajs.hu/sandbox?pelda=szamla-brutto) · [Díjbekérő, majd számla](https://kasszajs.hu/sandbox?pelda=dijbekero-szamla) · [Előleg- és végszámla](https://kasszajs.hu/sandbox?pelda=eloleg-vegszamla) · [Helyesbítő számla](https://kasszajs.hu/sandbox?pelda=helyesbito-szamla) · [Devizás számla EU-s vevőnek](https://kasszajs.hu/sandbox?pelda=devizas-szamla) · [Számlaelőnézet](https://kasszajs.hu/sandbox?pelda=elonezet) · [Számla sztornózása](https://kasszajs.hu/sandbox?pelda=sztorno) · [Befizetések rögzítése](https://kasszajs.hu/sandbox?pelda=befizetes) · [PDF lekérése utólag](https://kasszajs.hu/sandbox?pelda=pdf-lekeres) · [Számla adatainak lekérése](https://kasszajs.hu/sandbox?pelda=szamla-adatai) · [Díjbekérő törlése](https://kasszajs.hu/sandbox?pelda=dijbekero-torlese)
 
-**Nyugták:** [Nyugta kiállítása](https://kassza-amber.vercel.app/sandbox?pelda=nyugta) · [Nyugta sztornózása](https://kassza-amber.vercel.app/sandbox?pelda=nyugta-sztorno) · [Nyugta lekérdezése](https://kassza-amber.vercel.app/sandbox?pelda=nyugta-lekerdezes) · [Nyugta kiküldése e-mailben](https://kassza-amber.vercel.app/sandbox?pelda=nyugta-kikuldes)
+**Nyugták:** [Nyugta kiállítása](https://kasszajs.hu/sandbox?pelda=nyugta) · [Nyugta sztornózása](https://kasszajs.hu/sandbox?pelda=nyugta-sztorno) · [Nyugta lekérdezése](https://kasszajs.hu/sandbox?pelda=nyugta-lekerdezes) · [Nyugta kiküldése e-mailben](https://kasszajs.hu/sandbox?pelda=nyugta-kikuldes)
 
-**NAV:** [Adószám lekérdezése](https://kassza-amber.vercel.app/sandbox?pelda=adoszam)
+**NAV:** [Adószám lekérdezése](https://kasszajs.hu/sandbox?pelda=adoszam)
 
-**Hibakezelés:** [Idempotens számlázás hiba után](https://kassza-amber.vercel.app/sandbox?pelda=hibakezeles-idempotens) · [Validációs hibák](https://kassza-amber.vercel.app/sandbox?pelda=hibakezeles-validacio) · [Agent kulcs ellenőrzése](https://kassza-amber.vercel.app/sandbox?pelda=kulcs-ellenorzes) · [Hookok és újrapróbálás](https://kassza-amber.vercel.app/sandbox?pelda=hookok)
+**Hibakezelés:** [Idempotens számlázás hiba után](https://kasszajs.hu/sandbox?pelda=hibakezeles-idempotens) · [Validációs hibák](https://kasszajs.hu/sandbox?pelda=hibakezeles-validacio) · [Agent kulcs ellenőrzése](https://kasszajs.hu/sandbox?pelda=kulcs-ellenorzes) · [Hookok és újrapróbálás](https://kasszajs.hu/sandbox?pelda=hookok)
 
-**Eszközök:** [Közös session több kliens között](https://kassza-amber.vercel.app/sandbox?pelda=munkamenet) · [Mock kliens tesztekhez](https://kassza-amber.vercel.app/sandbox?pelda=mock-kliens) · [Kerekítés és összegzés](https://kassza-amber.vercel.app/sandbox?pelda=kerekites) · [Validátorok](https://kassza-amber.vercel.app/sandbox?pelda=validatorok) · [IPN fizetési értesítés](https://kassza-amber.vercel.app/sandbox?pelda=ipn) · [PDF mentése tárhelyre](https://kassza-amber.vercel.app/sandbox?pelda=pdf-tarhely)
+**Eszközök:** [Közös session több kliens között](https://kasszajs.hu/sandbox?pelda=munkamenet) · [Mock kliens tesztekhez](https://kasszajs.hu/sandbox?pelda=mock-kliens) · [Kerekítés és összegzés](https://kasszajs.hu/sandbox?pelda=kerekites) · [Validátorok](https://kasszajs.hu/sandbox?pelda=validatorok) · [IPN fizetési értesítés](https://kasszajs.hu/sandbox?pelda=ipn) · [PDF mentése tárhelyre](https://kasszajs.hu/sandbox?pelda=pdf-tarhely)
 
 </details>
 
@@ -179,14 +179,14 @@ await kassza.verifyCredentials()
 
 A `verifyCredentials()` visszatérési értéke `true`, ha a kulcs jó.
 
-📖 **Dokumentáció:** [Hitelesítés (Agent kulcs)](https://kassza-amber.vercel.app/docs/alapok/hitelesites) &nbsp;·&nbsp; ▶️ **Sandbox:** [Agent kulcs ellenőrzése](https://kassza-amber.vercel.app/sandbox?pelda=kulcs-ellenorzes)
+📖 **Dokumentáció:** [Hitelesítés (Agent kulcs)](https://kasszajs.hu/docs/alapok/hitelesites) &nbsp;·&nbsp; ▶️ **Sandbox:** [Agent kulcs ellenőrzése](https://kasszajs.hu/sandbox?pelda=kulcs-ellenorzes)
 
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/alapok/kliens-beallitasa"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Kliens beállítása" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=kulcs-ellenorzes"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Agent kulcs ellenőrzése" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/kozos-kliens"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-kozos-kliens-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-kozos-kliens-light.svg" alt="Recept: Közös kliens" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/alapok/kliens-beallitasa"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Kliens beállítása" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=kulcs-ellenorzes"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Agent kulcs ellenőrzése" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/kozos-kliens"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-kozos-kliens-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-kozos-kliens-light.svg" alt="Recept: Közös kliens" height="44"></picture></a>
 </p>
 
 ## Számlák
@@ -224,7 +224,7 @@ szamla.pdf
 - Az `orderNumber` a saját azonosítód, ezzel később vissza is keresheted a számlát.
 - A `szamla.pdf` egy `Uint8Array`.
 
-📖 **Dokumentáció:** [Számla létrehozás › Kérés](https://kassza-amber.vercel.app/docs/szamla-letrehozas/keres) &nbsp;·&nbsp; ▶️ **Sandbox:** [Számla kiállítása](https://kassza-amber.vercel.app/sandbox?pelda=szamla)
+📖 **Dokumentáció:** [Számla létrehozás › Kérés](https://kasszajs.hu/docs/szamla-letrehozas/keres) &nbsp;·&nbsp; ▶️ **Sandbox:** [Számla kiállítása](https://kasszajs.hu/sandbox?pelda=szamla)
 
 </details>
 
@@ -240,9 +240,9 @@ Az ár megadható nettóban vagy bruttóban, a kerekítés a hivatalos szabályo
 { name: 'Oktatás', netUnitPrice: 50_000, vat: 'AAM' }
 ```
 
-A nettó ár a B2B számlákhoz, a bruttó ár a B2C számlákhoz való. Az `'AAM'` alanyi adómentes tételt jelöl, a többi áfakódot a [Áfakulcsok](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/afakulcsok) oldal sorolja fel.
+A nettó ár a B2B számlákhoz, a bruttó ár a B2C számlákhoz való. Az `'AAM'` alanyi adómentes tételt jelöl, a többi áfakódot a [Áfakulcsok](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/afakulcsok) oldal sorolja fel.
 
-📖 **Dokumentáció:** [Kerekítés](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/kerekites) &nbsp;·&nbsp; ▶️ **Sandbox:** [Webshop számla bruttó árakkal](https://kassza-amber.vercel.app/sandbox?pelda=szamla-brutto)
+📖 **Dokumentáció:** [Kerekítés](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/kerekites) &nbsp;·&nbsp; ▶️ **Sandbox:** [Webshop számla bruttó árakkal](https://kasszajs.hu/sandbox?pelda=szamla-brutto)
 
 </details>
 
@@ -266,7 +266,7 @@ const szamla = await kassza.invoices.create({
 })
 ```
 
-📖 **Dokumentáció:** [Bizonylattípusok](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok) &nbsp;·&nbsp; ▶️ **Sandbox:** [Díjbekérő, majd számla](https://kassza-amber.vercel.app/sandbox?pelda=dijbekero-szamla)
+📖 **Dokumentáció:** [Bizonylattípusok](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok) &nbsp;·&nbsp; ▶️ **Sandbox:** [Díjbekérő, majd számla](https://kasszajs.hu/sandbox?pelda=dijbekero-szamla)
 
 </details>
 
@@ -277,7 +277,7 @@ const szamla = await kassza.invoices.create({
 await kassza.invoices.deleteProforma({ orderNumber: 'NEV-42' })
 ```
 
-📖 **Dokumentáció:** [Díjbekérő törlése](https://kassza-amber.vercel.app/docs/dijbekero-torlese) &nbsp;·&nbsp; ▶️ **Sandbox:** [Díjbekérő törlése](https://kassza-amber.vercel.app/sandbox?pelda=dijbekero-torlese)
+📖 **Dokumentáció:** [Díjbekérő törlése](https://kasszajs.hu/docs/dijbekero-torlese) &nbsp;·&nbsp; ▶️ **Sandbox:** [Díjbekérő törlése](https://kasszajs.hu/sandbox?pelda=dijbekero-torlese)
 
 </details>
 
@@ -304,7 +304,7 @@ await kassza.invoices.create({
 })
 ```
 
-📖 **Dokumentáció:** [Bizonylattípusok](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok) &nbsp;·&nbsp; ▶️ **Sandbox:** [Előleg- és végszámla](https://kassza-amber.vercel.app/sandbox?pelda=eloleg-vegszamla)
+📖 **Dokumentáció:** [Bizonylattípusok](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok) &nbsp;·&nbsp; ▶️ **Sandbox:** [Előleg- és végszámla](https://kasszajs.hu/sandbox?pelda=eloleg-vegszamla)
 
 </details>
 
@@ -320,7 +320,7 @@ await kassza.invoices.create({
 })
 ```
 
-📖 **Dokumentáció:** [Bizonylattípusok](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok) &nbsp;·&nbsp; ▶️ **Sandbox:** [Helyesbítő számla](https://kassza-amber.vercel.app/sandbox?pelda=helyesbito-szamla)
+📖 **Dokumentáció:** [Bizonylattípusok](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok) &nbsp;·&nbsp; ▶️ **Sandbox:** [Helyesbítő számla](https://kasszajs.hu/sandbox?pelda=helyesbito-szamla)
 
 </details>
 
@@ -331,7 +331,7 @@ await kassza.invoices.create({
 await kassza.invoices.create({ type: 'deliveryNote', buyer, items })
 ```
 
-📖 **Dokumentáció:** [Bizonylattípusok](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok)
+📖 **Dokumentáció:** [Bizonylattípusok](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/bizonylattipusok)
 
 </details>
 
@@ -355,9 +355,9 @@ await kassza.invoices.create({
 })
 ```
 
-Az árfolyam, ha nem adod meg, automatikusan az MNB aktuális árfolyama. Kész minta: [Devizás számla EU-s cégnek](https://kassza-amber.vercel.app/docs/receptek/devizas-eu-szamla).
+Az árfolyam, ha nem adod meg, automatikusan az MNB aktuális árfolyama. Kész minta: [Devizás számla EU-s cégnek](https://kasszajs.hu/docs/receptek/devizas-eu-szamla).
 
-📖 **Dokumentáció:** [Támogatott devizanemek](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/penznemek) &nbsp;·&nbsp; ▶️ **Sandbox:** [Devizás számla EU-s vevőnek](https://kassza-amber.vercel.app/sandbox?pelda=devizas-szamla)
+📖 **Dokumentáció:** [Támogatott devizanemek](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/penznemek) &nbsp;·&nbsp; ▶️ **Sandbox:** [Devizás számla EU-s vevőnek](https://kasszajs.hu/sandbox?pelda=devizas-szamla)
 
 </details>
 
@@ -368,7 +368,7 @@ Az árfolyam, ha nem adod meg, automatikusan az MNB aktuális árfolyama. Kész 
 const { pdf, grossTotal } = await kassza.invoices.preview({ buyer, items })
 ```
 
-📖 **Dokumentáció:** [Előnézet](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/elonezet) &nbsp;·&nbsp; ▶️ **Sandbox:** [Számlaelőnézet](https://kassza-amber.vercel.app/sandbox?pelda=elonezet)
+📖 **Dokumentáció:** [Előnézet](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/elonezet) &nbsp;·&nbsp; ▶️ **Sandbox:** [Számlaelőnézet](https://kasszajs.hu/sandbox?pelda=elonezet)
 
 </details>
 
@@ -385,7 +385,7 @@ await kassza.invoices.create({
 
 Legfeljebb 5 melléklet adható meg, darabonként 2 MB.
 
-📖 **Dokumentáció:** [Számlaértesítő küldés](https://kassza-amber.vercel.app/docs/szamla-letrehozas/beallitasok-es-szabalyok/ertesito-email)
+📖 **Dokumentáció:** [Számlaértesítő küldés](https://kasszajs.hu/docs/szamla-letrehozas/beallitasok-es-szabalyok/ertesito-email)
 
 </details>
 
@@ -396,7 +396,7 @@ Legfeljebb 5 melléklet adható meg, darabonként 2 MB.
 const sztorno = await kassza.invoices.reverse('E-WEB-2026-12')
 ```
 
-📖 **Dokumentáció:** [Számla sztornó](https://kassza-amber.vercel.app/docs/szamla-sztorno) &nbsp;·&nbsp; ▶️ **Sandbox:** [Számla sztornózása](https://kassza-amber.vercel.app/sandbox?pelda=sztorno)
+📖 **Dokumentáció:** [Számla sztornó](https://kasszajs.hu/docs/szamla-sztorno) &nbsp;·&nbsp; ▶️ **Sandbox:** [Számla sztornózása](https://kasszajs.hu/sandbox?pelda=sztorno)
 
 </details>
 
@@ -419,7 +419,7 @@ await kassza.invoices.clearPayments('E-WEB-2026-12')
 
 A `registerPayment` egyetlen befizetést és több részletet is fogad. A `clearPayments` az összes befizetést törli a számláról.
 
-📖 **Dokumentáció:** [Befizetés rögzítése](https://kassza-amber.vercel.app/docs/befizetes-rogzitese) &nbsp;·&nbsp; ▶️ **Sandbox:** [Befizetések rögzítése](https://kassza-amber.vercel.app/sandbox?pelda=befizetes)
+📖 **Dokumentáció:** [Befizetés rögzítése](https://kasszajs.hu/docs/befizetes-rogzitese) &nbsp;·&nbsp; ▶️ **Sandbox:** [Befizetések rögzítése](https://kasszajs.hu/sandbox?pelda=befizetes)
 
 </details>
 
@@ -435,7 +435,7 @@ await writeFile('szamla.pdf', pdf)
 
 Rendelésszám vagy külső azonosító alapján is működik: `getPdf({ orderNumber: 'REND-1001' })`, `getPdf({ externalId: 'a1b2' })`.
 
-📖 **Dokumentáció:** [Bizonylat lekérése PDF-ben](https://kassza-amber.vercel.app/docs/bizonylat-pdf) &nbsp;·&nbsp; ▶️ **Sandbox:** [PDF lekérése utólag](https://kassza-amber.vercel.app/sandbox?pelda=pdf-lekeres)
+📖 **Dokumentáció:** [Bizonylat lekérése PDF-ben](https://kasszajs.hu/docs/bizonylat-pdf) &nbsp;·&nbsp; ▶️ **Sandbox:** [PDF lekérése utólag](https://kasszajs.hu/sandbox?pelda=pdf-lekeres)
 
 </details>
 
@@ -454,14 +454,14 @@ const talan = await kassza.invoices.find({ orderNumber: 'REND-9999' })
 
 A `find` `null`-t ad, ha nincs ilyen számla, a `get` ilyenkor hibát dob.
 
-📖 **Dokumentáció:** [Számla adatainak lekérése](https://kassza-amber.vercel.app/docs/szamla-adatai) &nbsp;·&nbsp; ▶️ **Sandbox:** [Számla adatainak lekérése](https://kassza-amber.vercel.app/sandbox?pelda=szamla-adatai)
+📖 **Dokumentáció:** [Számla adatainak lekérése](https://kasszajs.hu/docs/szamla-adatai) &nbsp;·&nbsp; ▶️ **Sandbox:** [Számla adatainak lekérése](https://kasszajs.hu/sandbox?pelda=szamla-adatai)
 
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/szamla-letrehozas"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Számla létrehozás" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Számla kiállítása" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/fizetett-rendeles-szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-fizetett-rendeles-szamla-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-fizetett-rendeles-szamla-light.svg" alt="Recept: Fizetett rendelés számlája" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/szamla-letrehozas"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Számla létrehozás" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Számla kiállítása" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/fizetett-rendeles-szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-fizetett-rendeles-szamla-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-fizetett-rendeles-szamla-light.svg" alt="Recept: Fizetett rendelés számlája" height="44"></picture></a>
 </p>
 
 ## Nyugták
@@ -489,7 +489,7 @@ nyugta.pdf
 
 A `callId` véd a dupla nyugta ellen.
 
-📖 **Dokumentáció:** [Nyugta létrehozás](https://kassza-amber.vercel.app/docs/nyugta-letrehozas) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta kiállítása](https://kassza-amber.vercel.app/sandbox?pelda=nyugta)
+📖 **Dokumentáció:** [Nyugta létrehozás](https://kasszajs.hu/docs/nyugta-letrehozas) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta kiállítása](https://kasszajs.hu/sandbox?pelda=nyugta)
 
 </details>
 
@@ -500,7 +500,7 @@ A `callId` véd a dupla nyugta ellen.
 await kassza.receipts.send({ receiptNumber: nyugta.number, emails: 'vevo@ceg.hu' })
 ```
 
-📖 **Dokumentáció:** [Nyugta kiküldés](https://kassza-amber.vercel.app/docs/nyugta-kikuldes) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta kiküldése e-mailben](https://kassza-amber.vercel.app/sandbox?pelda=nyugta-kikuldes)
+📖 **Dokumentáció:** [Nyugta kiküldés](https://kasszajs.hu/docs/nyugta-kikuldes) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta kiküldése e-mailben](https://kasszajs.hu/sandbox?pelda=nyugta-kikuldes)
 
 </details>
 
@@ -512,7 +512,7 @@ const ugyanaz = await kassza.receipts.get(nyugta.number)
 const rendelesbol = await kassza.receipts.find({ orderNumber: 'REND-1001' })
 ```
 
-📖 **Dokumentáció:** [Nyugta lekérdezés](https://kassza-amber.vercel.app/docs/nyugta-lekerdezes) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta lekérdezése](https://kassza-amber.vercel.app/sandbox?pelda=nyugta-lekerdezes)
+📖 **Dokumentáció:** [Nyugta lekérdezés](https://kasszajs.hu/docs/nyugta-lekerdezes) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta lekérdezése](https://kasszajs.hu/sandbox?pelda=nyugta-lekerdezes)
 
 </details>
 
@@ -523,14 +523,14 @@ const rendelesbol = await kassza.receipts.find({ orderNumber: 'REND-1001' })
 await kassza.receipts.reverse(nyugta.number)
 ```
 
-📖 **Dokumentáció:** [Nyugta sztornó](https://kassza-amber.vercel.app/docs/nyugta-sztorno) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta sztornózása](https://kassza-amber.vercel.app/sandbox?pelda=nyugta-sztorno)
+📖 **Dokumentáció:** [Nyugta sztornó](https://kasszajs.hu/docs/nyugta-sztorno) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta sztornózása](https://kasszajs.hu/sandbox?pelda=nyugta-sztorno)
 
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/nyugta-letrehozas"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Nyugta létrehozás" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=nyugta"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Nyugta kiállítása" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/penztari-nyugta"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-penztari-nyugta-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-penztari-nyugta-light.svg" alt="Recept: Pénztári nyugta" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/nyugta-letrehozas"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Nyugta létrehozás" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=nyugta"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Nyugta kiállítása" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/penztari-nyugta"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-penztari-nyugta-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-penztari-nyugta-light.svg" alt="Recept: Pénztári nyugta" height="44"></picture></a>
 </p>
 
 ## Adószám lekérdezés
@@ -552,14 +552,14 @@ if (ceg.valid) {
 
 A cégadatok a NAV-tól jönnek, a cím formázva, például `1031 Budapest, Záhony utca 7.`
 
-📖 **Dokumentáció:** [Adószám lekérdezés](https://kassza-amber.vercel.app/docs/adoszam-lekerdezes) &nbsp;·&nbsp; ▶️ **Sandbox:** [Adószám lekérdezése](https://kassza-amber.vercel.app/sandbox?pelda=adoszam)
+📖 **Dokumentáció:** [Adószám lekérdezés](https://kasszajs.hu/docs/adoszam-lekerdezes) &nbsp;·&nbsp; ▶️ **Sandbox:** [Adószám lekérdezése](https://kasszajs.hu/sandbox?pelda=adoszam)
 
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/adoszam-lekerdezes"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Adószám lekérdezés" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=adoszam"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Adószám lekérdezése" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/adoszam-urlap"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-adoszam-urlap-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-adoszam-urlap-light.svg" alt="Recept: Adószám alapú kitöltés" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/adoszam-lekerdezes"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Adószám lekérdezés" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=adoszam"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Adószám lekérdezése" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/adoszam-urlap"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-adoszam-urlap-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-adoszam-urlap-light.svg" alt="Recept: Adószám alapú kitöltés" height="44"></picture></a>
 </p>
 
 ## Hibakezelés
@@ -586,7 +586,7 @@ try {
 - `error.code`: a Számlázz.hu hibakódja, például `57`.
 - `error.hint`: magyar javítási tipp.
 
-📖 **Dokumentáció:** [Hibakezelés, hibakódok](https://kassza-amber.vercel.app/docs/alapok/hibakezeles) &nbsp;·&nbsp; ▶️ **Sandbox:** [Idempotens számlázás hiba után](https://kassza-amber.vercel.app/sandbox?pelda=hibakezeles-idempotens)
+📖 **Dokumentáció:** [Hibakezelés, hibakódok](https://kasszajs.hu/docs/alapok/hibakezeles) &nbsp;·&nbsp; ▶️ **Sandbox:** [Idempotens számlázás hiba után](https://kasszajs.hu/sandbox?pelda=hibakezeles-idempotens)
 
 </details>
 
@@ -602,16 +602,16 @@ try {
 | `auth` / `account` | Rossz kulcs, lejárt előfizetés |
 | `network` / `timeout` / `maintenance` | Átmeneti hiba |
 
-📖 **Dokumentáció:** [Hibakezelés, hibakódok](https://kassza-amber.vercel.app/docs/alapok/hibakezeles) &nbsp;·&nbsp; ▶️ **Sandbox:** [Validációs hibák](https://kassza-amber.vercel.app/sandbox?pelda=hibakezeles-validacio)
+📖 **Dokumentáció:** [Hibakezelés, hibakódok](https://kasszajs.hu/docs/alapok/hibakezeles) &nbsp;·&nbsp; ▶️ **Sandbox:** [Validációs hibák](https://kasszajs.hu/sandbox?pelda=hibakezeles-validacio)
 
 </details>
 
 > **Számlát a kassza soha nem küld újra.** Újraküldés csak ott történik magától, ahol biztonságos: lekérdezéseknél, hálózati hibánál, legfeljebb 5-ször. A Számlázz.hu kitiltja azt, aki ciklusban próbálkozik. Bizonytalan hiba után a `find({ orderNumber })` megmondja, elkészült-e a számla.
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/alapok/hibakezeles"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Hibakezelés, hibakódok" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=hibakezeles-idempotens"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Idempotens számlázás hiba után" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/fizetett-rendeles-szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-fizetett-rendeles-szamla-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-fizetett-rendeles-szamla-light.svg" alt="Recept: Fizetett rendelés számlája" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/alapok/hibakezeles"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Hibakezelés, hibakódok" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=hibakezeles-idempotens"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Idempotens számlázás hiba után" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/fizetett-rendeles-szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-fizetett-rendeles-szamla-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-fizetett-rendeles-szamla-light.svg" alt="Recept: Fizetett rendelés számlája" height="44"></picture></a>
 </p>
 
 ## Fizetési értesítés (IPN)
@@ -633,7 +633,7 @@ export async function POST(request: Request) {
 }
 ```
 
-📖 **Dokumentáció:** [IPN fizetési értesítés](https://kassza-amber.vercel.app/docs/befizetes-rogzitese/ipn) &nbsp;·&nbsp; ▶️ **Sandbox:** [IPN fizetési értesítés](https://kassza-amber.vercel.app/sandbox?pelda=ipn)
+📖 **Dokumentáció:** [IPN fizetési értesítés](https://kasszajs.hu/docs/befizetes-rogzitese/ipn) &nbsp;·&nbsp; ▶️ **Sandbox:** [IPN fizetési értesítés](https://kasszajs.hu/sandbox?pelda=ipn)
 
 </details>
 
@@ -650,14 +650,14 @@ isSzamlazzIp(request.headers.get('x-forwarded-for'))
 
 Az `x-forwarded-for` fejlécből a **jobb szélső** címet vizsgálja, vagyis azt, amit a hozzád legközelebbi proxy látott, mert a fejléc bal oldalát a kliens is írhatja. Ha több megbízható proxy van előtted, add meg a számukat: `isSzamlazzIp(fejlec, { trustedProxies: 1 })`.
 
-📖 **Dokumentáció:** [IPN fizetési értesítés](https://kassza-amber.vercel.app/docs/befizetes-rogzitese/ipn)
+📖 **Dokumentáció:** [IPN fizetési értesítés](https://kasszajs.hu/docs/befizetes-rogzitese/ipn)
 
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/befizetes-rogzitese/ipn"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: IPN fizetési értesítés" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=ipn"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: IPN fizetési értesítés" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/ipn-webhook"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-ipn-webhook-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-ipn-webhook-light.svg" alt="Recept: IPN webhook" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/befizetes-rogzitese/ipn"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: IPN fizetési értesítés" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=ipn"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: IPN fizetési értesítés" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/ipn-webhook"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-ipn-webhook-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-ipn-webhook-light.svg" alt="Recept: IPN webhook" height="44"></picture></a>
 </p>
 
 ## PDF mentése tárhelyre
@@ -686,7 +686,7 @@ fajl.key
 
 A kulcs például `szamlak/2026/09/E-WEB-2026-12.pdf` lesz.
 
-📖 **Dokumentáció:** [PDF tárhely](https://kassza-amber.vercel.app/docs/kiegeszitok/pdf-tarhely) &nbsp;·&nbsp; ▶️ **Sandbox:** [PDF mentése tárhelyre](https://kassza-amber.vercel.app/sandbox?pelda=pdf-tarhely)
+📖 **Dokumentáció:** [PDF tárhely](https://kasszajs.hu/docs/kiegeszitok/pdf-tarhely) &nbsp;·&nbsp; ▶️ **Sandbox:** [PDF mentése tárhelyre](https://kasszajs.hu/sandbox?pelda=pdf-tarhely)
 
 </details>
 
@@ -699,16 +699,16 @@ import { fsStorage } from 'kassza/storage/fs'
 const tarhely = fsStorage({ directory: './szamlak' })
 ```
 
-📖 **Dokumentáció:** [PDF tárhely](https://kassza-amber.vercel.app/docs/kiegeszitok/pdf-tarhely)
+📖 **Dokumentáció:** [PDF tárhely](https://kasszajs.hu/docs/kiegeszitok/pdf-tarhely)
 
 </details>
 
 További adapterek: `s3Storage` (AWS SDK), `r2BindingStorage`, `vercelBlobStorage`, `uploadthingStorage`, `supabaseStorage`, `memoryStorage`.
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/kiegeszitok/pdf-tarhely"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: PDF tárhely" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=pdf-tarhely"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: PDF mentése tárhelyre" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/pdf-mentes-s3-r2"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-pdf-mentes-s3-r2-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-pdf-mentes-s3-r2-light.svg" alt="Recept: PDF mentése S3-ba vagy R2-be" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/kiegeszitok/pdf-tarhely"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: PDF tárhely" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=pdf-tarhely"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: PDF mentése tárhelyre" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/pdf-mentes-s3-r2"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-pdf-mentes-s3-r2-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-pdf-mentes-s3-r2-light.svg" alt="Recept: PDF mentése S3-ba vagy R2-be" height="44"></picture></a>
 </p>
 
 ## Serverless és edge
@@ -725,7 +725,7 @@ import { upstashRedisCookieStore } from 'kassza/cookie-stores'
 const kassza = createKassza({ cookieStore: upstashRedisCookieStore(Redis.fromEnv()) })
 ```
 
-📖 **Dokumentáció:** [Munkamenet (session cookie)](https://kassza-amber.vercel.app/docs/alapok/munkamenet) &nbsp;·&nbsp; ▶️ **Sandbox:** [Közös session több kliens között](https://kassza-amber.vercel.app/sandbox?pelda=munkamenet)
+📖 **Dokumentáció:** [Munkamenet (session cookie)](https://kasszajs.hu/docs/alapok/munkamenet) &nbsp;·&nbsp; ▶️ **Sandbox:** [Közös session több kliens között](https://kasszajs.hu/sandbox?pelda=munkamenet)
 
 </details>
 
@@ -738,16 +738,16 @@ import { cloudflareKvCookieStore } from 'kassza/cookie-stores'
 const kassza = createKassza({ agentKey: env.SZAMLAZZ_AGENT_KEY, cookieStore: cloudflareKvCookieStore(env.KASSZA_KV) })
 ```
 
-📖 **Dokumentáció:** [Serverless és edge](https://kassza-amber.vercel.app/docs/kiegeszitok/serverless-es-edge)
+📖 **Dokumentáció:** [Serverless és edge](https://kasszajs.hu/docs/kiegeszitok/serverless-es-edge)
 
 </details>
 
 Van még `ioredisCookieStore`, `nodeRedisCookieStore` és `customCookieStore` is. Ha a tároló elérhetetlen, a számlázás attól még működik.
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/kiegeszitok/serverless-es-edge"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Serverless és edge" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=munkamenet"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Közös session több kliens között" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/cloudflare-workers"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-cloudflare-workers-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-cloudflare-workers-light.svg" alt="Recept: Cloudflare Workers" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/kiegeszitok/serverless-es-edge"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Serverless és edge" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=munkamenet"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Közös session több kliens között" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/cloudflare-workers"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-cloudflare-workers-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-cloudflare-workers-light.svg" alt="Recept: Cloudflare Workers" height="44"></picture></a>
 </p>
 
 ## Tesztelés
@@ -777,14 +777,14 @@ test('hálózati hibánál nem számláz kétszer', async () => {
 })
 ```
 
-📖 **Dokumentáció:** [Tesztelés](https://kassza-amber.vercel.app/docs/kiegeszitok/teszteles) &nbsp;·&nbsp; ▶️ **Sandbox:** [Mock kliens tesztekhez](https://kassza-amber.vercel.app/sandbox?pelda=mock-kliens)
+📖 **Dokumentáció:** [Tesztelés](https://kasszajs.hu/docs/kiegeszitok/teszteles) &nbsp;·&nbsp; ▶️ **Sandbox:** [Mock kliens tesztekhez](https://kasszajs.hu/sandbox?pelda=mock-kliens)
 
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/kiegeszitok/teszteles"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Tesztelés" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=mock-kliens"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Mock kliens tesztekhez" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/docs/receptek/egysegtesztek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-egysegtesztek-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-egysegtesztek-light.svg" alt="Recept: Egységtesztek" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/kiegeszitok/teszteles"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Tesztelés" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=mock-kliens"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Mock kliens tesztekhez" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/egysegtesztek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-egysegtesztek-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-egysegtesztek-light.svg" alt="Recept: Egységtesztek" height="44"></picture></a>
 </p>
 
 ## Validátorok és pénzszámítás
@@ -808,7 +808,7 @@ parseHungarianAddress('1031 Budapest, Záhony utca 7.')
 
 A `parseHungarianAddress` eredménye `{ zip: '1031', city: 'Budapest', address: 'Záhony utca 7.' }`. Ezen kívül van `isValidHungarianIban`, `isValidHungarianZipCode`, `isValidEuVatNumber` és `isValidEmail` is.
 
-📖 **Dokumentáció:** [Validátorok](https://kassza-amber.vercel.app/docs/kiegeszitok/validatorok) &nbsp;·&nbsp; ▶️ **Sandbox:** [Validátorok](https://kassza-amber.vercel.app/sandbox?pelda=validatorok)
+📖 **Dokumentáció:** [Validátorok](https://kasszajs.hu/docs/kiegeszitok/validatorok) &nbsp;·&nbsp; ▶️ **Sandbox:** [Validátorok](https://kasszajs.hu/sandbox?pelda=validatorok)
 
 </details>
 
@@ -824,13 +824,13 @@ calculateReceiptItem({ grossUnitPrice: 1_000, vat: 27 })
 
 Az első eredménye `{ netAmount: 1181, vatAmount: 319, grossAmount: 1500, ... }`, a másodiké `{ netAmount: 787.4, vatAmount: 212.6, grossAmount: 1000, ... }`.
 
-📖 **Dokumentáció:** [Pénzszámítás](https://kassza-amber.vercel.app/docs/kiegeszitok/penzszamitas) &nbsp;·&nbsp; ▶️ **Sandbox:** [Kerekítés és összegzés](https://kassza-amber.vercel.app/sandbox?pelda=kerekites)
+📖 **Dokumentáció:** [Pénzszámítás](https://kasszajs.hu/docs/kiegeszitok/penzszamitas) &nbsp;·&nbsp; ▶️ **Sandbox:** [Kerekítés és összegzés](https://kasszajs.hu/sandbox?pelda=kerekites)
 
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/kiegeszitok"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Kiegészítők" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=validatorok"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Validátorok" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/kiegeszitok"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Kiegészítők" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=validatorok"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Validátorok" height="44"></picture></a>
 </p>
 
 ## Haladó beállítások
@@ -857,7 +857,7 @@ await kassza.invoices.getPdf('E-WEB-2026-12', { signal: AbortSignal.timeout(5_00
 - A hookok soha nem kapják meg az Agent kulcsot.
 - Minden metódus fogad `AbortSignal`-t.
 
-📖 **Dokumentáció:** [Hálózat és biztonság](https://kassza-amber.vercel.app/docs/alapok/halozat-es-biztonsag) &nbsp;·&nbsp; ▶️ **Sandbox:** [Hookok és újrapróbálás](https://kassza-amber.vercel.app/sandbox?pelda=hookok)
+📖 **Dokumentáció:** [Hálózat és biztonság](https://kasszajs.hu/docs/alapok/halozat-es-biztonsag) &nbsp;·&nbsp; ▶️ **Sandbox:** [Hookok és újrapróbálás](https://kasszajs.hu/sandbox?pelda=hookok)
 
 </details>
 
@@ -870,13 +870,13 @@ A `resetSession()` új sessiont kér. Hívd meg, ha a Számlázz.hu fiókban meg
 await kassza.resetSession()
 ```
 
-📖 **Dokumentáció:** [Munkamenet (session cookie)](https://kassza-amber.vercel.app/docs/alapok/munkamenet) &nbsp;·&nbsp; ▶️ **Sandbox:** [Közös session több kliens között](https://kassza-amber.vercel.app/sandbox?pelda=munkamenet)
+📖 **Dokumentáció:** [Munkamenet (session cookie)](https://kasszajs.hu/docs/alapok/munkamenet) &nbsp;·&nbsp; ▶️ **Sandbox:** [Közös session több kliens között](https://kasszajs.hu/sandbox?pelda=munkamenet)
 
 </details>
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/alapok/halozat-es-biztonsag"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Hálózat és biztonság" height="44"></picture></a>
-  <a href="https://kassza-amber.vercel.app/sandbox?pelda=hookok"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Hookok és újrapróbálás" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/alapok/halozat-es-biztonsag"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Hálózat és biztonság" height="44"></picture></a>
+  <a href="https://kasszajs.hu/sandbox?pelda=hookok"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Hookok és újrapróbálás" height="44"></picture></a>
 </p>
 
 ## AI-val kódolsz?
@@ -887,16 +887,16 @@ A csomagban van egy `agents/` mappa. Ebből a Claude Code, a Cursor, a Copilot �
 
 Claude Code-hoz kész skill is van: másold a `node_modules/kassza/agents/skills/kassza` mappát a projekted `.claude/skills/` mappájába.
 
-A weboldal is AI-barát: az [llms.txt](https://kassza-amber.vercel.app/llms.txt) a dokumentáció tartalomjegyzéke, az [llms-full.txt](https://kassza-amber.vercel.app/llms-full.txt) a teljes dokumentáció egy fájlban, és minden oldal Markdownként is elérhető, ha az URL végére `.md` kerül.
+A weboldal is AI-barát: az [llms.txt](https://kasszajs.hu/llms.txt) a dokumentáció tartalomjegyzéke, az [llms-full.txt](https://kasszajs.hu/llms-full.txt) a teljes dokumentáció egy fájlban, és minden oldal Markdownként is elérhető, ha az URL végére `.md` kerül.
 
 <p>
-  <a href="https://kassza-amber.vercel.app/docs/kiegeszitok/ai-asszisztensek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: AI asszisztensek" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/kiegeszitok/ai-asszisztensek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: AI asszisztensek" height="44"></picture></a>
 </p>
 
 ---
 
 <p align="center">
-  <a href="https://kassza-amber.vercel.app">Weboldal</a> · <a href="https://kassza-amber.vercel.app/docs">Dokumentáció</a> · <a href="https://kassza-amber.vercel.app/sandbox">Sandbox</a> · <a href="https://kassza-amber.vercel.app/docs/receptek">Receptek</a> · <a href="https://www.npmjs.com/package/kassza">npm</a> · <a href="https://github.com/futozs/kassza/blob/main/CHANGELOG.md">Változásnapló</a>
+  <a href="https://kasszajs.hu">Weboldal</a> · <a href="https://kasszajs.hu/docs">Dokumentáció</a> · <a href="https://kasszajs.hu/sandbox">Sandbox</a> · <a href="https://kasszajs.hu/docs/receptek">Receptek</a> · <a href="https://www.npmjs.com/package/kassza">npm</a> · <a href="https://github.com/futozs/kassza/blob/main/CHANGELOG.md">Változásnapló</a>
 </p>
 
 <sub>Nem hivatalos csomag, nem kapcsolódik a KBOSS.hu Kft.-hez (Számlázz.hu). A hivatalos dokumentáció a <a href="https://docs.szamlazz.hu/hu/agent/">docs.szamlazz.hu</a> oldalon érhető el. MIT licenc.</sub>

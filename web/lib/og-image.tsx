@@ -1,5 +1,6 @@
-import { brandColors, logoPaths } from '@/lib/brand'
+import { brandColors } from '@/lib/brand'
 import { OG_IMAGE_SIZE } from '@/lib/docs-links'
+import { LogoArt } from '@/lib/logo-art'
 import { ogFontFamilies } from '@/lib/og-fonts'
 
 const LONG_TITLE_LENGTH = 56
@@ -45,9 +46,7 @@ export function receiptEdgePath(width: number): string {
 function LogoMark({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-      <rect width="512" height="512" rx="112" fill={brandColors.brand} />
-      <path d={logoPaths.stem} fill={brandColors.brandInk} />
-      <path d={logoPaths.chevron} fill={brandColors.amber} />
+      <LogoArt />
     </svg>
   )
 }

@@ -15,6 +15,7 @@ export type SchemaPath =
   | 'nyugtast/xmlnyugtast.xsd'
   | 'nyugtaget/xmlnyugtaget.xsd'
   | 'nyugtasend/xmlnyugtasend.xsd'
+  | 'agentmb/xmlcegmb.xsd'
 
 function hasXmllint(): boolean {
   try {

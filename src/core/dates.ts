@@ -17,6 +17,41 @@ export function toBudapestDate(date: Date): string {
   return `${get('year')}-${get('month')}-${get('day')}`
 }
 
+const budapestTimestampFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: BUDAPEST_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+})
+
+const MINUTE_IN_MS = 60_000
+
+function pad2(value: number): string {
+  return String(value).padStart(2, '0')
+}
+
+export function toBudapestTimestamp(date: Date): string {
+  const time = date.getTime()
+  if (Number.isNaN(time)) {
+    throw new RangeError('Érvénytelen dátum')
+  }
+  const parts = budapestTimestampFormatter.formatToParts(date)
+  const get = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value ?? Number.NaN)
+  const [year, month, day] = [get('year'), get('month'), get('day')]
+  const [hour, minute, second] = [get('hour'), get('minute'), get('second')]
+  const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, second)
+  const offsetMinutes = Math.round((localAsUtc - Math.floor(time / 1000) * 1000) / MINUTE_IN_MS)
+  const sign = offsetMinutes < 0 ? '-' : '+'
+  const absolute = Math.abs(offsetMinutes)
+  const offset = `${sign}${pad2(Math.floor(absolute / 60))}:${pad2(absolute % 60)}`
+  return `${year}-${pad2(month)}-${pad2(day)}T${pad2(hour)}:${pad2(minute)}:${pad2(second)}${offset}`
+}
+
 const DAY_IN_MS = 86_400_000
 
 export function addBudapestDays(date: Date, days: number): string {

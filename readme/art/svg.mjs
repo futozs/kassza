@@ -1,6 +1,14 @@
-const LOGO_TILE = '#28313D'
-const LOGO_STEM = 'M106 96H194V416L183 400L172 416L161 400L150 416L139 400L128 416L117 400L106 416Z'
-const LOGO_CHEVRON = 'M194 296L290 200H414L306 308L414 416H290L194 320Z'
+const LOGO_STEM =
+  'M118 96H182Q194 96 194 108V416L183 400L172 416L161 400L150 416L139 400L128 416L117 400L106 416V108Q106 96 118 96Z'
+const LOGO_CHEVRON =
+  'M194 308Q194 296 205.3 284.7L278.7 211.3Q290 200 306 200L398 200Q414 200 402.7 211.3L317.3 296.7Q306 308 317.3 319.3L402.7 404.7Q414 416 398 416L306 416Q290 416 278.7 404.7L205.3 331.3Q194 320 194 308Z'
+const LOGO_DEFS = [
+  '<linearGradient id="km-tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B4656"/><stop offset="1" stop-color="#1A212B"/></linearGradient>',
+  '<linearGradient id="km-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/><stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.08"/></linearGradient>',
+  '<linearGradient id="km-stem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D9DFE7"/></linearGradient>',
+  '<linearGradient id="km-chev" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9A4D"/><stop offset="1" stop-color="#E8590F"/></linearGradient>',
+  '<filter id="km-shadow" x="-25%" y="-20%" width="150%" height="160%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#000000" flood-opacity="0.4"/></filter>',
+].join('')
 
 const ICONS = {
   arrowRight: 'M5 12h14M13 6l6 6-6 6',
@@ -101,9 +109,24 @@ export function logoMark({ x, y, size, ring }) {
     'g',
     { transform: `translate(${num(x)} ${num(y)}) scale(${num(scale, 5)})` },
     [
-      el('rect', { width: 512, height: 512, rx: 112, fill: LOGO_TILE }),
-      el('path', { d: LOGO_STEM, fill: '#FFFFFF' }),
-      el('path', { d: LOGO_CHEVRON, fill: '#F26B21' }),
+      `<defs>${LOGO_DEFS}</defs>`,
+      el('rect', { width: 512, height: 512, rx: 112, fill: 'url(#km-tile)' }),
+      el('rect', {
+        x: 1.5,
+        y: 1.5,
+        width: 509,
+        height: 509,
+        rx: 110.5,
+        fill: 'none',
+        stroke: 'url(#km-rim)',
+        'stroke-width': 3,
+      }),
+      el(
+        'g',
+        { filter: 'url(#km-shadow)' },
+        el('path', { d: LOGO_STEM, fill: 'url(#km-stem)' }) +
+          el('path', { d: LOGO_CHEVRON, fill: 'url(#km-chev)' }),
+      ),
       ringStroke,
     ].join(''),
   )

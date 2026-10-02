@@ -104,6 +104,86 @@
         "default": "./dist/testing/index.cjs"
       }
     },
+    "./reports": {
+      "import": {
+        "types": "./dist/reports/index.d.ts",
+        "default": "./dist/reports/index.js"
+      },
+      "require": {
+        "types": "./dist/reports/index.d.cts",
+        "default": "./dist/reports/index.cjs"
+      }
+    },
+    "./payments": {
+      "import": {
+        "types": "./dist/payments/index.d.ts",
+        "default": "./dist/payments/index.js"
+      },
+      "require": {
+        "types": "./dist/payments/index.d.cts",
+        "default": "./dist/payments/index.cjs"
+      }
+    },
+    "./payments/stripe": {
+      "import": {
+        "types": "./dist/payments/stripe.d.ts",
+        "default": "./dist/payments/stripe.js"
+      },
+      "require": {
+        "types": "./dist/payments/stripe.d.cts",
+        "default": "./dist/payments/stripe.cjs"
+      }
+    },
+    "./payments/simplepay": {
+      "import": {
+        "types": "./dist/payments/simplepay.d.ts",
+        "default": "./dist/payments/simplepay.js"
+      },
+      "require": {
+        "types": "./dist/payments/simplepay.d.cts",
+        "default": "./dist/payments/simplepay.cjs"
+      }
+    },
+    "./payments/barion": {
+      "import": {
+        "types": "./dist/payments/barion.d.ts",
+        "default": "./dist/payments/barion.js"
+      },
+      "require": {
+        "types": "./dist/payments/barion.d.cts",
+        "default": "./dist/payments/barion.cjs"
+      }
+    },
+    "./payments/revolut": {
+      "import": {
+        "types": "./dist/payments/revolut.d.ts",
+        "default": "./dist/payments/revolut.js"
+      },
+      "require": {
+        "types": "./dist/payments/revolut.d.cts",
+        "default": "./dist/payments/revolut.cjs"
+      }
+    },
+    "./payments/paypal": {
+      "import": {
+        "types": "./dist/payments/paypal.d.ts",
+        "default": "./dist/payments/paypal.js"
+      },
+      "require": {
+        "types": "./dist/payments/paypal.d.cts",
+        "default": "./dist/payments/paypal.cjs"
+      }
+    },
+    "./delegation": {
+      "import": {
+        "types": "./dist/delegation/index.d.ts",
+        "default": "./dist/delegation/index.js"
+      },
+      "require": {
+        "types": "./dist/delegation/index.d.cts",
+        "default": "./dist/delegation/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "bugs": {
@@ -118,7 +198,7 @@
     "agents",
     "llms.txt"
   ],
-  "homepage": "https://kassza-amber.vercel.app",
+  "homepage": "https://kasszajs.hu",
   "keywords": [
     "billing",
     "dijbekero",
@@ -183,6 +263,30 @@
       ],
       "testing": [
         "./dist/testing/index.d.ts"
+      ],
+      "reports": [
+        "./dist/reports/index.d.ts"
+      ],
+      "payments": [
+        "./dist/payments/index.d.ts"
+      ],
+      "payments/stripe": [
+        "./dist/payments/stripe.d.ts"
+      ],
+      "payments/simplepay": [
+        "./dist/payments/simplepay.d.ts"
+      ],
+      "payments/barion": [
+        "./dist/payments/barion.d.ts"
+      ],
+      "payments/revolut": [
+        "./dist/payments/revolut.d.ts"
+      ],
+      "payments/paypal": [
+        "./dist/payments/paypal.d.ts"
+      ],
+      "delegation": [
+        "./dist/delegation/index.d.ts"
       ]
     }
   }

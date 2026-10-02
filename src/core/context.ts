@@ -1,4 +1,12 @@
 import { AGENT_ACTIONS, type AgentAction, SZAMLAZZ_AGENT_URL } from './actions'
+import {
+  type AttemptLedger,
+  attemptLedgerKey,
+  attemptLimitError,
+  countsAsFailedAttempt,
+  createAttemptLedger,
+} from './attempt-ledger'
+import type { DocumentHook } from './document-events'
 import { SzamlazzError } from './errors'
 import { type AgentResponse, createAgentResponse } from './response'
 import {
@@ -40,6 +48,7 @@ export interface SzamlazzHooks {
   readonly onRequest?: (event: AgentRequestEvent) => void
   readonly onResponse?: (event: AgentResponseEvent) => void
   readonly onError?: (event: AgentErrorEvent) => void
+  readonly onDocument?: DocumentHook
 }
 
 export interface SzamlazzOptions {
@@ -52,6 +61,8 @@ export interface SzamlazzOptions {
   readonly maxAttempts?: number
   readonly retryDelayMs?: number
   readonly cookieStore?: CookieStore | false
+  readonly attemptLedger?: CookieStore | undefined
+  readonly maintenanceCooldownMs?: number | undefined
   readonly hooks?: SzamlazzHooks
 }
 
@@ -71,6 +82,7 @@ export interface AgentContext {
   readonly credentials: readonly XmlNode[]
   execute<T>(request: AgentRequest, parse: (response: AgentResponse) => T | Promise<T>): Promise<T>
   resetSession(): Promise<void>
+  resetAttempts(key: string): Promise<void>
 }
 
 function readEnv(name: string): string | undefined {
@@ -170,6 +182,34 @@ function clampAttempts(value: number | undefined): number {
   return Math.min(value, MAX_ATTEMPTS_PER_REQUEST)
 }
 
+function resolveCooldown(value: number | undefined): number {
+  if (value === undefined) return 0
+  if (!Number.isFinite(value) || value < 0) {
+    throw configurationError(
+      `A maintenanceCooldownMs értéke nemnegatív szám legyen, kapott: ${value}`,
+    )
+  }
+  return value
+}
+
+function attachmentSize(attachment: AgentAttachment): number {
+  const { content } = attachment
+  if (typeof content === 'string') return new TextEncoder().encode(content).byteLength
+  if (content instanceof Blob) return content.size
+  return content.byteLength
+}
+
+function maintenanceCooldownError(action: AgentAction, remainingMs: number): SzamlazzError {
+  return new SzamlazzError(
+    `A Számlázz.hu karbantartás miatt nem érhető el, a kassza még ${Math.ceil(remainingMs / 1000)} másodpercig nem küld kérést.`,
+    {
+      category: 'maintenance',
+      action,
+      hint: 'A maintenanceCooldownMs beállítás miatt a kérés el sem indult. Válts tartalék folyamatra (például kézi nyugtatömbre), vagy próbáld később.',
+    },
+  )
+}
+
 export function createAgentContext(options: SzamlazzOptions = {}): AgentContext {
   const credentials = resolveCredentials(options)
   const endpoint = options.endpoint ?? SZAMLAZZ_AGENT_URL
@@ -189,6 +229,11 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     return sessionKeyPromise
   }
   const hooks = options.hooks ?? {}
+  const ledger: AttemptLedger | undefined = options.attemptLedger
+    ? createAttemptLedger(options.attemptLedger)
+    : undefined
+  const cooldownMs = resolveCooldown(options.maintenanceCooldownMs)
+  let blockedUntil = 0
 
   async function send(request: AgentRequest): Promise<AgentResponse> {
     const cookie = cookieStore
@@ -244,12 +289,42 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     }
   }
 
+  async function resetAttempts(key: string): Promise<void> {
+    if (ledger) await ledger.reset(key)
+  }
+
+  async function ledgerKeyFor(request: AgentRequest): Promise<string | undefined> {
+    if (!ledger) return undefined
+    return attemptLedgerKey({
+      action: request.action,
+      xml: request.xml,
+      attachments: (request.attachments ?? []).map((attachment) => ({
+        filename: attachment.filename,
+        size: attachmentSize(attachment),
+      })),
+    })
+  }
+
+  function assertNoCooldown(action: AgentAction): void {
+    const remainingMs = blockedUntil - Date.now()
+    if (remainingMs > 0) throw maintenanceCooldownError(action, remainingMs)
+  }
+
   async function execute<T>(
     request: AgentRequest,
     parse: (response: AgentResponse) => T | Promise<T>,
   ): Promise<T> {
     const maxAttempts = request.safeToRetry ? safeAttempts : 1
+    const ledgerKey = await ledgerKeyFor(request)
     for (let attempt = 1; ; attempt++) {
+      assertNoCooldown(request.action)
+      const failures =
+        ledger && ledgerKey !== undefined
+          ? ((await ignoreStoreFailure(() => ledger.failures(ledgerKey))) ?? 0)
+          : 0
+      if (ledgerKey !== undefined && failures >= MAX_ATTEMPTS_PER_REQUEST) {
+        throw attemptLimitError(request.action, ledgerKey, failures)
+      }
       const startedAt = Date.now()
       callHook(hooks.onRequest, { action: request.action, attempt })
       try {
@@ -260,10 +335,23 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
           status: response.status,
           durationMs: Date.now() - startedAt,
         })
-        return await parse(response)
+        const result = await parse(response)
+        if (ledger && ledgerKey !== undefined && failures > 0) {
+          await ignoreStoreFailure(() => ledger.reset(ledgerKey))
+        }
+        return result
       } catch (error) {
         if (!(error instanceof SzamlazzError)) throw error
-        const willRetry = error.retryable && attempt < maxAttempts
+        if (ledger && ledgerKey !== undefined && countsAsFailedAttempt(error)) {
+          await ignoreStoreFailure(() => ledger.recordFailure(ledgerKey, failures))
+        }
+        if (error.category === 'maintenance' && cooldownMs > 0) {
+          blockedUntil = Date.now() + cooldownMs
+        }
+        const willRetry =
+          error.retryable &&
+          attempt < maxAttempts &&
+          !(error.category === 'maintenance' && cooldownMs > 0)
         callHook(hooks.onError, { action: request.action, attempt, error, willRetry })
         if (error.category === 'auth') await resetSession()
         if (!willRetry) throw error
@@ -272,5 +360,5 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     }
   }
 
-  return { credentials, execute, resetSession }
+  return { credentials, execute, resetSession, resetAttempts }
 }

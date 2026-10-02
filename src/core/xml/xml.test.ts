@@ -239,3 +239,62 @@ describe('child helperek', () => {
     expect(childBoolean(root, 'mas')).toBeUndefined()
   })
 })
+
+describe('buildXmlDocument attribútumok és névterek', () => {
+  test('az elem attribútumait escape-elve, a további névtereket a gyökéren deklarálja', () => {
+    const xml = buildXmlDocument({
+      root: 'AuthTokenRequest',
+      namespace: 'urn:receipt',
+      namespaces: { s: 'urn:service', xsi: 'http://www.w3.org/2001/XMLSchema-instance' },
+      children: [
+        el('s:context', [el('s:requestId', 'R1')]),
+        el('passwordHash', 'ABC', { cryptoType: 'SHA-512' }),
+        el('exchangeRate', null, { 'xsi:nil': 'true' }),
+        el('note', 'x', { title: 'a"b<c' }),
+      ],
+    })
+
+    expect(xml).toContain(
+      '<AuthTokenRequest xmlns="urn:receipt" xmlns:s="urn:service" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">',
+    )
+    expect(xml).toContain('<passwordHash cryptoType="SHA-512">ABC</passwordHash>')
+    expect(xml).toContain('<exchangeRate xsi:nil="true"></exchangeRate>')
+    expect(xml).toContain('<note title="a&quot;b&lt;c">x</note>')
+    expect(xml).toContain('<s:context>\n    <s:requestId>R1</s:requestId>\n  </s:context>')
+    expect(parseXml(xml).children.map((child) => child.name)).toEqual([
+      'context',
+      'passwordHash',
+      'exchangeRate',
+      'note',
+    ])
+  })
+
+  test('schemaLocation mellett sem deklarálja kétszer az xsi névteret', () => {
+    const xml = buildXmlDocument({
+      root: 'a',
+      namespace: 'urn:a',
+      namespaces: { xsi: 'http://www.w3.org/2001/XMLSchema-instance' },
+      schemaLocation: 'a.xsd',
+      children: [
+        el('b', 1, { x: '1' }),
+        el('c', [el('d', true)], { y: '2' }),
+        el('e', [], { z: '3' }),
+      ],
+    })
+
+    expect(xml.match(/xmlns:xsi=/g)).toHaveLength(1)
+    expect(xml).toContain('xsi:schemaLocation="urn:a a.xsd"')
+    expect(xml).toContain('<b x="1">1</b>')
+    expect(xml).toContain('<c y="2">\n    <d>true</d>\n  </c>')
+    expect(xml).toContain('<e z="3"></e>')
+  })
+
+  test('attribútum nélkül az el() pontosan a régi alakot adja', () => {
+    expect(el('a', 'b')).toStrictEqual({ name: 'a', content: 'b' })
+    expect(el('a', 'b', { c: 'd' })).toStrictEqual({
+      name: 'a',
+      content: 'b',
+      attributes: { c: 'd' },
+    })
+  })
+})

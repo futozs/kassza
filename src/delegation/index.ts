@@ -1,0 +1,40 @@
+export { suggestedPrefix } from '../core/errors'
+export {
+  assertDelegatePrefix,
+  buildConnectPrincipalXml,
+  CONNECT_PRINCIPAL_NAMESPACE,
+  CONNECT_PRINCIPAL_SCHEMA_LOCATION,
+  type ConnectPrincipalInput,
+  type ConnectPrincipalOptions,
+  type ConnectPrincipalResponse,
+  type ConnectPrincipalResult,
+  type ConnectPrincipalStatus,
+  connectPrincipal,
+  connectPrincipalStatus,
+  connectPrincipalWith,
+  DELEGATE_PASSWORD_MAX_LENGTH,
+  DELEGATE_PASSWORD_MIN_LENGTH,
+  DELEGATE_PREFIX_PATTERN,
+  type DelegateUser,
+  normalizeDelegateTaxNumber,
+  type PrincipalAddress,
+  type PrincipalCompany,
+  parseConnectPrincipalResponse,
+} from './connect'
+export {
+  createDelegateKassza,
+  createKasszaPool,
+  DEFAULT_POOL_SIZE,
+  type DelegateCredentials,
+  type DelegateKasszaOptions,
+  type DelegateResolver,
+  type KasszaPool,
+  type KasszaPoolOptions,
+} from './pool'
+export {
+  DELEGATION_PROBE_INVOICE_NUMBER,
+  type DelegationProbeResult,
+  type DelegationState,
+  type ProbeDelegationOptions,
+  probeDelegation,
+} from './probe'

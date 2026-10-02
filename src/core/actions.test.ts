@@ -2,8 +2,9 @@ import { describe, expect, test } from 'vitest'
 import { AGENT_ACTIONS, SZAMLAZZ_AGENT_URL } from './actions'
 
 describe('AGENT_ACTIONS', () => {
-  test('mind a 11 dokumentált Számla Agent műveletet lefedi', () => {
-    expect(Object.keys(AGENT_ACTIONS)).toHaveLength(11)
+  test('mind a 11 dokumentált Számla Agent műveletet és a megbízói fiók kapcsolását lefedi', () => {
+    expect(Object.keys(AGENT_ACTIONS)).toHaveLength(12)
+    expect(AGENT_ACTIONS.connectPrincipal).toBe('action-agent_ceg_mb')
   })
 
   test('minden form mező egyedi és action- előtagú', () => {

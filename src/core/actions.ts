@@ -12,6 +12,7 @@ export const AGENT_ACTIONS = {
   getReceipt: 'action-szamla_agent_nyugta_get',
   sendReceipt: 'action-szamla_agent_nyugta_send',
   queryTaxpayer: 'action-szamla_agent_taxpayer',
+  connectPrincipal: 'action-agent_ceg_mb',
 } as const
 
 export type AgentAction = keyof typeof AGENT_ACTIONS
