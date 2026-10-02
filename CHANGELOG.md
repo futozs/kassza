@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.12.0 (2026-10-02)
+
+### Újdonságok
+
+- implement createOnce functionality for receipts with comprehensive tests (2f97dc1)
+
 ## 0.11.0 (2026-10-01)
 
 ### Újdonságok
