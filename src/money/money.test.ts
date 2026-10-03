@@ -225,6 +225,37 @@ describe('calculateReceiptItem: forintos nyugta', () => {
     })
   })
 
+  test('0%-os és adómentes tételnél tört nettóból sem keletkezik áfa', () => {
+    for (const vat of [0, 'TAM', 'AAM'] as const) {
+      expect(calculateReceiptItem({ netUnitPrice: 4.142857, vat })).toEqual({
+        quantity: 1,
+        vat,
+        netUnitPrice: 4.142857,
+        netAmount: 4,
+        vatAmount: 0,
+        grossAmount: 4,
+      })
+    }
+  })
+
+  test('kis összegnél a bruttó kerekítése nem ad negatív áfát, a bruttóból bont vissza', () => {
+    expect(calculateReceiptItem({ netUnitPrice: 1.14, vat: 27 })).toMatchObject({
+      netAmount: 0.79,
+      vatAmount: 0.21,
+      grossAmount: 1,
+    })
+    expect(calculateReceiptItem({ netUnitPrice: -1.14, vat: 27 })).toMatchObject({
+      netAmount: -0.79,
+      vatAmount: -0.21,
+      grossAmount: -1,
+    })
+    expect(calculateReceiptItem({ netUnitPrice: 0.3, vat: 27 })).toMatchObject({
+      netAmount: 0,
+      vatAmount: 0,
+      grossAmount: 0,
+    })
+  })
+
   test('véletlen inputokra is teljesülnek a szigorú nyugtaszabályok (261, 363, 364, 365)', () => {
     const random = seededRandom(42)
     for (let run = 0; run < 2000; run++) {
@@ -242,8 +273,10 @@ describe('calculateReceiptItem: forintos nyugta', () => {
       expect(isWithinDecimals(item.netAmount, 2)).toBe(true)
       expect(isWithinDecimals(item.vatAmount, 2)).toBe(true)
       expect(addMoney(item.netAmount, item.vatAmount)).toBe(item.grossAmount)
+      expect(item.netAmount + item.vatAmount).toBe(item.grossAmount)
       expect(Math.abs(item.netUnitPrice * item.quantity - item.netAmount)).toBeLessThanOrEqual(2)
       expect(Math.abs((item.netAmount * vat) / 100 - item.vatAmount)).toBeLessThanOrEqual(2)
+      expect(vat === 0 ? item.vatAmount === 0 : item.vatAmount >= 0).toBe(true)
     }
   })
 

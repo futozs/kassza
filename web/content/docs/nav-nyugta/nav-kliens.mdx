@@ -1,0 +1,130 @@
+---
+title: NAV kliens
+description: A NAV nyugta-adatszolgáltatás gépi interfészének (receipt-if) kliense a kassza/nav modulban. Technikai felhasználó, lekérdezés, beküldés, javítás, érvénytelenítés, kiállító szoftver és hibakezelés.
+---
+
+A `createNavReceiptClient()` a NAV nyugta-adatszolgáltatási interfészét hívja (`/receipt-if`, teszt és éles környezet). Lekérdezi a NAV-nál rögzített napi összesítőket, és ha neked kell beküldeni (például a [kézi nyugtatömb](/docs/nav-nyugta/kezi-nyugtatomb) nyugtáit), beküldi, javítja vagy érvényteleníti őket. Az SHA-512 jelszó-hasht és az SHA3-512 kérésaláírást maga készíti, függőség nélkül.
+
+<Callout type="warning" title="Alapból csak olvas">
+  Ha a nyugtáidat a Számlázz.hu jelenti, ne küldd be őket te is, mert az kettős
+  adatszolgáltatás. Ezért a kliens alapból nem küld adatot: a beküldő, javító és érvénytelenítő
+  metódusok `write_blocked` hibát dobnak, amíg nem adod meg az `allowWrite: true` opciót.
+</Callout>
+
+## Technikai felhasználó
+
+A géppel történő adatszolgáltatáshoz a NAV Felhasználókezelőjében (UAM) **technikai felhasználó** kell, nyugta-adatszolgáltatási jogosultsággal és aláírókulccsal. Ennek adatai kellenek a klienshez:
+
+```dotenv title=".env.local"
+NAV_LOGIN=...
+NAV_PASSWORD=...
+NAV_SIGNATURE_KEY=...
+NAV_TAX_NUMBER=12345676
+```
+
+```ts title="lib/nav.ts"
+import { createNavReceiptClient } from 'kassza/nav'
+
+export const nav = createNavReceiptClient({
+  environment: 'production',
+  login: process.env.NAV_LOGIN!,
+  password: process.env.NAV_PASSWORD!,
+  signatureKey: process.env.NAV_SIGNATURE_KEY!,
+  taxNumber: process.env.NAV_TAX_NUMBER!,
+})
+```
+
+| Opció | Alapérték | Jelentés |
+| --- | --- | --- |
+| `environment` | – | `test` vagy `production`. Kötelező, hogy ne küldj véletlenül élesbe. |
+| `login`, `password` | – | A technikai felhasználó. A jelszó helyett a nagybetűs SHA-512 hash is megadható (`passwordHash`). |
+| `signatureKey` | – | Az aláírókulcs. |
+| `taxNumber` | – | A cég adószáma vagy törzsszáma. |
+| `predecessorTaxNumber` | – | Jogelőd törzsszáma, ha kell. |
+| `softwareName` | – | A kiállító szoftver neve a beküldésekhez. |
+| `allowWrite` | `false` | Beküldés, javítás és érvénytelenítés engedélyezése. |
+| `timeoutMs` | `15000` | Egy kérés időkorlátja. |
+| `fetch`, `baseUrl` | – | Egyedi fetch vagy cím, például teszthez. |
+
+A NAV token 5 percig érvényes. A kliens tárolja és újrahasznosítja, lejárat vagy `401` válasz után egyszer újat kér.
+
+## Lekérdezés
+
+```ts
+const lista = await nav.listAllReports({ from: '2026-09-01', to: '2026-09-30' })
+
+for (const sor of lista) {
+  console.log(sor.applicableDate, sor.serialNumber, sor.totalAmount, sor.status, sor.softwareName)
+}
+
+const elso = lista[0]
+if (elso) console.log(await nav.getReport(elso.id))
+```
+
+A `listReports()` egy oldalt ad vissza (`page`, `pageSize`, rendezés), a `listAllReports()` végiglapozza az időszakot. Az állapot `RECORDED` (érvényes) vagy `INVALIDATED` (érvénytelenített vagy javítással felülírt). A `softwareName` megmutatja, melyik szoftver küldte be, így látod, mit jelentett a Számlázz.hu.
+
+## Beküldés
+
+Beküldés előtt a kiállító szoftver nevét egyszer rögzíteni kell a NAV-nál, különben `EPGP0002` hibát kapsz:
+
+```ts
+const nav = createNavReceiptClient({
+  environment: 'production',
+  login: process.env.NAV_LOGIN!,
+  password: process.env.NAV_PASSWORD!,
+  signatureKey: process.env.NAV_SIGNATURE_KEY!,
+  taxNumber: process.env.NAV_TAX_NUMBER!,
+  softwareName: 'Kézi tömb',
+  allowWrite: true,
+})
+
+await nav.registerSoftware()
+
+const eredmeny = await nav.submitReport(jelentes)
+console.log(eredmeny.id, eredmeny.created)
+```
+
+A `registerSoftware()` idempotens: ha a név már rögzítve van, nem küld újra. A `submitReport()` beküldés előtt ellenőrzi az adatokat (dátum, sorszám, pénznem, árfolyam, kategóriák, összegek és darabszámok), és megnézi, van-e már érvényes adatszolgáltatás ugyanarra a tárgynapra és kezdő sorszámra:
+
+- ha van, és az adatai egyeznek, nem küld újra, hanem `created: false` eredményt ad,
+- ha van, de eltér, `conflict` hibát dob a meglévő azonosítójával. Ilyenkor a javítás a helyes út, nem az újraküldés.
+
+## Javítás és érvénytelenítés
+
+```ts
+await nav.modifyReport(id, javitottJelentes)
+await nav.invalidateReport(id)
+```
+
+A javítás új rekordot hoz létre, a régi `INVALIDATED` lesz. A kezdő sorszám nem javítható: ha az hibás, érvénytelenítsd a jelentést, és küldj be újat. Egy rekord csak egyszer javítható (`EPGP0051`), a további javítás a javítással létrejött új rekordra megy.
+
+## Segédlisták
+
+A `vatCategories()` a NAV áfakategóriáit adja érvényességi idővel, a `currencies()` a beküldhető pénznemeket. A `kassza/reports` napi összesítője ugyanezeket a kategóriákat használja.
+
+## Hibák
+
+Minden hiba `NavReceiptError`, az `isNavReceiptError()` típusőrrel szűkítheted.
+
+| Kategória | Jelentés |
+| --- | --- |
+| `auth` | Hibás technikai felhasználó, jelszó vagy aláírókulcs |
+| `validation` | Hibás adat (a `fieldErrors` mezőnként megmondja, mi) |
+| `business` | Üzleti szabály, például nem rögzített szoftver (`EPGP0002`) |
+| `conflict` | Ugyanarra a napra és sorszámra már van eltérő adatszolgáltatás |
+| `write_blocked` | Írás `allowWrite: true` nélkül |
+| `technical`, `network`, `timeout` | Átmeneti hiba, a `retryable` igaz |
+| `configuration`, `unexpected_response` | Beállítási hiba vagy váratlan NAV válasz |
+
+A NAV `EPGP` hibakódja a `code` mezőben van, a magyar javítási tipp a `hint` mezőben.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Egyeztetés" href="/docs/nav-nyugta/egyeztetes">
+    A helyi összesítő és a NAV-nál rögzített adatok összevetése.
+  </Card>
+  <Card title="Kézi nyugtatömb" href="/docs/nav-nyugta/kezi-nyugtatomb">
+    Papír nyugták napi jelentése.
+  </Card>
+</Cards>

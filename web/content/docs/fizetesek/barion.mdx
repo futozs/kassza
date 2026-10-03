@@ -1,0 +1,64 @@
+---
+title: Barion
+description: Barion fizetésből nyugta vagy számla a kassza/payments/barion callback-kezelővel. A fizetés állapotát a kassza a Barion API-tól kérdezi le, így hamis callback nem állít ki bizonylatot.
+---
+
+A Barion callback csak a fizetés azonosítóját (`paymentId`) küldi, aláírás nélkül. A `barionWebhook()` ezért nem bízik a kérésben: a POSKey-jel lekérdezi a fizetés állapotát a Barion API-tól (`GET /v4/Payment/{paymentId}/PaymentState`), és csak a válasz alapján hívja meg az `onPayment` függvényedet.
+
+## Beállítás
+
+A fizetés indításakor a `CallbackUrl` legyen a végpontod, például `https://bolt.example.hu/api/barion/callback`. A POSKey a Barion shop adatai között van.
+
+```dotenv title=".env.local"
+BARION_POS_KEY=...
+```
+
+## A webhook
+
+```ts title="app/api/barion/callback/route.ts"
+import { barionWebhook } from 'kassza/payments/barion'
+import { kassza } from '@/lib/kassza'
+
+export const POST = barionWebhook({
+  posKey: process.env.BARION_POS_KEY!,
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+| Opció | Alapérték | Jelentés |
+| --- | --- | --- |
+| `posKey` | – | A shop POSKey-e. |
+| `sandbox` | `false` | A teszt Barion API-t hívja (`api.test.barion.com`). |
+| `method` | – | Fix fizetési mód. Alapból kártyánál `bankkártya`, átutalásnál `átutalás`, egyébként `Barion`. |
+| `onPayment`, `onError`, `maxBodyBytes` | – | Lásd [Fizetésből bizonylat](/docs/fizetesek#a-webhook-válaszai). |
+
+A kezelő a `paymentId`-t a query stringből, űrlapként vagy JSON-ként küldött törzsből is kiolvassa. Ellenőrzi, hogy érvényes azonosító-e, és hogy a Barion ugyanarról a fizetésről adott-e választ.
+
+## Állapotok
+
+| Barion állapot | `kind` |
+| --- | --- |
+| `Succeeded` | `paid` |
+| Sikeres visszatérítés a teljes összegről, egy részletben | `refunded` |
+| Részleges vagy több részletben történt visszatérítés | `partially-refunded` |
+| `Canceled`, `Failed`, `Expired` | `failed` |
+| Egyéb | `other` |
+
+A tételeket a fizetés tranzakcióinak `Items` listájából veszi, a díj- és visszatérítési tranzakciókat kihagyja.
+
+<Callout type="warning" title="Céges vevő Barionnál">
+  A Barion csak a fizető nevét és e-mail címét adja vissza, címet nem. Ha a fizető szervezet, a
+  kassza számlát állítana ki, ehhez viszont cím kell. Céges vevőnél add át a számla vevőjét a saját
+  rendelésedből a `buyer` opcióban.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Fizetésből bizonylat" href="/docs/fizetesek">
+    Az issueForPayment döntései, tételek, áfa és hibakezelés.
+  </Card>
+  <Card title="SimplePay" href="/docs/fizetesek/simplepay">
+    Aláírt IPN és több kereskedői fiók.
+  </Card>
+</Cards>

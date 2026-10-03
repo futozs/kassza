@@ -1,0 +1,52 @@
+---
+title: Kézi nyugtatömb
+description: Tartalék papír nyugtatömb napi NAV-összesítője a paperReceiptReport függvénnyel, ha a Számlázz.hu nem érhető el, és beküldése a NAV klienssel.
+---
+
+Ha a Számlázz.hu karbantartás vagy hálózati hiba miatt nem érhető el, a helyszíni árusítás nem állhat le: a pénztáros a nyomdai nyugtatömbből ad kézi nyugtát. Ezekről a nyugtákról a Számlázz.hu nem tud, ezért a napi NAV-összesítőt neked kell beküldeni. A `paperReceiptReport()` a tömbből kiadott nyugták adataiból elkészíti az összesítőt.
+
+```ts
+import { paperReceiptReport } from 'kassza/nav'
+
+const jelentes = paperReceiptReport({
+  applicableDate: '2026-10-02',
+  entries: [
+    { number: 'A-0001', vat: '27%', gross: 1_780 },
+    { number: 'A-0002', vat: '27%', gross: 890 },
+    { number: 'A-0002', vat: '5%', gross: 500 },
+    { number: 'A-0003', vat: '27%', gross: -890, modifying: true },
+  ],
+})
+
+const eredmeny = await nav.submitReport(jelentes)
+```
+
+| Mező | Jelentés |
+| --- | --- |
+| `applicableDate` | A tárgynap. |
+| `currency`, `exchangeRate` | Pénznem, alapból `HUF`; devizánál az árfolyam is. |
+| `entries[].number` | A nyugta sorszáma. Egy nyugta több sort kaphat, ha több áfakategóriát tartalmaz. |
+| `entries[].vat` | NAV-áfakategória: `0%`, `5%`, `18%`, `27%`, `Alanyi adómentes` vagy `Egyéb`. |
+| `entries[].gross` | Bruttó összeg; eladásnál nem lehet negatív. |
+| `entries[].modifying` | `true` a módosító vagy érvénytelenítő bizonylatnál (visszavétel). |
+
+A darabszámokat nyugtánként számolja, nem soronként, és a kezdő sorszám a legkisebb sorszám lesz. Ugyanaz a sorszám nem lehet egyszerre eladás és módosító bizonylat.
+
+A beküldéshez a [NAV kliens](/docs/nav-nyugta/nav-kliens#beküldés) kell `allowWrite: true` beállítással és egy rögzített kiállító szoftver névvel (például „Kézi tömb”). Egy tömb egy sorozatnak számít, ezért a Számlázz.hu nyugtáitól elkülönülő sorszámokat használj.
+
+<Callout type="tip" title="Gyors átállás">
+  A kliens `maintenanceCooldownMs` opciójával a kassza karbantartás után azonnal hibát ad, ahelyett
+  hogy várakozna, így a pénztárprogram gyorsan átválthat a kézi tömbre. Lásd
+  [Pontosan egyszer](/docs/alapok/pontosan-egyszer#karbantartási-szünet).
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="NAV kliens" href="/docs/nav-nyugta/nav-kliens">
+    Beküldés, javítás és érvénytelenítés.
+  </Card>
+  <Card title="Nyugta vagy számla?" href="/docs/alapok/nyugta-vagy-szamla">
+    A nyugták fajtái és a pénztárgép-kötelezettség.
+  </Card>
+</Cards>

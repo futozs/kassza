@@ -185,7 +185,7 @@ test('a második törlés nem hiba', async () => {
 
 ## Pénztári nyugta
 
-A [Pénztári nyugta](/docs/receptek/penztari-nyugta) recept `nyugtaEladasrol()` függvénye. A mock ismételt `callId`-nál ugyanúgy 338-as `duplicate` hibát dob, mint a Számlázz.hu.
+A [Pénztári nyugta](/docs/receptek/penztari-nyugta) recept `nyugtaEladasrol()` függvénye. A mock ismételt `callId`-nál ugyanúgy 338-as `duplicate` hibát dob, mint a Számlázz.hu, a `createOnce()` pedig ilyenkor a rendelésszám alapján visszaadja a már elkészült nyugtát.
 
 ```ts title="lib/penztar.test.ts"
 import { createMockKassza } from 'kassza/testing'
@@ -196,8 +196,8 @@ const eladas: Eladas = {
   id: '2026-0917-0042',
   fizetesiMod: 'készpénz',
   tetelek: [
-    { name: 'Kávé', quantity: 2, grossUnitPrice: 890, vat: 27 },
-    { name: 'Kifli', grossUnitPrice: 250, vat: 5 },
+    { name: 'Lángos', quantity: 2, grossUnitPrice: 1_490, vat: 5 },
+    { name: 'Ásványvíz 0,5 l', grossUnitPrice: 590, vat: 27 },
   ],
 }
 
@@ -209,7 +209,7 @@ test('ugyanarról az eladásról csak egy nyugta készül', async () => {
 
   expect(masodik.number).toBe(elso.number)
   expect(mock.receiptRecords.size).toBe(1)
-  expect(elso.totals.grossAmount).toBe(2_030)
+  expect(elso.totals.grossAmount).toBe(3_570)
 })
 ```
 

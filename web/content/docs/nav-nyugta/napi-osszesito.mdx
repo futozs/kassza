@@ -1,0 +1,88 @@
+---
+title: Napi összesítő
+description: A NAV nyugta-adatszolgáltatás napi összesítője a kiállított nyugtákból a navDailyReports függvénnyel, és napi pénztárzárás a dailyClose függvénnyel.
+---
+
+A `kassza/reports` modul a már kiállított nyugtákból számolja ki azt, amit a NAV napi összesítőként vár. Nem hív hálózatot: a nyugtákat a saját adatbázisodból, a [pénzügyi adatkapcsolatból](/docs/adatkapcsolat) vagy a `receipts.get()` válaszaiból adod át.
+
+## navDailyReports
+
+```ts
+import { describeNavReport, navDailyReports } from 'kassza/reports'
+
+const jelentesek = navDailyReports(nyugtak)
+
+for (const jelentes of jelentesek) console.log(describeNavReport(jelentes))
+```
+
+```text
+Tárgynap: 2026-10-02
+Kezdő nyugtasorszám: NYGT-2026-118
+Pénznem: HUF
+5%: értékesítés 12 400, módosító/érvénytelenítő 0
+27%: értékesítés 48 260, módosító/érvénytelenítő -2 540
+Végösszeg: 58 120
+Nyugták száma: 31, módosító/érvénytelenítő bizonylatok száma: 1
+```
+
+A függvény tárgynap, nyugtasorozat, pénznem és árfolyam szerint csoportosít, így egy jelentés pontosan egy NAV-adatszolgáltatásnak felel meg.
+
+| Mező | Jelentés |
+| --- | --- |
+| `applicableDate` | Tárgynap, a nyugta kelte |
+| `series` | A nyugtasorozat, alapból a nyugtaszám utolsó kötőjel előtti része (`NYGT-2026`) |
+| `serialNumber` | A nap első nyugtaszáma a sorozatban |
+| `currency`, `exchangeRate` | Pénznem és árfolyam (forintnál `null`) |
+| `vatCategories` | Áfakategóriánként az értékesítés (`saleDocument`) és a sztornók előjeles összege (`modifyingDocument`) |
+| `total` | A kettő algebrai összege |
+| `numberOfSaleDocument`, `numberOfModifyingDocument` | Az eladások és a sztornók száma, külön |
+| `receiptNumbers` | A jelentésbe számolt nyugták, sorrendben |
+
+A szabályok, amelyeket a függvény betart:
+
+- A sztornónyugta módosító bizonylat: az összege negatívként a `modifyingDocument` mezőbe kerül, és külön darabszámot kap. Egy eladás és a sztornója két bizonylat, nem nullázzák ki egymást.
+- Az áfakulcs alapból így képződik le: `0`, `5`, `18` és `27` a saját kategóriájába, `AAM` az „Alanyi adómentes” kategóriába, minden más (például `TAM` vagy egy uniós kulcs) az „Egyéb” kategóriába. Ettől eltérni a `vatCategory` opcióval lehet.
+- A tesztfiókban kiállított nyugtákat kihagyja, hacsak nem adod meg az `includeTest: true` opciót.
+- Egy nyugtaszámot csak egyszer számol, akkor is, ha kétszer szerepel a listában.
+- Devizás nyugtánál árfolyam nélkül hibát ad, mert az összesítőben kötelező.
+
+| Opció | Jelentés |
+| --- | --- |
+| `includeTest` | A tesztfiókos nyugtákat is összesíti. |
+| `vatCategory(tétel, nyugta)` | Saját áfakategória-hozzárendelés, ha a könyvelőd mást mond. |
+| `series(nyugtaszám)` | Saját sorozatképzés, ha a nyugtaszámaid más formátumúak. |
+
+A jelentés közvetlenül átadható a [NAV kliens](/docs/nav-nyugta/nav-kliens) `submitReport()` metódusának, vagy az [egyeztetés](/docs/nav-nyugta/egyeztetes) helyi oldalának.
+
+## Napi pénztárzárás
+
+A `dailyClose()` ugyanazokból a nyugtákból napi zárást készít: a nap eladásait és sztornóit, fizetési módonként (kifizetésenként) és áfakulcsonként. Ez a saját könyvelésedhez és a pénztár egyeztetéséhez való, nem a NAV-nak.
+
+```ts
+import { dailyClose } from 'kassza/reports'
+
+for (const zaras of dailyClose(nyugtak)) {
+  console.log(zaras.date, zaras.currency, zaras.grossTotal)
+  for (const fizetes of zaras.byPaymentMethod) console.log(fizetes.method, fizetes.amount)
+}
+```
+
+| Mező | Jelentés |
+| --- | --- |
+| `date`, `currency` | Nap és pénznem |
+| `receiptCount`, `reversalCount` | Eladások és sztornók száma |
+| `salesGross`, `reversalsGross`, `grossTotal` | Eladások, sztornók (negatív) és az egyenleg |
+| `byPaymentMethod` | Összeg fizetési módonként; több kifizetéses nyugtánál a kifizetések szerint bontva |
+| `byVat` | Nettó, áfa és bruttó áfakulcsonként |
+| `receiptNumbers` | A napba számolt nyugták |
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Egyeztetés" href="/docs/nav-nyugta/egyeztetes">
+    Megérkezett-e minden nap a NAV-hoz, egyezik-e az összeg?
+  </Card>
+  <Card title="Parancssor" href="/docs/kiegeszitok/parancssor">
+    kassza nav summary: ugyanez a terminálban, JSON fájlból.
+  </Card>
+</Cards>

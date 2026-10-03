@@ -1,4 +1,5 @@
 import { AGENT_ACTIONS, type AgentAction, SZAMLAZZ_AGENT_URL } from 'kassza'
+import { acceptDelegation, assertDelegateAccess, handleConnectPrincipal } from './delegation'
 import {
   handleCreateInvoice,
   handleDeleteProforma,
@@ -53,6 +54,7 @@ const HANDLERS: Readonly<Record<AgentAction, Handler>> = {
   getReceipt: handleGetReceipt,
   sendReceipt: handleSendReceipt,
   queryTaxpayer: handleQueryTaxpayer,
+  connectPrincipal: handleConnectPrincipal,
 }
 
 const invoiceError = (fault: AgentFault): SimResponse =>
@@ -74,6 +76,7 @@ const ERROR_RESPONSES: Readonly<Record<AgentAction, (fault: AgentFault) => SimRe
   sendReceipt: (fault) =>
     xmlErrorResponse(RECEIPT_SEND_RESPONSE.root, RECEIPT_SEND_RESPONSE.namespace, fault),
   queryTaxpayer: textErrorResponse,
+  connectPrincipal: textErrorResponse,
 }
 
 const ACTIONS_BY_FIELD: ReadonlyMap<string, AgentAction> = new Map(
@@ -84,15 +87,17 @@ export interface AgentSimulator {
   readonly fetch: typeof globalThis.fetch
   readonly calls: readonly SimulatedCall[]
   failNext(action: AgentAction, failure: SimulatedFailure): void
+  acceptDelegation(taxNumber: string): void
   onCall(listener: (call: SimulatedCall) => void): () => void
   snapshot(): AccountSnapshot
   reset(): void
 }
 
 function redact(xml: string): string {
-  return xml
-    .replace(/(<szamlaagentkulcs>)[^<]*(<\/szamlaagentkulcs>)/g, '$1••••••••$2')
-    .replace(/(<jelszo>)[^<]*(<\/jelszo>)/g, '$1••••••••$2')
+  return xml.replace(
+    /(<(szamlaagentkulcs|jelszo|password|usrpassword)>)[^<]*(<\/\2>)/g,
+    '$1••••••••$3',
+  )
 }
 
 function previewBody(response: SimResponse): string {
@@ -105,16 +110,18 @@ function previewBody(response: SimResponse): string {
   )
 }
 
-function assertCredentials(root: XmlElement): void {
-  const settings = child(root, 'beallitasok')
+function assertCredentials(store: SimulatorStore, root: XmlElement): void {
+  const settings = child(root, 'beallitasok') ?? child(root, 'login')
   const key = text(settings, 'szamlaagentkulcs') ?? text(root, 'szamlaagentkulcs')
   if (key) {
     if (key.startsWith('rossz')) throw new AgentFault(3)
     return
   }
-  const user = text(settings, 'felhasznalo') ?? text(root, 'felhasznalo')
-  const password = text(settings, 'jelszo') ?? text(root, 'jelszo')
+  const user =
+    text(settings, 'felhasznalo') ?? text(settings, 'loginname') ?? text(root, 'felhasznalo')
+  const password = text(settings, 'jelszo') ?? text(settings, 'password') ?? text(root, 'jelszo')
   if (!user || !password || password.startsWith('rossz')) throw new AgentFault(3)
+  assertDelegateAccess(store, user)
 }
 
 function wait(
@@ -255,7 +262,7 @@ export function createAgentSimulator(options: SimulatorOptions = {}): AgentSimul
     } else {
       try {
         const root = parseXml(xml)
-        assertCredentials(root)
+        assertCredentials(store, root)
         if (typeof failure === 'number' && failure !== 56) throw new AgentFault(failure)
         response = HANDLERS[action](store, root)
         if (failure === 56) response = partialSuccess(action, response)
@@ -293,6 +300,9 @@ export function createAgentSimulator(options: SimulatorOptions = {}): AgentSimul
     calls,
     failNext(action, failure) {
       failures.set(action, [...(failures.get(action) ?? []), failure])
+    },
+    acceptDelegation(taxNumber) {
+      acceptDelegation(store, taxNumber)
     },
     onCall(listener) {
       listeners.add(listener)

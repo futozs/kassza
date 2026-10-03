@@ -1,5 +1,5 @@
 import { todayInBudapest } from 'kassza'
-import type { SimInvoice, SimReceipt, SimulatorOptions } from './types'
+import type { SimDelegate, SimInvoice, SimPrincipal, SimReceipt, SimulatorOptions } from './types'
 
 export const SELLER = {
   name: 'Minta Webáruház Kft.',
@@ -17,6 +17,8 @@ export const DEFAULT_INVOICE_PREFIXES = ['KASSZA', 'WEB', 'PROJ', 'TESZT', 'SZLA
 export class SimulatorStore {
   readonly invoices: SimInvoice[] = []
   readonly receipts: SimReceipt[] = []
+  readonly principals = new Map<string, SimPrincipal>()
+  readonly delegates = new Map<string, SimDelegate>()
   readonly invoicePrefixes: Set<string>
   readonly defaultInvoicePrefix: string
   readonly forbidDuplicateOrderNumbers: boolean

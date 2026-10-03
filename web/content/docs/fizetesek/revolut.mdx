@@ -1,0 +1,65 @@
+---
+title: Revolut
+description: Revolut Business (Merchant API) fizetésből nyugta vagy számla a kassza/payments/revolut webhookkezelővel. Aláírás- és időbélyeg-ellenőrzés, a rendelés lekérése, visszatérítésből sztornó.
+---
+
+A Revolut webhook csak az eseményt és a rendelés azonosítóját küldi. A `revolutWebhook()` ellenőrzi a `Revolut-Signature` aláírást és a `Revolut-Request-Timestamp` időbélyeget, majd a titkos API-kulccsal lekéri a rendelést, és abból készít `PaymentEvent`-et.
+
+## Beállítás
+
+1. A Revolut Business felületén (**Merchant / API**) hozz létre webhookot a végpontodra, például `https://bolt.example.hu/api/revolut/webhook`, az `ORDER_COMPLETED`, `ORDER_CANCELLED`, `ORDER_FAILED`, `ORDER_PAYMENT_DECLINED` és `ORDER_PAYMENT_FAILED` eseményekre.
+2. A webhook aláíró titka a webhook adatai között van; a titkos API-kulcs a Merchant API beállításoknál.
+
+```dotenv title=".env.local"
+REVOLUT_WEBHOOK_SECRET=wsk_...
+REVOLUT_SECRET_KEY=sk_...
+```
+
+## A webhook
+
+```ts title="app/api/revolut/webhook/route.ts"
+import { revolutWebhook } from 'kassza/payments/revolut'
+import { kassza } from '@/lib/kassza'
+
+export const POST = revolutWebhook({
+  secret: process.env.REVOLUT_WEBHOOK_SECRET!,
+  apiKey: process.env.REVOLUT_SECRET_KEY!,
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+| Opció | Alapérték | Jelentés |
+| --- | --- | --- |
+| `secret` | – | Az aláíró titok. Kulcsváltáskor tömbként több is megadható. |
+| `apiKey` | – | A titkos API-kulcs a rendelés lekéréséhez. Kötelező. |
+| `sandbox` | `false` | A sandbox API-t hívja. |
+| `toleranceMs` | 5 perc | Ennél régebbi időbélyeget elutasít. |
+| `apiVersion` | `2026-08-17` | A `Revolut-Api-Version` fejléc. |
+| `method` | – | Fix fizetési mód. Alapból kártyánál `bankkártya`, Revolut Pay-nél `Revolut Pay`, SEPA beszedésnél `csoportos beszedés`. |
+| `onPayment`, `onError`, `maxBodyBytes` | – | Lásd [Fizetésből bizonylat](/docs/fizetesek#a-webhook-válaszai). |
+
+Sikeres feldolgozás után a kezelő `204`-et ad.
+
+## Események
+
+| Revolut esemény | `kind` |
+| --- | --- |
+| `ORDER_COMPLETED` fizetési rendelésre | `paid` |
+| `ORDER_COMPLETED` visszatérítési rendelésre | `refunded` vagy `partially-refunded` |
+| `ORDER_CANCELLED`, `ORDER_FAILED`, `ORDER_PAYMENT_DECLINED`, `ORDER_PAYMENT_FAILED` | `failed` |
+| `ORDER_AUTHORISED` | `other` |
+
+A Revolut a visszatérítést külön rendelésként kezeli. A kassza ilyenkor az eredeti rendelést is lekéri, így a visszatérítés ugyanahhoz a rendelésszámhoz kötődik, mint a fizetés.
+
+A tételeket a rendelés `line_items` listájából, a vevőt a `customer`, a számlázási és a szállítási cím mezőkből veszi. A saját rendelésazonosítód a `merchant_order_data.reference` mezőből a `PaymentEvent` `orderRef` mezőjébe kerül.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Fizetésből bizonylat" href="/docs/fizetesek">
+    Az issueForPayment döntései, tételek, áfa és hibakezelés.
+  </Card>
+  <Card title="PayPal" href="/docs/fizetesek/paypal">
+    PayPal capture és visszatérítés.
+  </Card>
+</Cards>

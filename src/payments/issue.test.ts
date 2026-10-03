@@ -52,6 +52,7 @@ describe('paymentOrderNumber', () => {
     expect(paymentOrderNumber(paid({ provider: 'simplepay', id: '501180380' }))).toBe(
       'SIMPLEPAY-501180380',
     )
+    expect(paymentOrderNumber(paid({ provider: 'terminal', id: '42' }))).toBe('TERMINAL-42')
   })
 })
 

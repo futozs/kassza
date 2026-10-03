@@ -25,6 +25,8 @@ A receptek teljes, működő fájlok, nem kódrészletek. Next.js App Router pro
 
 ## Fizetések
 
+Stripe, SimplePay, Barion, Revolut és PayPal fizetéshez kész webhookkezelő is van, amely pontosan egyszer állít ki nyugtát vagy számlát: lásd [Fizetésből bizonylat](/docs/fizetesek). Az alábbi receptek a lépéseket mutatják, saját vezérléssel.
+
 <Cards>
   <Card title="Stripe webhook" href="/docs/receptek/stripe-webhook">
     checkout.session.completed esemény, aláírás-ellenőrzés, dupla számla nélkül.
@@ -36,7 +38,7 @@ A receptek teljes, működő fájlok, nem kódrészletek. Next.js App Router pro
     A Számlázz.hu fizetési értesítésének ellenőrzött, idempotens feldolgozása.
   </Card>
   <Card title="Pénztári nyugta" href="/docs/receptek/penztari-nyugta">
-    Nyugta hívásazonosítóval, e-mail kiküldéssel és a dupla nyugta kezelésével.
+    Food truck nyugta createOnce-szal, e-mail kiküldéssel, dupla nyugta nélkül.
   </Card>
 </Cards>
 
@@ -62,5 +64,8 @@ A receptek teljes, működő fájlok, nem kódrészletek. Next.js App Router pro
   </Card>
   <Card title="Egységtesztek" href="/docs/receptek/egysegtesztek">
     Vitest tesztek mock klienssel: idempotencia, hálózati hiba, időtúllépés.
+  </Card>
+  <Card title="Hamis Számla Agent" href="/docs/kiegeszitok/hamis-agent">
+    Integrációs tesztek a valódi kassza kódon, elveszett válasszal és karbantartással.
   </Card>
 </Cards>

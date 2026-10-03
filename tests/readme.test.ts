@@ -1,14 +1,29 @@
 import { describe, expect, test } from 'vitest'
-import { createKassza, isSzamlazzError, type Kassza } from '../src/index'
+import { hmacHex } from '../src/core/crypto'
+import { dataLinkHandler } from '../src/data-link/index'
+import { connectPrincipal, createKasszaPool } from '../src/delegation/index'
+import {
+  chooseDocument,
+  createKassza,
+  type DocumentEvent,
+  isSzamlazzError,
+  type Kassza,
+} from '../src/index'
 import { isSzamlazzIp } from '../src/ipn/index'
 import { calculateInvoiceItem, calculateReceiptItem } from '../src/money/index'
+import { createNavReceiptClient, reconcileNavReports } from '../src/nav/index'
+import { stripeWebhook } from '../src/payments/stripe'
+import { navDailyReports } from '../src/reports/index'
 import { invoicePdfKey, memoryStorage, s3FetchStorage, storePdf } from '../src/storage/index'
-import { createMockKassza } from '../src/testing/index'
+import { createFakeAgentFetch, createMockKassza } from '../src/testing/index'
 import {
   isValidHungarianBankAccount,
   isValidHungarianTaxNumber,
   parseHungarianAddress,
 } from '../src/validators/index'
+import { DATA_LINK_KEY, outgoingInvoiceXml } from './data-link-fixtures'
+import { FAKE_NOW } from './fake-agent'
+import { TEST_AGENT_KEY } from './helpers'
 
 const buyer = {
   name: 'Vevő Kft.',
@@ -51,7 +66,7 @@ describe('README példák', () => {
       orderNumber: 'REND-1001',
       paymentMethod: 'bankkártya',
       paid: true,
-      buyer: { ...buyer, taxNumber: '12345678-2-42' },
+      buyer: { ...buyer, taxNumber: '12345676-2-42' },
       items: [
         { name: 'Póló', quantity: 2, grossUnitPrice: 5_990, vat: 27 },
         { name: 'Szállítás', grossUnitPrice: 1_490, vat: 27 },
@@ -247,5 +262,208 @@ describe('README példák', () => {
       vatAmount: 212.6,
       grossAmount: 1000,
     })
+  })
+
+  test('nyugta vagy számla és az utólagos számla a README szerint működik', async () => {
+    const kassza = createMockKassza()
+    const nyugta = await kassza.receipts.create({
+      prefix: 'NYGT',
+      paymentMethod: 'készpénz',
+      items: [{ name: 'Kávé', grossUnitPrice: 890, vat: 27 }],
+    })
+
+    const dontes = chooseDocument({ grossTotal: 18_990, invoiceRequested: false })
+    const atalakitas = await kassza.receipts.convertToInvoice({
+      receiptNumber: nyugta.number,
+      buyer: {
+        name: 'Példa Kft.',
+        zip: '1111',
+        city: 'Budapest',
+        address: 'Fő utca 1.',
+        taxNumber: '12345676-2-42',
+      },
+    })
+
+    expect(dontes.type).toBe('receipt')
+    expect(dontes.reasons).toHaveLength(1)
+    expect(atalakitas.invoice.number).toBeTruthy()
+  })
+
+  test('a createOnce példa a második hívásnál a meglévő számlát adja', async () => {
+    const kassza = createMockKassza()
+    const input = { orderNumber: 'REND-1001', paid: true, buyer, items }
+
+    const elso = await kassza.invoices.createOnce(input)
+    const masodik = await kassza.invoices.createOnce(input)
+
+    expect(elso.created).toBe(true)
+    expect(masodik).toMatchObject({ number: elso.number, created: false })
+  })
+
+  test('a Stripe webhook példa egyszer állít ki nyugtát, újraküldésnél sem többet', async () => {
+    const kassza = createMockKassza({ defaults: { receipt: { prefix: 'NYGT' } } })
+    const secret = 'whsec_readme'
+    const POST = stripeWebhook({
+      secret,
+      apiKey: undefined,
+      onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+    })
+    const payload = JSON.stringify({
+      id: 'evt_1',
+      object: 'event',
+      type: 'checkout.session.completed',
+      data: {
+        object: {
+          id: 'cs_1',
+          object: 'checkout.session',
+          payment_intent: 'pi_1',
+          payment_status: 'paid',
+          amount_total: 1_270_000,
+          currency: 'huf',
+        },
+      },
+    })
+    const deliver = async () => {
+      const timestamp = Math.floor(Date.now() / 1000)
+      const v1 = await hmacHex('SHA-256', secret, `${timestamp}.${payload}`)
+      return POST(
+        new Request('https://bolt.example.hu/api/stripe/webhook', {
+          method: 'POST',
+          headers: { 'stripe-signature': `t=${timestamp},v1=${v1}` },
+          body: payload,
+        }),
+      )
+    }
+
+    expect((await deliver()).status).toBe(200)
+    expect((await deliver()).status).toBe(200)
+    expect(kassza.receiptRecords.size).toBe(1)
+    expect([...kassza.receiptRecords.values()][0]?.receipt.totals.grossAmount).toBe(12_700)
+  })
+
+  test('a NAV példa kliense létrehozható, az egyeztetés a hiányzó napot jelzi', async () => {
+    const kassza = createMockKassza({ now: () => new Date('2026-09-15T10:00:00Z') })
+    const nyugtak = [
+      await kassza.receipts.create({ prefix: 'NYGT', paymentMethod: 'készpénz', items }),
+    ]
+    const nav = createNavReceiptClient({
+      environment: 'production',
+      login: 'technikai',
+      password: 'jelszo',
+      signatureKey: 'alairokulcs-0123456789',
+      taxNumber: '12345676',
+    })
+
+    const helyi = navDailyReports(nyugtak, { includeTest: true })
+    const { missing, mismatched } = reconcileNavReports(helyi, [])
+
+    expect(nav.canWrite).toBe(false)
+    expect(missing).toHaveLength(1)
+    expect(mismatched).toHaveLength(0)
+  })
+
+  test('a megbízotti példa csatlakoztat, és a pool kliense a megbízó előtagjával számláz', async () => {
+    const agent = createFakeAgentFetch({ now: FAKE_NOW })
+    const user = {
+      email: 'kassza+pelda@platform.hu',
+      password: 'platform-jelszo',
+      firstName: 'Platform',
+    }
+    const { status } = await connectPrincipal(
+      {
+        principal: {
+          name: 'Példa Kft.',
+          taxNumber: '12345676-2-42',
+          invoicePrefix: 'PLDA',
+          zip: '1111',
+          city: 'Budapest',
+          address: 'Fő utca 1.',
+          email: 'penzugy@pelda.hu',
+        },
+        user,
+      },
+      { agentKey: TEST_AGENT_KEY, fetch: agent.fetch },
+    )
+    agent.acceptDelegation('12345676-2-42')
+    const megbizoAdatai = (megbizoId: string) =>
+      megbizoId === 'pelda'
+        ? { username: user.email, password: user.password, invoicePrefix: 'PLDA' }
+        : undefined
+    const pool = createKasszaPool({
+      resolve: (megbizoId) => megbizoAdatai(megbizoId),
+      fetch: agent.fetch,
+      retryDelayMs: 0,
+    })
+
+    const kliens = await pool.get('pelda')
+    const szamla = await kliens.invoices.createOnce({ orderNumber: 'FOGLALAS-881', buyer, items })
+
+    expect(status).toBe('account-created')
+    expect(szamla.number).toBe('PLDA-2026-1')
+  })
+
+  test('az adatkapcsolati példa iktatószámmal nyugtázza a számlát', async () => {
+    const ugyfelKulcsai = async () => [DATA_LINK_KEY]
+    const bizonylatMentese = async () => 'IKT-2026-1'
+    const POST = dataLinkHandler({
+      verifyKey: async (kulcs) => (await ugyfelKulcsai()).includes(kulcs),
+      onPush: async () => {
+        const iktatoszam = await bizonylatMentese()
+        return { registrationNumber: iktatoszam }
+      },
+    })
+
+    const valasz = await POST(
+      new Request('https://konyveles.example.hu/api/szamlazz/adatkapcsolat', {
+        method: 'POST',
+        headers: { 'X-Szamlazzhu-Key': DATA_LINK_KEY },
+        body: outgoingInvoiceXml(),
+      }),
+    )
+
+    expect(valasz.status).toBe(200)
+    expect(await valasz.text()).toContain('IKT-2026-1')
+  })
+
+  test('a hamis Agent példa: elveszett válasz után is egy számla, created igaz', async () => {
+    const agent = createFakeAgentFetch({ now: FAKE_NOW })
+    const kassza = createKassza({ agentKey: 'teszt-kulcs', fetch: agent.fetch, retryDelayMs: 0 })
+
+    agent.fail('ghostSuccess', { action: 'createInvoice' })
+    const eredmeny = await kassza.invoices.createOnce(
+      { orderNumber: 'WEB-1', buyer, items },
+      { recoveryDelayMs: 0 },
+    )
+
+    expect(eredmeny.created).toBe(true)
+    expect(agent.invoices.size).toBe(1)
+  })
+
+  test('az onDocument és a maintenanceCooldownMs példa', async () => {
+    const naplo: string[] = []
+    const auditNaplo = async (...reszek: string[]) => {
+      naplo.push(reszek.join(' '))
+    }
+    const kassza: Kassza = createKassza({
+      agentKey: 'tesztkulcs',
+      maintenanceCooldownMs: 60_000,
+      hooks: {
+        onDocument: async (esemeny: DocumentEvent) => {
+          await auditNaplo(esemeny.kind, esemeny.action, esemeny.number)
+        },
+      },
+    })
+    const mock = createMockKassza({
+      hooks: {
+        onDocument: async (esemeny) => {
+          await auditNaplo(esemeny.kind, esemeny.action, esemeny.number)
+        },
+      },
+    })
+
+    const szamla = await mock.invoices.create({ buyer, items })
+
+    expect(kassza.invoices.create).toBeTypeOf('function')
+    expect(naplo).toEqual([`invoice created ${szamla.number}`])
   })
 })

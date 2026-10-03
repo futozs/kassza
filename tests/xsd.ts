@@ -16,6 +16,18 @@ export type SchemaPath =
   | 'nyugtaget/xmlnyugtaget.xsd'
   | 'nyugtasend/xmlnyugtasend.xsd'
   | 'agentmb/xmlcegmb.xsd'
+  | 'nav-receipt/receipt-if-schema-v1.1.1.xsd'
+  | 'szamla/szamla.xsd'
+  | 'szamla/szamlavalasz.xsd'
+  | 'szamlabe/szamlabe.xsd'
+  | 'szamlabe/szamlabevalasz.xsd'
+  | 'banktranz/banktranz.xsd'
+  | 'banktranz/banktranzvalasz.xsd'
+  | 'nyugtaarchiv/xmlnyugtaarchiv.xsd'
+  | 'nyugta/nyugtavalasz.xsd'
+  | 'agent/xmlszamlavalasz.xsd'
+  | 'nyugtavalasz/xmlnyugtavalasz.xsd'
+  | 'nyugtasend/xmlnyugtasendvalasz.xsd'
 
 function hasXmllint(): boolean {
   try {

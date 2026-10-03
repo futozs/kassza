@@ -106,8 +106,16 @@ export const EXAMPLES: readonly ExampleMeta[] = [
     slug: 'nyugta',
     title: 'Nyugta kiállítása',
     group: 'Nyugták',
-    description: 'Pénztári nyugta hívásazonosítóval, két áfakulccsal, alapbeállításokkal.',
+    description: 'Nyugta hívásazonosítóval, két áfakulccsal, alapbeállításokkal.',
     docs: '/docs/nyugta-letrehozas/minta',
+  },
+  {
+    slug: 'penztari-nyugta',
+    title: 'Pénztári nyugta, dupla gombnyomás',
+    group: 'Nyugták',
+    description:
+      'createOnce hívásazonosítóval: a második gombnyomás a már elkészült nyugtát adja vissza.',
+    docs: '/docs/receptek/penztari-nyugta',
   },
   {
     slug: 'nyugta-sztorno',

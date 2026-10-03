@@ -19,6 +19,12 @@ const szamla = await kassza.invoices.create({
 console.log(szamla.number, szamla.grossTotal, kassza.calls)
 ```
 
+<Callout type="info" title="Hamis Számla Agent">
+  Ha a webhook-kezelést, az újrapróbálást vagy a hibatűrést is tesztelnéd, használd a
+  [hamis Számla Agentet](/docs/kiegeszitok/hamis-agent): az a valódi klienst futtatja végig,
+  és elveszett választ, karbantartást vagy részleges sikert is tud szimulálni.
+</Callout>
+
 A mock ugyanazt a kliensoldali validációt és kerekítést futtatja, mint az éles kliens. Egy ismeretlen áfakulcs vagy egy kisbetűs nyugta előtag itt is `validation` hibát dob, a fenti számla bruttó összege pedig itt is 11 980 Ft.
 
 <Example slug="mock-kliens" />

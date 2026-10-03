@@ -30,8 +30,17 @@ npm run ci
 | `src/receipts/` | create, reverse, get, send |
 | `src/taxpayer/` | NAV taxpayer lookup |
 | `src/client.ts` | `createKassza()`, which wires every operation to one context |
-| `src/validators/`, `src/ipn/`, `src/storage/`, `src/cookie-stores/`, `src/testing/` | Subpath modules (see `package.json#exports` and `tsdown.config.ts`) |
+| `src/payments/` | Payment webhooks (Stripe, SimplePay, Barion, Revolut, PayPal) and `issueForPayment` |
+| `src/delegation/` | Delegated invoicing: `connectPrincipal`, `probeDelegation`, `createKasszaPool` |
+| `src/nav/` | NAV receipt data reporting (`receipt-if`): client, request XML, response parsing, reconciliation |
+| `src/data-link/` | Számlázz.hu data link (adatkapcsolat) PUSH handler and responses |
+| `src/reports/` | Daily close and the NAV daily receipt summary |
+| `src/testing/` | `createMockKassza` (API-level mock) and `createFakeAgentFetch` (a fake Számla Agent `fetch` that processes the real request XML, numbers documents and injects faults) |
+| `src/mcp/` | Runtime-neutral MCP server (2026-07-28 stateless and legacy `initialize`), tools with preview confirmation |
+| `src/cli/` | The `kassza` command (`doctor`, `verify`, `xml preview`, `invoice get`, `receipt get`, `nav summary`, `mcp`); `bin.ts` is the Node entry |
+| `src/validators/`, `src/ipn/`, `src/storage/`, `src/cookie-stores/` | Subpath modules (see `package.json#exports` and `tsdown.config.ts`) |
 | `tests/helpers.ts` | `createTestContext` and `mockAgent`, a fake `fetch` that captures multipart requests |
+| `tests/fake-agent.ts`, `tests/mcp.ts` | Helpers for tests that run the real client against `createFakeAgentFetch`, and for MCP tests |
 | `tests/xsd.ts` | `validateAgainstXsd` via `xmllint` |
 | `agents/` | Docs shipped in the npm package for AI agents of package users |
 | `readme/` | README source: `template.md`, `config.json`, the `build.mjs` renderer, the `art/` SVG generator and the generated `assets/` |
@@ -42,7 +51,8 @@ npm run ci
 - English identifiers, Hungarian error messages, Hungarian test names.
 - TypeScript is strict, with `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess` and `isolatedDeclarations`, so exported functions need explicit return types.
 - Biome: single quotes, no semicolons, 100-column lines.
-- Zero runtime dependencies. Keep `src/` runtime-neutral: no `Buffer`, and no `node:` imports except in `src/storage/fs.ts`.
+- Zero runtime dependencies. Keep `src/` runtime-neutral: no `Buffer`, and no `node:` imports except in `src/storage/fs.ts` and `src/cli/bin.ts`. Keep CLI logic in `src/cli/run.ts` and its commands behind the `CliIo` interface, so tests run it in memory.
+- The MCP write tools (`create_*`, `reverse_*`) only run with `allowWrite` (`KASSZA_MCP_ALLOW_WRITE=1`) and a confirmation code from the matching preview tool. Never weaken either guard.
 - XML request elements must follow XSD order. Build requests with `buildXmlDocument`, `el` and `optionalEl`, and add an XSD contract test for every request.
 - Dates are always `Europe/Budapest` (`toAgentDate`, `todayInBudapest`).
 - Never add automatic retries for business errors, and never mark a create operation `safeToRetry` unless it has an idempotency key.

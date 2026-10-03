@@ -14,6 +14,8 @@ const CATEGORY_TONES: Readonly<Record<SzamlazzErrorCategory, string>> = {
   maintenance: 'border-note-border bg-note-bg text-note-ink',
   network: 'border-note-border bg-note-bg text-note-ink',
   timeout: 'border-note-border bg-note-bg text-note-ink',
+  rate_limit: 'border-warning-border bg-warning-bg text-warning-ink',
+  attempt_limit: 'border-danger-border bg-danger-bg text-danger-ink',
   configuration: 'border-danger-border bg-danger-bg text-danger-ink',
   unexpected_response: 'border-danger-border bg-danger-bg text-danger-ink',
   unknown: 'border-note-border bg-note-bg text-note-ink',
@@ -110,6 +112,16 @@ const CATEGORY_ROWS: readonly (readonly [SzamlazzErrorCategory, string, string])
     'Mint a network.',
   ],
   [
+    'rate_limit',
+    'A tesztfiókban rövid idő alatt túl sok bizonylat készült (167-es kód).',
+    'Nem automatikusan. Várj néhány percet.',
+  ],
+  [
+    'attempt_limit',
+    'Ezt a kérést már ötször sikertelenül küldték el, ezért a kassza el sem küldi (próbálkozásnapló).',
+    'Nem. Javítsd a hibát, majd töröld a számlálót a resetAttempts() hívással.',
+  ],
+  [
     'configuration',
     'Hiányzó vagy hibás kliensbeállítás, például nincs Agent kulcs.',
     'Nem. Javítsd a konfigurációt.',
@@ -153,6 +165,7 @@ const ACTION_ROWS: Readonly<Record<keyof typeof AGENT_ACTIONS, readonly [string,
   getReceipt: ['receipts.get(), receipts.find()', 'igen'],
   sendReceipt: ['receipts.send()', 'soha'],
   queryTaxpayer: ['taxpayer.query()', 'igen'],
+  connectPrincipal: ['connectPrincipal() (kassza/delegation)', 'soha'],
 }
 
 export function ActionTable() {

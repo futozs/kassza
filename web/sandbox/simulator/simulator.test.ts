@@ -1,4 +1,5 @@
 import { createKassza, isSzamlazzError, type Kassza } from 'kassza'
+import { connectPrincipal, probeDelegation } from 'kassza/delegation'
 import { describe, expect, test } from 'vitest'
 import { createAgentSimulator } from './index'
 
@@ -240,5 +241,80 @@ describe('Számla Agent szimulátor', () => {
     expect(elonezet.pdf.byteLength).toBeGreaterThan(500)
     expect(elonezet.grossTotal).toBe(1_270)
     expect(simulator.snapshot().invoices).toHaveLength(0)
+  })
+})
+
+describe('Megbízói csatlakozás a szimulátorban', () => {
+  const principal = {
+    name: 'Példa Kft.',
+    taxNumber: '87654323-2-41',
+    invoicePrefix: 'PLDA',
+    zip: '1111',
+    city: 'Budapest',
+    address: 'Fő utca 1.',
+    email: 'penzugy@pelda.hu',
+  }
+  const user = {
+    email: 'kassza+pelda@platform.hu',
+    password: 'titkos-jelszo-123',
+    firstName: 'Platform',
+  }
+
+  function delegationSetup() {
+    const simulator = createAgentSimulator()
+    const options = { agentKey: 'sandbox-kulcs', fetch: simulator.fetch, retryDelayMs: 0 }
+    const probe = () =>
+      probeDelegation({ username: user.email, password: user.password, fetch: simulator.fetch })
+    return { simulator, options, probe }
+  }
+
+  test('új fiók, meghívó-újraküldés, és a birtokbavétel után él a kapcsolat', async () => {
+    const { simulator, options, probe } = delegationSetup()
+
+    const elso = await connectPrincipal({ principal, user }, options)
+    const masodik = await connectPrincipal({ principal, user }, options)
+
+    expect(elso).toMatchObject({ status: 'account-created', taxNumber: '87654323-2-41' })
+    expect(masodik.status).toBe('owner-invite-resent')
+    expect(simulator.calls[0]?.requestXml).toContain('<usrpassword>••••••••</usrpassword>')
+    expect(simulator.calls[0]?.effects[0]).toContain('PLDA számlaelőtaggal')
+    await expect(probe()).resolves.toMatchObject({ state: 'awaiting-owner-registration' })
+
+    simulator.acceptDelegation('87654323-2-41')
+
+    await expect(probe()).resolves.toMatchObject({ state: 'active' })
+  })
+
+  test('minta adószámnál csatlakozási kérelem megy, elfogadásig 3-as hibával', async () => {
+    const { simulator, options, probe } = delegationSetup()
+    const minta = { ...principal, taxNumber: '12345676-2-41' }
+
+    const kerelem = await connectPrincipal({ principal: minta, user }, options)
+    const ujra = await connectPrincipal({ principal: minta, user }, options)
+
+    expect(kerelem.status).toBe('join-request-sent')
+    expect(ujra.status).toBe('join-request-resent')
+    await expect(probe()).resolves.toMatchObject({ state: 'awaiting-approval' })
+
+    simulator.acceptDelegation('12345676')
+
+    await expect(probe()).resolves.toMatchObject({ state: 'active' })
+  })
+
+  test('egy másik megbízónál már használt felhasználói e-mail 101-es hibát ad', async () => {
+    const { options } = delegationSetup()
+    await connectPrincipal({ principal, user }, options)
+
+    const error = await captureError(
+      connectPrincipal({ principal: { ...principal, taxNumber: '11111111-1-42' }, user }, options),
+    )
+
+    expect(isSzamlazzError(error) && error.code).toBe(101)
+  })
+
+  test('ismeretlen megbízói fiók elfogadása hibát dob', () => {
+    const { simulator } = delegationSetup()
+
+    expect(() => simulator.acceptDelegation('87654323')).toThrow(/Nincs ilyen megbízói fiók/)
   })
 })

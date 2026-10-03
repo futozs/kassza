@@ -75,7 +75,7 @@ A `clearPayments()` a számla összes befizetését törli. Elég a számlaszám
 ```ts
 await kassza.invoices.clearPayments('WEB-2026-128')
 
-await kassza.invoices.clearPayments({ invoiceNumber: 'WEB-2026-128', taxNumber: '12345678-1-42' })
+await kassza.invoices.clearPayments({ invoiceNumber: 'WEB-2026-128', taxNumber: '12345676-1-42' })
 ```
 
 A kassza ilyenkor `additiv` `false` értékkel, `kifizetes` elem nélkül küldi a kérést. Üres `payments` tömbbel a `registerPayment()` nem töröl, hanem `validation` hibát dob, és a `clearPayments()` metódusra irányít, így véletlenül nem tüntetheted el a befizetéseket.

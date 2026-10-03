@@ -1,0 +1,123 @@
+---
+title: Nyugta vagy számla?
+description: Mikor adható Számla Agent nyugta, mikor kell számla, ki online pénztárgép-köteles, és hogyan dönt a kassza chooseDocument függvénye. A nyugta utólagos számlává alakítása is.
+---
+
+A Számla Agenttel kiállított nyugta jogilag **számítógéppel előállított nyugta**. Nem pótolja az online pénztárgépet, és nem e-nyugta. Mielőtt nyugtát állítasz ki, két kérdést kell eldönteni: adhatsz-e egyáltalán ilyen nyugtát, és elég-e az adott vevőnek a nyugta.
+
+<Callout type="warning" title="Nem jogi tanács">
+  Ez az oldal a Számlázz.hu tudástára és a NAV tájékoztatói alapján foglalja össze a szabályokat.
+  A saját tevékenységed besorolását könyvelővel ellenőrizd.
+</Callout>
+
+## A nyugták fajtái
+
+| Fajta | Mivel készül | A kassza tudja? |
+| --- | --- | --- |
+| Kézi nyugta | Nyomdai nyugtatömb, kézzel írva | Nem, de a napi NAV-összesítőhöz ad eszközt ([kézi nyugtatömb](/docs/nav-nyugta/kezi-nyugtatomb)) |
+| Számítógéppel előállított nyugta | Számlázó program, például a Számlázz.hu felülete vagy a **Számla Agent** | **Igen**, ezt adja a `receipts.create()` |
+| Gépi nyugta | Online pénztárgép (OPG) | Nem |
+| E-nyugta | E-pénztárgép, például a Számlázz.hu ePénztárgép alkalmazása | Nem, ehhez nincs API |
+
+Az Agent-nyugtát ne hívd e-nyugtának: e-nyugtát kizárólag e-pénztárgép adhat (8/2025. (III. 31.) NGM rendelet).
+
+## Ki adhat Agent-nyugtát?
+
+Csak az, akinek a tevékenysége **nem online pénztárgép-köteles**. A pénztárgép-kötelezettséget az NGM rendelet melléklete sorolja fel, a fontosabbak:
+
+- gyógyszertár,
+- kiskereskedelem (TEÁOR 47.1–47.7); csomagküldő és internetes kereskedelemnél (47.91) csak a nyílt árusítású üzlet és a bemutatóterem,
+- vendéglátás (56.1 és 56.3), a **mozgó vendéglátás kivételével**,
+- szálláshely-szolgáltatás (55.1–55.3),
+- kölcsönzés (77.1–77.2, 77.33) és javítás (95.1–95.2).
+
+Egy helyhez kötött bolt vagy büfé tehát online pénztárgéppel vagy e-pénztárgéppel ad nyugtát, a kasszával nem. Az online pénztárgép 2028. június 30-ig használható, utána e-pénztárgép kell.
+
+A kassza nyugtája jellemzően ezekhez való: webshop és online jegy fizetés után, letölthető termék, food truck és más mozgó árusítás, valamint nem pénztárgép-köteles szolgáltatás (fodrászat, edzés, oktatás, parkolás, rendezvény).
+
+<Callout type="info" title="NAV Online adatkapcsolat">
+  A Számlázz.hu szerint nyugtát csak olyan fiókból lehet kiállítani, ahol be van állítva a NAV
+  Online adatkapcsolat. Ha az első nyugtánál fiókhibát kapsz, először ezt ellenőrizd a Számlázz.hu
+  felületén.
+</Callout>
+
+## Mikor elég a nyugta?
+
+Nyugta akkor adható számla helyett, ha **mind a négy feltétel** teljesül:
+
+1. a vevő nem adóalany és nem jogi személy,
+2. az ellenérték nem éri el a **900 000 Ft**-ot,
+3. a teljes összeget legkésőbb a teljesítéskor kifizetik,
+4. a vevő nem kér számlát.
+
+Ha bármelyik nem teljesül, számlát kell kiállítani. Devizás eladásnál a 900 000 Ft-os határt forintra átszámítva kell nézni.
+
+## A döntés kódban: chooseDocument
+
+A `chooseDocument()` a fenti szabályokat alkalmazza, és indoklással együtt adja vissza a döntést. Nem hív hálózatot.
+
+```ts
+import { chooseDocument } from 'kassza'
+
+const dontes = chooseDocument({
+  grossTotal: 18_990,
+  currency: 'HUF',
+  buyer: { taxNumber: undefined },
+  paidByFulfillment: true,
+  invoiceRequested: false,
+  cashRegisterRequired: false,
+})
+
+console.log(dontes.type, dontes.reasons)
+```
+
+| Mező | Jelentés |
+| --- | --- |
+| `grossTotal`, `currency`, `exchangeRate` | A bruttó végösszeg. Devizánál az árfolyam is kell, mert a határ forintban van. |
+| `buyer` | `taxNumber`, `euTaxNumber` vagy `isBusiness: true` esetén a vevő cég. |
+| `paidByFulfillment` | `false`, ha nem fizetik ki legkésőbb a teljesítésig. |
+| `invoiceRequested` | `true`, ha a vevő számlát kér. |
+| `cashRegisterRequired` | `true`, ha a tevékenységed pénztárgép-köteles. |
+
+A `type` értéke:
+
+- `invoice`: legalább egy feltétel nem teljesül, a `reasons` megmondja, melyik,
+- `cash-register`: a vevőnek nyugta járna, de a tevékenység pénztárgép-köteles, így Agent-nyugta nem adható (számlát viszont kiállíthatsz),
+- `receipt`: mind a négy feltétel teljesül, nyugta adható.
+
+A [fizetésből bizonylatot készítő](/docs/fizetesek) `issueForPayment()` ugyanezt a döntést használja.
+
+## Ha a vevő utólag számlát kér
+
+Ha a vevő a nyugta után számlát kér, a nyugtát sztornózni kell, és számlát kell kiállítani a vevő nevére. A `receipts.convertToInvoice()` ezt egy lépésben végzi el, és ismételt hívásnál sem állít ki második számlát:
+
+```ts
+const eredmeny = await kassza.receipts.convertToInvoice({
+  receiptNumber: 'NYGT-2026-118',
+  buyer: {
+    name: 'Példa Kft.',
+    zip: '1111',
+    city: 'Budapest',
+    address: 'Fő utca 1.',
+    taxNumber: '12345676-2-42',
+  },
+})
+
+console.log(eredmeny.reversal?.number, eredmeny.invoice.number, eredmeny.invoice.created)
+```
+
+A számla a nyugta tételeiből készül, a megjegyzésben hivatkozik a nyugtára és a sztornóra, a külső azonosítója `CONV/{nyugtaszám}`. A csak nyugtán használható áfakódokhoz (`ÁKK`, `MAA`, `EU`, `EUK`) a `vatMapping` opcióban kell megadni a számlán használandó kulcsot, a könyvelőddel egyeztetve.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="NAV nyugta-adatszolgáltatás" href="/docs/nav-nyugta">
+    2026. szeptember 1-jétől a számítógéppel előállított nyugtákról is napi összesítő kell.
+  </Card>
+  <Card title="Fizetésből bizonylat" href="/docs/fizetesek">
+    Stripe, SimplePay, Barion, Revolut és PayPal fizetésből automatikusan nyugta vagy számla.
+  </Card>
+  <Card title="Nyugta létrehozás" href="/docs/nyugta-letrehozas">
+    A nyugtakérés mezői, a kerekítés és a hívásazonosító.
+  </Card>
+</Cards>

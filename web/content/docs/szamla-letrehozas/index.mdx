@@ -39,5 +39,6 @@ console.log(szamla.number, szamla.grossTotal)
   A számlakészítés nem idempotens: ha a kérés kétszer ér be, két számla készül. A kassza ezért
   soha nem próbálja újra magától. Bizonytalan hiba után előbb kérdezd le a számlát a rendelésszám
   alapján, lásd a [Hibakezelés](/docs/alapok/hibakezeles#bizonytalan-kimenet-számla-készült-vagy-nem)
-  oldalt.
+  oldalt. Az `invoices.createOnce()` ezt el is végzi helyetted: lásd [Pontosan
+  egyszer](/docs/alapok/pontosan-egyszer).
 </Callout>

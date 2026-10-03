@@ -1,0 +1,52 @@
+---
+title: NAV nyugta-adatszolgáltatás
+description: 2026. szeptember 1-jétől a kézi és a számítógéppel előállított nyugtákról napi összesítőt kell küldeni a NAV-nak. Mit vállal ebből a Számlázz.hu, és miben segít a kassza.
+---
+
+2026. szeptember 1-jétől a **kézi és a számítógéppel előállított nyugtákról** is adatot kell szolgáltatni a NAV-nak (Áfa tv. 257/G. §). A Számla Agenttel kiállított nyugta számítógéppel előállított nyugta, tehát érinti a szabály. A NAV 2026. december 31-ig türelmi időt ad.
+
+## Mit kell beküldeni?
+
+- **Határidő:** a nyugta kibocsátását követő 3 naptári napon belül.
+- **Formája:** napi összesítő tárgynaponként, nyugtasorozatonként (tömbönként) és pénznemenként.
+- **Tartalma:** a tárgynap, a kezdő nyugtaszám, a pénznem (devizánál az árfolyam), és NAV-áfakategóriánként (`0%`, `5%`, `18%`, `27%`, `Alanyi adómentes`, `Egyéb`) az értékesítés és a módosító (sztornó) bizonylatok bruttó összege. Végül a végösszeg, valamint az eladások és a módosító bizonylatok száma **külön-külön**.
+- **Csatornája:** kézzel a Pénztárgép Portálon (KOBAK), vagy gépi interfészen.
+
+Az online pénztárgép és az e-pénztárgép nyugtáit nem kell így jelenteni, azok eleve valós időben mennek a NAV-hoz.
+
+## Mit vállal a Számlázz.hu?
+
+A Számlázz.hu a nála kiállított számítógépes nyugtákat (az Agenttel kiállítottakat is) a NAV összekötés után maga jelenti. Ehhez a fiókban be kell állítani a NAV Online adatkapcsolatot. Hogy a fiókodban mikortól él az automatikus beküldés, azt a Számlázz.hu tájékoztatásából követheted.
+
+Ha a Számlázz.hu jelent helyetted, **ne küldd be te is ugyanazt a nyugtát**, mert az kettős adatszolgáltatás. A kassza NAV kliense ezért alapból csak olvas.
+
+## Miben segít a kassza?
+
+| Feladat | Eszköz |
+| --- | --- |
+| Napi összesítő a kiállított nyugtákból, a NAV szabályai szerint | [`navDailyReports()`](/docs/nav-nyugta/napi-osszesito) a `kassza/reports` modulban |
+| Pénztárzárás fizetési módonként és áfakulcsonként | [`dailyClose()`](/docs/nav-nyugta/napi-osszesito#napi-pénztárzárás) |
+| A NAV-nál rögzített adatszolgáltatások lekérdezése és szükség esetén beküldése | [NAV kliens](/docs/nav-nyugta/nav-kliens) a `kassza/nav` modulban |
+| Annak ellenőrzése, hogy minden nap rendben beérkezett-e a NAV-hoz | [Egyeztetés](/docs/nav-nyugta/egyeztetes) |
+| Tartalék kézi nyugtatömb napi összesítője, ha a Számlázz.hu nem érhető el | [Kézi nyugtatömb](/docs/nav-nyugta/kezi-nyugtatomb) |
+
+A legtöbb webshopnak és szolgáltatónak elég az első és a negyedik: a Számlázz.hu beküld, te pedig egyeztetéssel ellenőrzöd, hogy minden napod megérkezett-e. Beküldeni csak azt kell magadnak, amit nem a Számlázz.hu-ban állítottál ki, például a kézi tartalék tömb nyugtáit.
+
+<Callout type="info" title="Parancssorból is">
+  A `kassza nav summary --file nyugtak.json` parancs ugyanezt a napi összesítőt írja ki egy JSON
+  fájlba mentett nyugtalistából. Lásd [Parancssor](/docs/kiegeszitok/parancssor).
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Napi összesítő" href="/docs/nav-nyugta/napi-osszesito">
+    navDailyReports és dailyClose a kiállított nyugtákból.
+  </Card>
+  <Card title="NAV kliens" href="/docs/nav-nyugta/nav-kliens">
+    Technikai felhasználó, lekérdezés, beküldés, javítás és érvénytelenítés.
+  </Card>
+  <Card title="Nyugta vagy számla?" href="/docs/alapok/nyugta-vagy-szamla">
+    Ki adhat egyáltalán számítógéppel előállított nyugtát.
+  </Card>
+</Cards>

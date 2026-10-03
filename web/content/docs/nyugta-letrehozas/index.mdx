@@ -40,6 +40,14 @@ console.log(nyugta.number, nyugta.totals.grossAmount)
   </Card>
 </Cards>
 
+<Callout type="warning" title="Ki adhat Agent-nyugtát?">
+  A Számla Agent nyugtája számítógéppel előállított nyugta: nem pótolja az online pénztárgépet,
+  és nem e-nyugta. Csak nem pénztárgép-köteles tevékenységhez adható (például webshop, mozgó
+  vendéglátás, sok szolgáltatás), és csak olyan fiókból, ahol be van állítva a NAV Online
+  adatkapcsolat. A részletek és a négy feltétel, amelyek mellett nyugta adható számla helyett: [Nyugta
+  vagy számla?](/docs/alapok/nyugta-vagy-szamla).
+</Callout>
+
 <Callout type="warning" title="Mindig adj meg hívásazonosítót">
   A `callId` (XML-ben `hivasAzonosito`) véd a dupla nyugta ellen: ugyanazzal az azonosítóval a
   Számlázz.hu nem készít második nyugtát, hanem 338-as hibát ad. A kassza ezért csak `callId`
@@ -51,7 +59,11 @@ console.log(nyugta.number, nyugta.totals.grossAmount)
 <Callout type="info" title="Nyugta-adatszolgáltatás a NAV felé">
   A nyugtákról 2026. szeptember 1-jétől adatot kell szolgáltatni a NAV-nak, de a NAV 2026. december
   31-ig türelmi időt ad, és a Számlázz.hu szerint egyelőre nincs teendőd. Lásd
-  [NAV adatszolgáltatás](/docs/nyugta-letrehozas/beallitasok/nav-adatszolgaltatas).
+  [NAV adatszolgáltatás](/docs/nyugta-letrehozas/beallitasok/nav-adatszolgaltatas). A napi
+  összesítőhöz, az egyeztetéshez és a kézi tartalék nyugtatömbhöz a kassza is ad eszközt: [NAV
+  nyugta-adatszolgáltatás](/docs/nav-nyugta).
 </Callout>
 
 A kész nyugtával további műveleteket végezhetsz: [sztornózhatod](/docs/nyugta-sztorno), [lekérdezheted](/docs/nyugta-lekerdezes) nyugtaszám vagy rendelésszám alapján, és [elküldheted e-mailben](/docs/nyugta-kikuldes).
+
+Ha ugyanaz a rendelés többször is nyugtát kérhet (webhook, várólista, ismételt gombnyomás), a `receipts.createOnce()` kiállítás előtt megkeresi a nyugtát, bizonytalan kimenet után pedig visszakeresi: lásd [Pontosan egyszer](/docs/alapok/pontosan-egyszer). Ha a vevő utólag számlát kér, a `receipts.convertToInvoice()` sztornózza a nyugtát, és számlát állít ki helyette: lásd [Nyugta vagy számla?](/docs/alapok/nyugta-vagy-szamla#ha-a-vevő-utólag-számlát-kér).

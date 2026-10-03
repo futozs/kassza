@@ -2,10 +2,13 @@
   "title": "Kiegészítők",
   "pages": [
     "teszteles",
+    "hamis-agent",
     "validatorok",
     "penzszamitas",
     "pdf-tarhely",
     "serverless-es-edge",
-    "ai-asszisztensek"
+    "ai-asszisztensek",
+    "parancssor",
+    "mcp-szerver"
   ]
 }

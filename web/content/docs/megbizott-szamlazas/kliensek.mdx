@@ -1,0 +1,87 @@
+---
+title: Kliensek megbízónként
+description: Kiállítás a megbízó nevében a createDelegateKassza klienssel, és sok megbízó kiszolgálása egy folyamatból a createKasszaPool LRU poollal.
+---
+
+## createDelegateKassza
+
+A `createDelegateKassza()` ugyanazt a `Kassza` felületet adja, mint a `createKassza()`, de a dedikált felhasználóval hitelesít, és a megbízó előtagját minden számlában elküldi.
+
+```ts
+import { createDelegateKassza } from 'kassza/delegation'
+
+const kassza = createDelegateKassza({
+  username: 'kassza+pelda@platform.hu',
+  password: process.env.DELEGATE_PASSWORD!,
+  invoicePrefix: 'PLDA',
+  receiptPrefix: 'PLDANY',
+})
+
+await kassza.invoices.createOnce({
+  orderNumber: 'FOGLALAS-881',
+  buyer: { name: 'Vendég Anna', zip: '1111', city: 'Budapest', address: 'Fő utca 2.' },
+  items: [{ name: 'Szállás, 2 éj', grossUnitPrice: 64_000, vat: 18 }],
+})
+```
+
+| Opció | Jelentés |
+| --- | --- |
+| `username`, `password` | A dedikált felhasználó. Agent kulcs nem adható meg. |
+| `invoicePrefix` | A megbízóval egyeztetett számlaszám-előtag (legfeljebb 5 nagybetű vagy szám). |
+| `receiptPrefix` | A nyugták előtagja, ha a megbízó nevében nyugtát is adsz. |
+| `defaults` | További alapértelmezések számlára és nyugtára. |
+| a `createKassza()` többi opciója | Munkamenet-tároló, próbálkozásnapló, időkorlát, hookok, fetch. |
+
+## createKasszaPool
+
+Egy platform egyszerre sok megbízót szolgál ki. A `createKasszaPool()` megbízó-azonosító szerint ad klienst: az elsőt a `resolve` függvényed adataiból hozza létre, utána újrahasznosítja, így a munkamenet is megmarad.
+
+```ts title="lib/kassza-pool.ts"
+import { createKasszaPool } from 'kassza/delegation'
+import { upstashRedisCookieStore } from 'kassza/cookie-stores'
+import { Redis } from '@upstash/redis'
+import { megbizoAdatai } from '@/lib/megbizok'
+
+const redis = Redis.fromEnv()
+
+export const pool = createKasszaPool({
+  resolve: async (megbizoId) => {
+    const megbizo = await megbizoAdatai(megbizoId)
+    if (!megbizo) return undefined
+    return {
+      username: megbizo.felhasznalo,
+      password: megbizo.jelszo,
+      invoicePrefix: megbizo.elotag,
+    }
+  },
+  cookieStore: upstashRedisCookieStore(redis),
+  attemptLedger: upstashRedisCookieStore(redis),
+})
+```
+
+```ts
+const kassza = await pool.get('kereskedo-42')
+await kassza.receipts.createOnce({
+  orderNumber: 'R-1001',
+  paymentMethod: 'bankkártya',
+  items: [{ name: 'Kávé', grossUnitPrice: 890, vat: 27 }],
+})
+```
+
+- A pool legfeljebb `maxClients` (alapból 100) klienst tart, a legrégebben használtat dobja el először.
+- Ugyanarra a megbízóra egyszerre érkező kérések ugyanazt a klienst kapják; a `resolve` csak egyszer fut.
+- Ha a `resolve` nem talál megbízót (`undefined`) vagy hibát dob, a `get()` hibát ad, és a hibát nem tárolja: a következő hívás újra próbálkozik.
+- Ha a megbízó jelszava vagy előtagja változik, a `pool.forget(megbizoId)` eldobja a régi klienst. A `pool.clear()` mindet eldobja.
+
+A közös opciók (munkamenet-tároló, próbálkozásnapló, időkorlát, hookok) minden megbízói kliensre érvényesek. A munkamenetet a kassza felhasználónként külön kulccsal tárolja, így a megbízók munkamenetei nem keverednek.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="A kapcsolat állapota" href="/docs/megbizott-szamlazas/allapot">
+    Él-e a kapcsolat, mielőtt kiállítasz?
+  </Card>
+  <Card title="Pontosan egyszer" href="/docs/alapok/pontosan-egyszer">
+    createOnce és kitiltás elleni védelem.
+  </Card>
+</Cards>

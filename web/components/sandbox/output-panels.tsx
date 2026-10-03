@@ -22,6 +22,7 @@ const ACTION_LABELS: Readonly<Record<keyof typeof AGENT_ACTIONS, string>> = {
   getReceipt: 'Nyugta lekérdezés',
   sendReceipt: 'Nyugta kiküldés',
   queryTaxpayer: 'Adószám lekérdezés',
+  connectPrincipal: 'Megbízói csatlakozás',
 }
 
 function EmptyState({ title, children }: { title: string; children: string }) {

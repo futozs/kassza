@@ -128,6 +128,19 @@ export interface SimReceipt {
   readonly sentTo: string[]
 }
 
+export interface SimPrincipal {
+  readonly name: string
+  readonly taxNumber: string
+  readonly invoicePrefix: string
+  readonly owned: boolean
+  readonly joinRequests: number
+}
+
+export interface SimDelegate {
+  readonly taxpayerId: string
+  readonly approved: boolean
+}
+
 export interface AccountSnapshot {
   readonly seller: {
     readonly name: string

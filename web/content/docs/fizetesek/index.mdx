@@ -1,0 +1,197 @@
+---
+title: Fizetésből bizonylat
+description: Stripe, SimplePay, Barion, Revolut és PayPal fizetésből automatikusan nyugta vagy számla, nulla függőséggel. Aláírás-ellenőrzés, a nyugta vagy számla döntése, pontosan egyszeri kiállítás és sztornó visszatérítéskor.
+---
+
+A webshop legtöbb számlázási hibája a fizetési webhookban születik: dupla számla újraküldött eseményből, rossz kerekítés, elfelejtett sztornó visszatérítéskor. A `kassza/payments` modul ezt egy helyen oldja meg. A fizetési szolgáltató webhookját ellenőrzi és egységes `PaymentEvent` objektummá alakítja, az `issueForPayment()` pedig ebből pontosan egyszer állít ki nyugtát vagy számlát.
+
+```ts title="app/api/stripe/webhook/route.ts"
+import { stripeWebhook } from 'kassza/payments/stripe'
+import { kassza } from '@/lib/kassza'
+
+export const POST = stripeWebhook({
+  secret: process.env.STRIPE_WEBHOOK_SECRET!,
+  apiKey: process.env.STRIPE_SECRET_KEY,
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+Nem kell hozzá a szolgáltató SDK-ja: az aláírást Web Cryptóval ellenőrzi, a szolgáltató API-ját `fetch`-csel hívja, így Node.js-ben, Cloudflare Workersben és Vercel Edge-en is fut.
+
+## Szolgáltatók
+
+| Szolgáltató | Import | Hitelesség | Részletek |
+| --- | --- | --- | --- |
+| Stripe | `kassza/payments/stripe` | HMAC-SHA256 aláírás | [Stripe](/docs/fizetesek/stripe) |
+| SimplePay | `kassza/payments/simplepay` | HMAC-SHA384 aláírás, aláírt IPN-válasz | [SimplePay](/docs/fizetesek/simplepay) |
+| Barion | `kassza/payments/barion` | Az állapotot a kassza a Barion API-tól kérdezi le | [Barion](/docs/fizetesek/barion) |
+| Revolut | `kassza/payments/revolut` | HMAC-SHA256 aláírás és időbélyeg | [Revolut](/docs/fizetesek/revolut) |
+| PayPal | `kassza/payments/paypal` | Ellenőrzés a PayPal API-val | [PayPal](/docs/fizetesek/paypal) |
+
+Minden webhookkezelő `(request: Request) => Promise<Response>` függvény, így közvetlenül exportálható Next.js route handlerként, vagy meghívható Hono, Express (fetch adapterrel) és Workers alatt.
+
+## A webhook válaszai
+
+| Helyzet | Válasz | Következmény |
+| --- | --- | --- |
+| Hibás aláírás, hiányzó vagy hibás adat | `400` | A szolgáltató hibát jelez; az esemény nem ér el az `onPayment`-ig. |
+| Sikeres feldolgozás vagy olyan esemény, amelyhez nincs teendő | `200` (Revolutnál `204`, SimplePaynél aláírt JSON) | A szolgáltató nem küldi újra. |
+| Az `onPayment` vagy a szolgáltató API-hívása hibát dobott | `500` | A szolgáltató később újraküldi az eseményt. |
+
+Az `500`-as hibát az `onError` opcióban kapod meg naplózásra, alapból a `console.error` írja ki. Az újraküldés biztonságos, mert az `issueForPayment()` minden hívás előtt megkeresi a már kiállított bizonylatot.
+
+## PaymentEvent
+
+A webhookkezelő minden szolgáltató eseményét ugyanarra az alakra hozza:
+
+| Mező | Jelentés |
+| --- | --- |
+| `provider` | `stripe`, `simplepay`, `barion`, `revolut` vagy `paypal` |
+| `kind` | `paid`, `refunded` (teljes visszatérítés), `partially-refunded`, `failed` vagy `other` |
+| `id` | A fizetés azonosítója a szolgáltatónál; a visszatérítés eseményében is ugyanaz |
+| `orderRef` | A saját rendelésazonosítód, ha a szolgáltató visszaküldi |
+| `amount`, `refundedAmount` | Összeg és pénznem, főegységben (`12700` Ft, nem fillérben) |
+| `method` | A bizonylatra kerülő fizetési mód, például `bankkártya` |
+| `customer` | Név, e-mail, cím, adószám, ha a szolgáltató tudja |
+| `items` | Tételek bruttó összeggel, ha a szolgáltató tudja |
+| `raw` | Az eredeti esemény |
+
+## issueForPayment
+
+Az `issueForPayment()` a fizetés fajtája szerint dolgozik:
+
+| `kind` | Mit csinál |
+| --- | --- |
+| `paid` | Eldönti, nyugta vagy számla jár, és pontosan egyszer kiállítja. |
+| `refunded` | Sztornózza a fizetéshez kiállított számlát vagy nyugtát (pontosan egyszer). |
+| `partially-refunded` | Kihagyja: részleges visszatérítésnél helyesbítő számla vagy új bizonylat kell, ezt a könyvelőddel egyeztetve kézzel intézd. |
+| `failed`, `other` | Kihagyja. |
+
+```ts
+const eredmeny = await kassza.issueForPayment(payment, { vat: 27 })
+
+switch (eredmeny.kind) {
+  case 'receipt':
+  case 'invoice':
+    console.log('Kiállítva:', eredmeny.number, eredmeny.created)
+    break
+  case 'reversal':
+    console.log('Sztornózva:', eredmeny.reversedNumber, eredmeny.number)
+    break
+  case 'skipped':
+    console.log('Nincs bizonylat:', eredmeny.reason)
+}
+```
+
+A nyugta előtagját és fizetési módját a kliens `defaults.receipt` beállítása adja, a számláét a `defaults.invoice` (lásd [Közös kliens](/docs/receptek/kozos-kliens)). Egy-egy mezőt a `receipt` és az `invoice` opcióban írhatsz felül, például `receipt: { comment: 'Köszönjük!' }`. A nyugta előtagja nem lehet olyan, amelyet számlán már használtál (336).
+
+### Nyugta vagy számla
+
+Alapból a [nyugta vagy számla](/docs/alapok/nyugta-vagy-szamla) szabályai döntenek: számla jár, ha a vevő cég (adószámot adott meg), ha az összeg eléri a 900 000 Ft-ot, vagy ha a vevő számlát kér. Különben nyugta. A döntés indoklása az eredmény `decision` mezőjében van.
+
+| Opció | Jelentés |
+| --- | --- |
+| `document` | `auto` (alapérték), `receipt` vagy `invoice` a döntés felülírására |
+| `buyerIsBusiness` | A vevő cég, akkor is, ha nem adott meg adószámot |
+| `invoiceRequested` | A vevő számlát kért |
+| `cashRegisterRequired` | A tevékenységed pénztárgép-köteles: nyugta helyett hibát kapsz, mert Agent-nyugta nem adható |
+| `buyer` | A számla vevője; alapból a fizetés vevőadataiból készül, ha van név és teljes cím |
+
+### Tételek és áfa
+
+A tételek sorrendje: az `items` opció, a szolgáltatótól kapott tételek, végül egyetlen tétel a kifizetett összeggel (`fallbackItemName`, alapból „Termék vagy szolgáltatás”). Az áfakulcs a `vatFor(tétel)` függvényből, a szolgáltató tételenkénti áfájából vagy a `vat` opcióból jön, ebben a sorrendben. Ha egyik sincs, `validation` hibát kapsz: az áfát a kassza soha nem találja ki.
+
+A kassza ellenőrzi, hogy a bizonylat bruttó végösszege egyezik-e a kifizetett összeggel. Ha nem (például kimaradt a szállítási díj), `validation` hibát ad. Szándékos eltérésnél add meg az `allowAmountMismatch: true` opciót.
+
+### Deviza
+
+A bizonylat pénzneme mindig a fizetésé. Devizás nyugtához add meg az árfolyamot (`exchangeRate`); a bank alapból az MNB. Devizás számlánál árfolyam nélkül az MNB napi árfolyamát használja a Számlázz.hu.
+
+### Pontosan egyszer
+
+A rendelésszám a szolgáltatóból és a fizetés azonosítójából áll, például `STRIPE-pi_3Q…`, így a fizetés és a későbbi visszatérítés ugyanahhoz a rendelésszámhoz kötődik. Saját rendelésszámot az `orderNumber` opcióval adhatsz meg.
+
+- **Nyugta:** `receipts.createOnce()` a rendelésszámmal, hívásazonosítóként is a rendelésszámot küldve.
+- **Számla:** `invoices.createOnce()`, külső azonosítónak a rendelésszámmal, kifizetettként.
+- **Sztornó:** számlánál `{rendelésszám}/SS` külső azonosítóval, nyugtánál `{rendelésszám}/SN` hívásazonosítóval.
+
+Ha a webhook kétszer érkezik, a második hívás `created: false` eredményt ad, és nem állít ki új bizonylatot. Ha a sztornó után ismét `paid` esemény jön, a kassza kihagyja, mert a rendeléshez tartozó nyugtát már sztornózták. Ha a nyugtát időközben [számlává alakították](/docs/alapok/nyugta-vagy-szamla#ha-a-vevő-utólag-számlát-kér), visszatérítéskor az átalakított számlát sztornózza.
+
+## Hibakezelés a webhookban
+
+Ha az `issueForPayment()` hibát dob, a webhook `500`-at ad, és a szolgáltató később újraküldi. Ez hálózati hibánál és karbantartásnál pont jó, de egy hibás adatból (például hiányzó áfakulcs vagy számlacím) eredő hiba újraküldve is hibás marad. Ezeket érdemes elkapni és emberre bízni:
+
+```ts title="app/api/stripe/webhook/route.ts"
+import { isSzamlazzError } from 'kassza'
+import { stripeWebhook } from 'kassza/payments/stripe'
+import { kassza } from '@/lib/kassza'
+import { kezelesreVar } from '@/lib/rendelesek'
+
+export const POST = stripeWebhook({
+  secret: process.env.STRIPE_WEBHOOK_SECRET!,
+  apiKey: process.env.STRIPE_SECRET_KEY,
+  onPayment: async (payment) => {
+    try {
+      await kassza.issueForPayment(payment, { vat: 27 })
+    } catch (error) {
+      if (isSzamlazzError(error) && !error.retryable) {
+        await kezelesreVar(payment.id, `${error.category}: ${error.message}`)
+        return
+      }
+      throw error
+    }
+  },
+})
+```
+
+<Callout type="danger" title="Korlátozd az újraküldést">
+  A szolgáltatók napokig újraküldhetik az eseményt. A Számlázz.hu egy kérést legfeljebb ötször
+  enged elküldeni, ezért több szerver vagy serverless példány esetén állítsd be a kliensen az
+  `attemptLedger` opciót, lásd [Pontosan egyszer](/docs/alapok/pontosan-egyszer#kitiltás-elleni-védelem-folyamatok-között).
+</Callout>
+
+## Más fizetési szolgáltató
+
+Ha a szolgáltatód nincs a listán (például egy kártyaterminál webhookja), a `PaymentEvent` objektumot magad is összeállíthatod, a `respondToWebhook()` pedig ugyanazt a hibakezelést adja, mint a beépített kezelők: `WebhookVerificationError` esetén `400`, más hibánál `500`.
+
+```ts title="app/api/terminal/webhook/route.ts"
+import { type PaymentEvent, respondToWebhook, WebhookVerificationError } from 'kassza/payments'
+import { kassza } from '@/lib/kassza'
+import { terminalAlairasJo } from '@/lib/terminal'
+
+export function POST(request: Request) {
+  return respondToWebhook({}, async () => {
+    const body = await request.text()
+    if (!(await terminalAlairasJo(request, body))) {
+      throw new WebhookVerificationError('terminal', 'invalid_signature', 'Hibás aláírás.')
+    }
+    const esemeny = JSON.parse(body) as { id: string; osszeg: number; statusz: string }
+    const payment: PaymentEvent = {
+      provider: 'terminal',
+      kind: esemeny.statusz === 'sikeres' ? 'paid' : 'other',
+      id: esemeny.id,
+      amount: { value: esemeny.osszeg, currency: 'HUF' },
+      method: 'bankkártya',
+      raw: esemeny,
+    }
+    await kassza.issueForPayment(payment, { vat: 27 })
+    return new Response('OK')
+  })
+}
+```
+
+A `provider` tetszőleges címke lehet; a rendelésszám ebből és az azonosítóból készül (itt `TERMINAL-{id}`).
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Nyugta vagy számla?" href="/docs/alapok/nyugta-vagy-szamla">
+    A négy feltétel, a pénztárgép-kötelezettség és a chooseDocument.
+  </Card>
+  <Card title="Pontosan egyszer" href="/docs/alapok/pontosan-egyszer">
+    createOnce, kitiltás elleni védelem és onDocument hook.
+  </Card>
+  <Card title="Hamis Számla Agent" href="/docs/kiegeszitok/hamis-agent">
+    A webhook kódod tesztelése elveszett válasszal és karbantartással.
+  </Card>
+</Cards>

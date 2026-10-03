@@ -46,7 +46,9 @@ try {
 <Callout type="danger" title="Ne próbálkozz újra ciklusban">
   Ne írj olyan kódot, amely egy sikertelen számlakészítést addig küld újra, amíg sikerül. Egy
   hibás kérés újraküldve is hibás marad, a sok felesleges kérés pedig a fiók kitiltásához
-  vezethet. Egy kérést legfeljebb ötször szabad elküldeni, utána embernek kell ránéznie.
+  vezethet. Egy kérést legfeljebb ötször szabad elküldeni, utána embernek kell ránéznie. Ha
+  ugyanazt a kérést több folyamat is küldheti, a kassza [`attemptLedger`](/docs/alapok/pontosan-egyszer#kitiltás-elleni-védelem-folyamatok-között)
+  opciója a folyamatok között is betartja ezt a korlátot.
 </Callout>
 
 ## Amit a kassza újrapróbál
@@ -87,6 +89,8 @@ async function szamlaz(orderNumber: string, adatok: CreateInvoiceInput) {
 
 <Example slug="hibakezeles-idempotens" />
 
+Ezt a lépéssort a kassza el is végzi helyetted: az `invoices.createOnce()` és a `receipts.createOnce()` kiállítás előtt megkeresi a bizonylatot, bizonytalan kimenet után pedig újra megkeresi, mielőtt hibát adna. A részletek a [Pontosan egyszer](/docs/alapok/pontosan-egyszer) oldalon vannak.
+
 ## Hol jelez hibát a Számlázz.hu?
 
 A Számla Agent műveletenként és válaszverziónként máshogy jelez hibát. A kassza mindet ugyanúgy kezeli:
@@ -104,7 +108,7 @@ Sok hibát a kassza már a kérés előtt észrevesz: hiányzó egységár, isme
 
 ## Tesztfiók
 
-Fejlesztéshez használj Számlázz.hu tesztfiókot. A tesztfiókban 10 percenként legfeljebb 500 számla készíthető, ezért automata tesztekhez inkább a [mock klienst](/docs/kiegeszitok/teszteles) használd, az nem hív hálózatot.
+Fejlesztéshez használj Számlázz.hu tesztfiókot. A tesztfiókban 10 percenként legfeljebb 500 számla készíthető, a túllépés 167-es (`rate_limit`) hibát ad. Automata tesztekhez ezért inkább a [mock klienst](/docs/kiegeszitok/teszteles) vagy a [hamis Számla Agentet](/docs/kiegeszitok/hamis-agent) használd, ezek nem hívnak hálózatot.
 
 ## Hibakategóriák
 
@@ -122,7 +126,13 @@ Az alábbi táblázat a kassza által ismert Számlázz.hu hibakódokat mutatja.
   <Card title="Munkamenet (session cookie)" href="/docs/alapok/munkamenet">
     Hogyan tartja életben a kassza a munkamenetet, és mit tegyél serverless környezetben.
   </Card>
+  <Card title="Pontosan egyszer" href="/docs/alapok/pontosan-egyszer">
+    createOnce, kitiltás elleni védelem folyamatok között, karbantartási szünet.
+  </Card>
   <Card title="Tesztelés" href="/docs/kiegeszitok/teszteles">
     Hibák szimulálása mock klienssel, hálózat nélkül.
+  </Card>
+  <Card title="Hamis Számla Agent" href="/docs/kiegeszitok/hamis-agent">
+    Elveszett válasz, karbantartás és részleges siker a valódi kassza kódon.
   </Card>
 </Cards>

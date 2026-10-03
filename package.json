@@ -12,6 +12,9 @@
   },
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
+  "bin": {
+    "kassza": "./dist/cli.js"
+  },
   "devDependencies": {
     "@arethetypeswrong/cli": "^0.18.5",
     "@biomejs/biome": "^2.5.13",
@@ -184,6 +187,36 @@
         "default": "./dist/delegation/index.cjs"
       }
     },
+    "./nav": {
+      "import": {
+        "types": "./dist/nav/index.d.ts",
+        "default": "./dist/nav/index.js"
+      },
+      "require": {
+        "types": "./dist/nav/index.d.cts",
+        "default": "./dist/nav/index.cjs"
+      }
+    },
+    "./data-link": {
+      "import": {
+        "types": "./dist/data-link/index.d.ts",
+        "default": "./dist/data-link/index.js"
+      },
+      "require": {
+        "types": "./dist/data-link/index.d.cts",
+        "default": "./dist/data-link/index.cjs"
+      }
+    },
+    "./mcp": {
+      "import": {
+        "types": "./dist/mcp/index.d.ts",
+        "default": "./dist/mcp/index.js"
+      },
+      "require": {
+        "types": "./dist/mcp/index.d.cts",
+        "default": "./dist/mcp/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "bugs": {
@@ -287,6 +320,15 @@
       ],
       "delegation": [
         "./dist/delegation/index.d.ts"
+      ],
+      "nav": [
+        "./dist/nav/index.d.ts"
+      ],
+      "data-link": [
+        "./dist/data-link/index.d.ts"
+      ],
+      "mcp": [
+        "./dist/mcp/index.d.ts"
       ]
     }
   }

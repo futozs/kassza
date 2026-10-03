@@ -1,4 +1,10 @@
-export type PaymentProvider = 'stripe' | 'simplepay' | 'barion' | 'revolut' | 'paypal'
+export type PaymentProvider =
+  | 'stripe'
+  | 'simplepay'
+  | 'barion'
+  | 'revolut'
+  | 'paypal'
+  | (string & {})
 
 export type PaymentEventKind = 'paid' | 'refunded' | 'partially-refunded' | 'failed' | 'other'
 

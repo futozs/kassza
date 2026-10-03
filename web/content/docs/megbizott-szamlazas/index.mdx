@@ -1,0 +1,52 @@
+---
+title: Megbízotti számlázás
+description: Platformoknak, amelyek sok cég nevében állítanak ki számlát vagy nyugtát. A megbízói fiók csatlakoztatása, a kapcsolat állapotának ellenőrzése és megbízónkénti kassza kliensek a kassza/delegation modulban.
+---
+
+A megbízotti számlakibocsátással egy platform (a **megbízott**) más cégek (a **megbízók**) nevében állít ki bizonylatot, a megbízó saját Számlázz.hu fiókjában. Ilyen egy foglalási rendszer, egy piactér vagy egy POS-szolgáltatás, amely minden kereskedőjének a saját nevében számláz.
+
+A `kassza/delegation` modul a teljes folyamatot lefedi:
+
+1. **Csatlakoztatás:** a megbízott a saját Agent kulcsával létrehoz vagy összekapcsol egy megbízói fiókot, és hozzá egy dedikált felhasználót ([`connectPrincipal`](/docs/megbizott-szamlazas/csatlakozas)).
+2. **Jóváhagyás:** a megbízó birtokba veszi az új fiókot, vagy elfogadja a csatlakozási kérelmet. Ezt a kassza nem tudja helyette megtenni.
+3. **Ellenőrzés:** a megbízott megnézi, él-e már a kapcsolat ([`probeDelegation`](/docs/megbizott-szamlazas/allapot)).
+4. **Kiállítás:** a megbízott a dedikált felhasználóval, a megbízó előtagjával állít ki bizonylatot ([`createDelegateKassza`, `createKasszaPool`](/docs/megbizott-szamlazas/kliensek)).
+
+<Callout type="warning" title="Engedély kell hozzá">
+  A fiókok Agenten keresztüli létrehozását (`action-agent_ceg_mb`) a Számlázz.hu ügyfélszolgálata
+  engedélyezi, tesztfiókra is. Engedély nélkül 137-es hibát kapsz.
+</Callout>
+
+## Miért dedikált felhasználó, és miért nem Agent kulcs?
+
+Az Agent kulcs egy fiókhoz tartozik. Ha a megbízott a megbízó Agent kulcsával állítana ki számlát, a bizonylat a megbízó saját kiállításaként készülne, nem megbízottiként. Ezért a megbízotti kiállításhoz a csatlakozáskor létrehozott **dedikált felhasználó** felhasználónevét és jelszavát kell használni, megbízónként külön. A kassza ezt ki is kényszeríti: a megbízotti kliens Agent kulccsal hibát ad.
+
+A dedikált felhasználó csak egy fiókhoz férhet hozzá. Ha több fiókhoz is hozzáfér, a Számlázz.hu 164-es hibával elutasítja.
+
+## Előtagok
+
+Minden megbízóhoz egyeztetett számlaszám-előtag tartozik (legfeljebb 5 nagybetű vagy szám). A megbízotti kliens ezt minden számlában elküldi, mert a Számlázz.hu megbízotti kiállításnál megköveteli (357). Ha az előtag nem megfelelő, a Számlázz.hu néha megmondja, melyiket kell használni (356): ezt a `suggestedPrefix(error)` olvassa ki a hibából.
+
+```ts
+import { suggestedPrefix } from 'kassza/delegation'
+
+const javasolt = suggestedPrefix(error)
+```
+
+## Megbízotti korlátozások
+
+Néhány művelet csak a megbízottnak vagy csak a fiók tulajdonosának engedélyezett. A megbízotti számlát a tulajdonos nem sztornózhatja (359), a megbízott pedig nem sztornózhatja a tulajdonos saját számláját (358). Ugyanez a helyzet a számla ismétlésével (489) és helyesbítésével (493, 494). Ezek a hibák `account` kategóriájúak, a kassza magyar tippet ad hozzájuk.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Csatlakozás" href="/docs/megbizott-szamlazas/csatlakozas">
+    Megbízói fiók létrehozása vagy összekapcsolása.
+  </Card>
+  <Card title="A kapcsolat állapota" href="/docs/megbizott-szamlazas/allapot">
+    Él-e már a megbízotti kapcsolat?
+  </Card>
+  <Card title="Kliensek megbízónként" href="/docs/megbizott-szamlazas/kliensek">
+    createDelegateKassza és createKasszaPool.
+  </Card>
+</Cards>

@@ -7,6 +7,8 @@ description: A kassza dokumentációja. TypeScript kliens a Számlázz.hu Száml
 
 **A kassza a Számlázz.hu Számla Agent TypeScript kliense. Számlát, díjbekérőt és nyugtát állít ki, sztornóz, befizetést rögzít, lekéri a PDF-et és a számla adatait, a NAV-tól pedig az adószámhoz tartozó cégadatokat. Nincs futásidejű függősége, így Node.js-en, Bunon, Denón, Cloudflare Workersen és Vercel Edge-en is ugyanúgy fut.**
 
+A Számla Agent műveletein túl is segít: fizetési webhookból pontosan egyszer állít ki bizonylatot, megbízottként más cégek nevében számláz, elkészíti a NAV napi nyugta-összesítőjét, és fogadja a Számlázz.hu pénzügyi adatkapcsolatát.
+
 A dokumentáció a [Számlázz.hu hivatalos Agent dokumentációjának](https://docs.szamlazz.hu/hu/agent/) felépítését követi. Minden műveletnél három oldalt találsz: a **kérést** (mit adsz át a kasszának), a **választ** (mit kapsz vissza, és milyen hibák jöhetnek), és a **mintát** a kóddal, a ténylegesen elküldött XML-lel és a Számlázz.hu válaszával. A hivatalos leírás bármelyik oldala mellé így odateheted a megfelelő kassza oldalt.
 
 Ha kérdésed van, vagy hibát találtál, [nyiss egy issue-t a GitHubon](https://github.com/futozs/kassza/issues).
@@ -25,8 +27,14 @@ Ha kérdésed van, vagy hibát találtál, [nyiss egy issue-t a GitHubon](https:
   <Card title="Telepítés és az első számla" href="/docs/alapok/telepites">
     Telepítés, Agent kulcs, és egy működő számla néhány sorból.
   </Card>
+  <Card title="Nyugta vagy számla?" href="/docs/alapok/nyugta-vagy-szamla">
+    Ki adhat számítógéppel előállított nyugtát, és mikor kell mégis számla.
+  </Card>
   <Card title="Hibakezelés, hibakódok" href="/docs/alapok/hibakezeles">
     A Számlázz.hu összes ismert hibakódja, kategóriával és magyar javítási tippel.
+  </Card>
+  <Card title="Pontosan egyszer" href="/docs/alapok/pontosan-egyszer">
+    Dupla számla és kitiltás nélkül, webhookból és várólistából is.
   </Card>
   <Card title="Sandbox" href="/sandbox">
     Futtasd a példákat a böngészőben Agent kulcs nélkül, és nézd meg az elküldött XML-t.
@@ -48,3 +56,15 @@ Ha kérdésed van, vagy hibát találtál, [nyiss egy issue-t a GitHubon](https:
 | [Nyugta lekérdezés](/docs/nyugta-lekerdezes) | `receipts.get()`, `receipts.find()` | [Nyugta lekérdezés](https://docs.szamlazz.hu/hu/agent/querying_receipt/request) |
 | [Nyugta kiküldés](/docs/nyugta-kikuldes) | `receipts.send()` | [Nyugta kiküldés](https://docs.szamlazz.hu/hu/agent/sending_receipt/request) |
 | [Adószám lekérdezése](/docs/adoszam-lekerdezes) | `taxpayer.query()` | [Adószám lekérdezés](https://docs.szamlazz.hu/hu/agent/querying_taxpayer/request) |
+
+## További modulok
+
+| Terület | Modul | Mire jó |
+| --- | --- | --- |
+| [Fizetésből bizonylat](/docs/fizetesek) | `kassza/payments` | Stripe, SimplePay, Barion, Revolut és PayPal fizetésből nyugta vagy számla, aláírás-ellenőrzéssel, pontosan egyszer, visszatérítéskor sztornóval. |
+| [NAV nyugta-adatszolgáltatás](/docs/nav-nyugta) | `kassza/reports`, `kassza/nav` | A 2026. szeptember 1-jétől kötelező napi összesítő, egyeztetés a NAV-val, és a kézi tartalék nyugtatömb beküldése. |
+| [Megbízotti számlázás](/docs/megbizott-szamlazas) | `kassza/delegation` | Platformoknak: a megbízói fiók csatlakoztatása (az Agent `action-agent_ceg_mb` hívása), majd kiállítás sok cég nevében, a saját Számlázz.hu fiókjukban. |
+| [Pénzügyi adatkapcsolat](/docs/adatkapcsolat) | `kassza/data-link` | A Számlázz.hu által átküldött számlák, banki tranzakciók és nyugták fogadása egy könyvelő- vagy ERP-rendszerben. |
+| [Hamis Számla Agent](/docs/kiegeszitok/hamis-agent) | `kassza/testing` | Tesztek a valódi kassza kódon, elveszett válasszal, karbantartással és részleges sikerrel. |
+| [Parancssor](/docs/kiegeszitok/parancssor) | `npx kassza` | Környezetellenőrzés, a küldendő XML előnézete supportjegyhez, lekérdezések. |
+| [MCP szerver](/docs/kiegeszitok/mcp-szerver) | `npx kassza mcp` | Számla és nyugta AI asszisztensből, előnézettel és megerősítéssel. |

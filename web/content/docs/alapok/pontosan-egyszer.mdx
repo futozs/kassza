@@ -1,0 +1,136 @@
+---
+title: Pontosan egyszer
+description: Számla és nyugta pontosan egyszer a createOnce metódusokkal, védelem a fiók kitiltása ellen folyamatok között (attemptLedger), karbantartási szünet és az onDocument hook.
+---
+
+Egy webhook, egy várólista vagy egy türelmetlen felhasználó ugyanazt a kérést többször is elküldheti. A Számlázz.hu ugyanakkor nem engedi, hogy egy sikertelen kérést ötnél többször elküldj, és egy időtúllépés után nem tudhatod, elkészült-e a bizonylat. Ezt a három problémát oldják meg az alábbi eszközök.
+
+## createOnce: lekérdezés, kiállítás, visszakeresés
+
+Az `invoices.createOnce()` és a `receipts.createOnce()` ugyanazt csinálja, amit a [Hibakezelés](/docs/alapok/hibakezeles#bizonytalan-kimenet-számla-készült-vagy-nem) oldal kézzel leír:
+
+1. megkeresi a bizonylatot, és ha már létezik, azt adja vissza,
+2. ha nem létezik, kiállítja,
+3. ha a kiállítás kimenete bizonytalan (hálózati hiba, időtúllépés, 56-os vagy dupla hiba), rövid várakozás után kétszer újra megkeresi.
+
+```ts
+const eredmeny = await kassza.invoices.createOnce({
+  orderNumber: 'WEB-1042',
+  paid: true,
+  buyer: { name: 'Vevő Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+  items: [{ name: 'Előfizetés', grossUnitPrice: 12_700, vat: 27 }],
+})
+
+console.log(eredmeny.number, eredmeny.created)
+```
+
+| Mező | Jelentés |
+| --- | --- |
+| `number` | A számla száma, akár most készült, akár korábban. |
+| `created` | `true`, ha ez a hívás állította ki. |
+| `externalId` | A külső azonosító, amivel a számlát keresi. |
+| `invoice` | A kiállítás válasza, ha ez a hívás állította ki. |
+| `details` | A lekérdezett számla, ha már létezett. |
+
+A rendelésszám kötelező. A külső azonosító alapból a rendelésszám, a bizonylattípus jelével: díjbekérőnél `/D`, előlegszámlánál `/E`, végszámlánál `/V`, helyesbítőnél `/H`, szállítólevélnél `/SZL`. Így egy rendeléshez tartozó díjbekérő és számla nem keveredik össze. Saját `externalId` is megadható.
+
+Nyugtánál a `receipts.createOnce()` a rendelésszámot hívásazonosítóként (`callId`) is használja, ha nem adsz meg mást. A visszatérési értéke `{ receipt, created }`.
+
+| Opció | Alapérték | Jelentés |
+| --- | --- | --- |
+| `lookupFirst` | `true` | Kiállítás előtt megkeresi a bizonylatot. |
+| `matchOrderNumber` | `true` | Számlánál a külső azonosító mellett a rendelésszámra is keres. |
+| `recoveryDelayMs` | `1000` | A visszakeresések előtti várakozás (az első után duplázódik). |
+| `signal` | – | Megszakítás. |
+
+<Callout type="warning" title="Ha a visszakeresés sem talál semmit">
+  Ritkán előfordul, hogy a kiállítás kimenete bizonytalan, és a visszakeresés sem találja a
+  bizonylatot. Ilyenkor a kassza az eredeti hibát dobja tovább, `details.outcome: 'unknown'`
+  jelöléssel. Ne állítsd ki kézzel újra: később hívd meg ugyanígy a `createOnce()`-t, az előbb
+  megkeresi a bizonylatot.
+</Callout>
+
+## Kitiltás elleni védelem folyamatok között
+
+A Számlázz.hu egy kérést legfeljebb ötször enged elküldeni. A kassza egy folyamaton belül ezt magától betartja, de ha ugyanazt a kérést több szerver, több serverless példány vagy egy újrapróbáló várólista küldi, a folyamatok nem tudnak egymásról. Erre való az `attemptLedger` opció: egy közös tároló, amelyben a kassza számolja az azonos kérések sikertelen próbálkozásait.
+
+```ts title="lib/kassza.ts"
+import { Redis } from '@upstash/redis'
+import { createKassza } from 'kassza'
+import { upstashRedisCookieStore } from 'kassza/cookie-stores'
+
+const redis = Redis.fromEnv()
+
+export const kassza = createKassza({
+  cookieStore: upstashRedisCookieStore(redis),
+  attemptLedger: upstashRedisCookieStore(redis),
+})
+```
+
+A tároló ugyanaz a felület, mint a munkamenet tárolója, így bármelyik [`kassza/cookie-stores`](/docs/alapok/munkamenet) adapter megfelel. A kulcsot a kérés tartalmából képzi a kassza (SHA-256), az Agent kulcsot nem tárolja, és egy napig őrzi.
+
+Öt sikertelen próbálkozás után a kassza már el sem küldi a kérést, hanem `attempt_limit` kategóriájú hibát dob. Ilyenkor embernek kell ránéznie. A hiba elhárítása után a számlálót a hibával törölheted:
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.create(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.category === 'attempt_limit') {
+    await riasztas(error.message)
+    await kassza.resetAttempts(error)
+  }
+  throw error
+}
+```
+
+Sikeres válasz után a számláló magától törlődik. A próbálkozások közé csak a kérésből eredő hibák számítanak (például validáció, fiókhiba, hálózati hiba); a dupla bizonylat és a nem található bizonylat nem.
+
+## Karbantartási szünet
+
+Karbantartás (1-es hiba) idején a Számlázz.hu percekig nem érhető el. A `maintenanceCooldownMs` opcióval a kassza az első karbantartási hiba után a megadott ideig el sem küldi a kéréseket, hanem azonnal `maintenance` hibát ad. Így egy várólista nem égeti el a próbálkozásait, a pénztár pedig gyorsan átválthat tartalék megoldásra.
+
+```ts
+const kassza = createKassza({ maintenanceCooldownMs: 120_000 })
+```
+
+## onDocument: minden elkészült bizonylatról értesítés
+
+Az `onDocument` hook minden sikeres kiállítás, sztornó és befizetés után lefut, a bizonylat adataival. Jó hely a könyvelési napló, az e-mail sor vagy a statisztika frissítésére. Ha a hook hibát dob, a bizonylat attól még elkészült: a kassza csak figyelmeztet.
+
+```ts
+const kassza = createKassza({
+  hooks: {
+    onDocument: async (esemeny) => {
+      await naplo.mentes({
+        fajta: esemeny.kind,
+        muvelet: esemeny.action,
+        szam: esemeny.number,
+      })
+    },
+  },
+})
+```
+
+| `kind` | `action` | Mikor |
+| --- | --- | --- |
+| `invoice` | `created` | Számla, díjbekérő, előleg-, vég- vagy helyesbítő számla elkészült. |
+| `invoice` | `reversed` | Sztornó számla készült; a `reversedNumber` az eredeti szám. |
+| `invoice` | `payment` | Befizetés rögzítése vagy törlése. |
+| `receipt` | `created` | Nyugta készült. |
+| `receipt` | `reversed` | Sztornónyugta készült; a `reversedNumber` az eredeti szám. |
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Hibakezelés" href="/docs/alapok/hibakezeles">
+    A hibakategóriák és a bizonytalan kimenet kézi kezelése.
+  </Card>
+  <Card title="Fizetésből bizonylat" href="/docs/fizetesek">
+    Webhookból automatikusan, pontosan egyszer.
+  </Card>
+  <Card title="Hamis Számla Agent" href="/docs/kiegeszitok/hamis-agent">
+    Elveszett válasz és karbantartás szimulálása tesztben.
+  </Card>
+</Cards>

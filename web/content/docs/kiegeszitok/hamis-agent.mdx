@@ -1,0 +1,111 @@
+---
+title: Hamis Számla Agent
+description: createFakeAgentFetch a kassza/testing modulból. Egy fetch, amely a valódi kérés-XML-t dolgozza fel, sorszámoz, a Számlázz.hu szabályai szerint hibát ad, és elveszett választ, karbantartást vagy részleges sikert szimulál.
+---
+
+A [mock kliens](/docs/kiegeszitok/teszteles) a `Kassza` felületét cseréli le. Ez gyors, de a kassza belsejét kihagyja: nem készül XML, nincs válaszfeldolgozás, és nem fut az újrapróbálás. A `createFakeAgentFetch()` eggyel lejjebb, a `fetch` szintjén dolgozik: a valódi `createKassza()` klienst kapcsolod rá, így a teljes út lefut. A kérés-XML összeállításától a multipart küldésen és a válasz értelmezésén át a `createOnce` visszakereséséig minden úgy történik, mint élesben, csak a Számlázz.hu helyett egy memóriában futó hamis Agent válaszol.
+
+```ts
+import { createKassza } from 'kassza'
+import { createFakeAgentFetch } from 'kassza/testing'
+
+const agent = createFakeAgentFetch()
+const kassza = createKassza({ agentKey: 'teszt-kulcs', fetch: agent.fetch, retryDelayMs: 0 })
+
+const szamla = await kassza.invoices.create({
+  buyer: { name: 'Vevő Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+  items: [{ name: 'Tanácsadás', netUnitPrice: 20_000, vat: 27 }],
+})
+
+console.log(szamla.number, agent.invoices.size, agent.requests.at(-1)?.action)
+```
+
+A hamis Agent ugyanazokat a válaszformátumokat adja, mint a Számlázz.hu. A kassza saját tesztjei a hivatalos XSD-kkel ellenőrzik is ezeket: számla XML, számlaválasz, nyugtaválasz, kiküldés.
+
+## Mit tud?
+
+| Terület | Műveletek |
+| --- | --- |
+| Számla | Kiállítás (számla, díjbekérő, előleg-, vég-, helyesbítő számla, szállítólevél, e-számla, előnézet), sztornó, befizetés, PDF, XML lekérés, díjbekérő törlése |
+| Nyugta | Kiállítás, sztornó, lekérdezés nyugtaszám vagy rendelésszám alapján, kiküldés |
+| Egyéb | Adószám-lekérdezés, megbízói csatlakozás |
+
+A sorszámok: számla `KASSZA-2026-1` (vagy a megadott előtaggal), e-számla `E-…`, díjbekérő `D-…`, szállítólevél `SZL-…`, nyugta `{előtag}-2026-1`. A sztornó az eredeti sorozatában kap számot.
+
+A Számlázz.hu szabályai közül ezeket alkalmazza:
+
+- tételösszegek: 259, 260, 261, forintos nyugtán 261, 363, 364 és 365; ismeretlen áfakulcs: 395,
+- nyugta: hívásazonosító-ismétlés 338, előtagformátum 337, számlán már használt előtag 336, nem engedélyezett előtag 524, eltérő kifizetési összeg 340,
+- számla: nem regisztrált előtag 202; tiltott rendelésszám-ismétlésnél 152, de az azonos kérést két napon belül a meglévő számlával válaszolja meg, ahogy a Számlázz.hu,
+- nem létező bizonylat: 7, 339, díjbekérőnél 335,
+- díjbekérő sztornójára az eredeti díjbekérő számát adja vissza (a kassza ezt `validation` hibává alakítja), sztornó számla és már sztornózott bizonylat sztornójára hibát ad,
+- hiányzó XML 53, hibás XML 57, rossz hitelesítés 3.
+
+## Hibák szimulálása
+
+```ts
+agent.fail('ghostSuccess', { action: 'createInvoice' })
+
+const eredmeny = await kassza.invoices.createOnce({ orderNumber: 'WEB-1', buyer, items })
+
+expect(eredmeny.created).toBe(true)
+expect(agent.invoices.size).toBe(1)
+```
+
+| Hiba | Mit szimulál |
+| --- | --- |
+| `ghostSuccess` | A kérés feldolgozódik, a bizonylat elkészül, de a válasz elveszik (időtúllépés). |
+| `timeout`, `networkError` | A kérés meg sem érkezik; időtúllépés vagy hálózati hiba. |
+| `serverError` | HTTP 500 válasz HTML-lel. |
+| `maintenance` | Karbantartás (1). |
+| `partialSuccess` | A bizonylat elkészül, de 56-os hiba jön (az értesítő e-mail nem ment ki). |
+| `testAccountLimit` | A tesztfiók korlátja (167). |
+| `duplicateCallId`, `duplicateOrderNumber` | 338, illetve 152 a kérés rendelésszámával. |
+| `{ code, message, afterSuccess }` | Tetszőleges hibakód, a művelet előtt vagy (afterSuccess) után. |
+
+A `fail(hiba, { action, times })` alapból a következő egy kérésre hat; az `action` egy műveletre szűkít (például `createReceipt`), a `times` többször ismétli. Kezdő hibák a `faults` opcióval is megadhatók.
+
+## Beállítások
+
+| Opció | Alapérték | Jelentés |
+| --- | --- | --- |
+| `now` | a valódi idő | A hamis szerver órája (sorszám éve, nyugta kelte, 2 napos ablak). |
+| `agentKeys`, `users` | – | Ha megadod, csak ezekkel a kulcsokkal és felhasználókkal enged be (3-as hiba). Nélkülük bármilyen hitelesítést elfogad. |
+| `testAccount` | `true` | A bizonylatokon a `teszt` jelzés. |
+| `invoicePrefixes`, `defaultInvoicePrefix` | bármi, `KASSZA` | A fiókban regisztrált számlaelőtagok. |
+| `receiptPrefixes` | bármi | A fiókban engedélyezett nyugtaelőtagok. |
+| `rejectDuplicateOrderNumbers` | `false` | A „Rendelésszám ismétlődés tiltása” beállítás, számlára és nyugtára külön is: `{ invoices: true }`. |
+| `seller` | Kassza Teszt Kft. | Az eladó adatai a lekért számlán. |
+| `taxpayers` | `{}` | Adószám-lekérdezés eredményei törzsszám szerint. |
+| `principals` | `{}` | Megbízói fiókok: `owned` vagy `unowned`. |
+| `faults` | `[]` | Kezdő hibák. |
+
+## Állapot vizsgálata
+
+- `agent.invoices`, `agent.receipts`: a létrejött bizonylatok számszerint, sztornó- és törlésjelzéssel.
+- `agent.requests`: minden kérés művelete, nyers XML-je és mellékletei, sorrendben. Ebből ellenőrizheted, hányszor próbálkozott a kassza, vagy mit küldött pontosan.
+- `agent.reset()`: mindent kiürít, és a kezdő hibákat újra élesíti.
+- `agent.acceptDelegation(adószám)`: a megbízó elfogadja a megbízotti kapcsolatot ([megbízotti számlázás](/docs/megbizott-szamlazas) tesztjéhez).
+
+## Mock vagy hamis Agent?
+
+| | `createMockKassza()` | `createFakeAgentFetch()` |
+| --- | --- | --- |
+| Mit cserél le | A `Kassza` felületet | Csak a `fetch`-et |
+| Fut a kassza XML-építése és válaszfeldolgozása | Nem | Igen |
+| Újrapróbálás, `createOnce` visszakeresés, próbálkozásnapló | Részben | Teljesen, valódi kódon |
+| Szerveroldali szabályok (sorszám, 338, 152, kerekítés) | Részben | Igen |
+| Sebesség | Leggyorsabb | Gyors (memóriában fut) |
+
+Egyszerű üzleti logikához elég a mock. A webhook-kezelést, az újrapróbálást és a hibatűrést hamis Agenttel teszteld.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Tesztelés" href="/docs/kiegeszitok/teszteles">
+    A mock kliens és a Vitest példák.
+  </Card>
+  <Card title="Pontosan egyszer" href="/docs/alapok/pontosan-egyszer">
+    Amit a hamis Agenttel érdemes tesztelni.
+  </Card>
+</Cards>

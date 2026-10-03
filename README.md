@@ -18,9 +18,9 @@
 
 <p align="center">
   <a href="https://kasszajs.hu"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-web-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-web-light.svg" alt="Weboldal: kasszajs.hu" width="428"></picture></a>
-  <a href="https://kasszajs.hu/docs"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-light.svg" alt="Dokumentáció: 92 oldal, magyarul" width="428"></picture></a>
+  <a href="https://kasszajs.hu/docs"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-light.svg" alt="Dokumentáció: 113 oldal, magyarul" width="428"></picture></a>
   <br>
-  <a href="https://kasszajs.hu/sandbox"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-light.svg" alt="Sandbox: 27 futtatható példa" width="428"></picture></a>
+  <a href="https://kasszajs.hu/sandbox"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-light.svg" alt="Sandbox: 28 futtatható példa" width="428"></picture></a>
   <a href="https://kasszajs.hu/docs/receptek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-recipes-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-recipes-light.svg" alt="Receptek: 11 kész integráció" width="428"></picture></a>
 </p>
 
@@ -56,7 +56,9 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 
 - **Mind a 11 Agent művelet.** Számla, díjbekérő, nyugta, sztornó, befizetés, PDF és adószám, nem csak a számla kiállítása.
 - **Pontos kerekítés.** A tételek nettó, áfa és bruttó értékét a Számlázz.hu szabályai szerint számolja, mert egy forint eltérés is elég, hogy a számla ne készüljön el.
-- **Nincs dupla számla.** Számlát a kassza soha nem küld újra magától, bizonytalan hiba után pedig a rendelésszámmal visszakeresheted.
+- **Nincs dupla számla.** Számlát a kassza soha nem küld újra magától. A `createOnce()` kiállítás előtt megkeresi a bizonylatot, bizonytalan hiba után pedig visszakeresi.
+- **Fizetésből bizonylat.** Stripe, SimplePay, Barion, Revolut és PayPal webhookból pontosan egyszer nyugta vagy számla, visszatérítéskor sztornó.
+- **NAV nyugta-adatszolgáltatás.** Napi összesítő és egyeztetés a 2026. szeptember 1-jétől kötelező adatszolgáltatáshoz.
 - **Egy hibatípus.** A Számlázz.hu háromféle hibaformátumából egyetlen `SzamlazzError` lesz, magyar üzenettel és javítási tippel.
 - **Serverless és edge.** Node, Bun, Deno, Cloudflare Workers és Vercel Edge alatt is fut, a session cookie közös tárolóban is lehet.
 
@@ -88,13 +90,13 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 
 ## Tartalom
 
-| Kezdés | Műveletek | Kiegészítők |
-| --- | --- | --- |
-| 🌐 [Weboldal, sandbox és receptek](#weboldal-sandbox-és-receptek) | 📄 [Számlák](#számlák) | 🗄️ [PDF mentése tárhelyre](#pdf-mentése-tárhelyre) |
-| ⚙️ [Beállítás](#beállítás) | 🧾 [Nyugták](#nyugták) | ⚡ [Serverless és edge](#serverless-és-edge) |
-| 🚨 [Hibakezelés](#hibakezelés) | 🏛️ [Adószám lekérdezés](#adószám-lekérdezés) | 🧪 [Tesztelés](#tesztelés) |
-| 🎛️ [Haladó beállítások](#haladó-beállítások) | 🔔 [Fizetési értesítés (IPN)](#fizetési-értesítés-ipn) | 🧮 [Validátorok és pénzszámítás](#validátorok-és-pénzszámítás) |
-| 🤖 [AI-val kódolsz?](#ai-val-kódolsz) | | |
+| Kezdés | Műveletek | Integrációk | Kiegészítők |
+| --- | --- | --- | --- |
+| 🌐 [Weboldal, sandbox és receptek](#weboldal-sandbox-és-receptek) | 📄 [Számlák](#számlák) | 💳 [Fizetésből bizonylat](#fizetésből-bizonylat) | 🗄️ [PDF mentése tárhelyre](#pdf-mentése-tárhelyre) |
+| ⚙️ [Beállítás](#beállítás) | 🧾 [Nyugták](#nyugták) | 📊 [NAV nyugta-adatszolgáltatás](#nav-nyugta-adatszolgáltatás) | ⚡ [Serverless és edge](#serverless-és-edge) |
+| 🚨 [Hibakezelés](#hibakezelés) | 🏛️ [Adószám lekérdezés](#adószám-lekérdezés) | 🤝 [Megbízotti számlázás](#megbízotti-számlázás) | 🧪 [Tesztelés](#tesztelés) |
+| 🎛️ [Haladó beállítások](#haladó-beállítások) | 🔔 [Fizetési értesítés (IPN)](#fizetési-értesítés-ipn) | 🔗 [Pénzügyi adatkapcsolat](#pénzügyi-adatkapcsolat) | 🧮 [Validátorok és pénzszámítás](#validátorok-és-pénzszámítás) |
+| 🤖 [AI-val kódolsz?](#ai-val-kódolsz) | | | 💻 [Parancssor és MCP szerver](#parancssor-és-mcp-szerver) |
 
 ## Weboldal, sandbox és receptek
 
@@ -104,8 +106,8 @@ A teljes magyar dokumentáció, a sandbox és a receptek a **[kasszajs.hu](https
   <a href="https://kasszajs.hu/sandbox?pelda=szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/showcase-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/showcase-light.svg" alt="A kassza sandbox: futtatható példák, TypeScript kód és a ténylegesen elküldött XML" width="100%"></picture></a>
 </p>
 
-- 📖 **[Dokumentáció](https://kasszajs.hu/docs)**: 92 oldal magyarul. Minden Agent művelethez kérés, válasz és futtatható minta, a beállítások, a szabályok és az összes ismert hibakód.
-- ▶️ **[Sandbox](https://kasszajs.hu/sandbox)**: 27 példa, amit a böngészőben futtathatsz Agent kulcs nélkül, szimulált Számlázz.hu ellen, a ténylegesen elküldött XML-lel. A saját kódodat linkként meg is oszthatod.
+- 📖 **[Dokumentáció](https://kasszajs.hu/docs)**: 113 oldal magyarul. Minden Agent művelethez kérés, válasz és futtatható minta, a beállítások, a szabályok és az összes ismert hibakód.
+- ▶️ **[Sandbox](https://kasszajs.hu/sandbox)**: 28 példa, amit a böngészőben futtathatsz Agent kulcs nélkül, szimulált Számlázz.hu ellen, a ténylegesen elküldött XML-lel. A saját kódodat linkként meg is oszthatod.
 - 🍳 **[Receptek](https://kasszajs.hu/docs/receptek)**: 11 teljes, bemásolható integráció webshophoz, Stripe és IPN webhookhoz, díjbekérőhöz, pénztári nyugtához, PDF tárhelyhez, Cloudflare Workershez és tesztekhez.
 - 🤖 **[llms.txt](https://kasszajs.hu/llms.txt)**: a dokumentáció tartalomjegyzéke AI asszisztenseknek, a teljes szöveg egy fájlban: [llms-full.txt](https://kasszajs.hu/llms-full.txt).
 - 📦 **[npm csomag](https://www.npmjs.com/package/kassza)** · 🏛️ **[Hivatalos Számlázz.hu Agent dokumentáció](https://docs.szamlazz.hu/hu/agent/)**
@@ -118,7 +120,7 @@ A teljes magyar dokumentáció, a sandbox és a receptek a **[kasszajs.hu](https
 - **[Stripe webhook](https://kasszajs.hu/docs/receptek/stripe-webhook)**: Számla a Stripe Checkout checkout.session.completed eseményéből.
 - **[Nevezés díjbekérővel](https://kasszajs.hu/docs/receptek/nevezes-dijbekerovel)**: Versenynevezés vagy rendezvényjelentkezés átutalásos fizetéssel.
 - **[IPN webhook](https://kasszajs.hu/docs/receptek/ipn-webhook)**: A Számlázz.hu fizetési értesítésének (IPN) fogadása Next.js route handlerben, IP-ellenőrzéssel, a számla állapotának visszaellenőrzésével és idempotens mentéssel.
-- **[Pénztári nyugta](https://kasszajs.hu/docs/receptek/penztari-nyugta)**: Nyugta egy pénztári eladásról hívásazonosítóval, a dupla nyugta kezelésével és e-mail kiküldéssel, Next.js route handlerben.
+- **[Pénztári nyugta](https://kasszajs.hu/docs/receptek/penztari-nyugta)**: Nyugta egy food truck pénztárprogramjából a receipts.createOnce metódussal, a dupla nyugta kezelésével és e-mail kiküldéssel, Next.js route handlerben.
 - **[PDF mentése S3-ba vagy R2-be](https://kasszajs.hu/docs/receptek/pdf-mentes-s3-r2)**: A számla PDF-jének mentése saját Amazon S3 vagy Cloudflare R2 tárhelyre AWS SDK nélkül, stabil kulccsal és rövid ideig érvényes letöltési linkkel.
 - **[Adószám alapú kitöltés](https://kasszajs.hu/docs/receptek/adoszam-urlap)**: Számlázási űrlap, amely a beírt adószám alapján a NAV adataiból tölti ki a cégnevet és a székhely címét.
 - **[Devizás számla EU-s cégnek](https://kasszajs.hu/docs/receptek/devizas-eu-szamla)**: Euróban kiállított, angol nyelvű számla másik tagállambeli cégnek, közösségi adószámmal, MNB árfolyammal és angol értesítő e-maillel.
@@ -128,11 +130,11 @@ A teljes magyar dokumentáció, a sandbox és a receptek a **[kasszajs.hu](https
 </details>
 
 <details>
-<summary>▶️ <b>Mind a 27 sandbox példa</b></summary>
+<summary>▶️ <b>Mind a 28 sandbox példa</b></summary>
 
 **Számlák:** [Számla kiállítása](https://kasszajs.hu/sandbox?pelda=szamla) · [Webshop számla bruttó árakkal](https://kasszajs.hu/sandbox?pelda=szamla-brutto) · [Díjbekérő, majd számla](https://kasszajs.hu/sandbox?pelda=dijbekero-szamla) · [Előleg- és végszámla](https://kasszajs.hu/sandbox?pelda=eloleg-vegszamla) · [Helyesbítő számla](https://kasszajs.hu/sandbox?pelda=helyesbito-szamla) · [Devizás számla EU-s vevőnek](https://kasszajs.hu/sandbox?pelda=devizas-szamla) · [Számlaelőnézet](https://kasszajs.hu/sandbox?pelda=elonezet) · [Számla sztornózása](https://kasszajs.hu/sandbox?pelda=sztorno) · [Befizetések rögzítése](https://kasszajs.hu/sandbox?pelda=befizetes) · [PDF lekérése utólag](https://kasszajs.hu/sandbox?pelda=pdf-lekeres) · [Számla adatainak lekérése](https://kasszajs.hu/sandbox?pelda=szamla-adatai) · [Díjbekérő törlése](https://kasszajs.hu/sandbox?pelda=dijbekero-torlese)
 
-**Nyugták:** [Nyugta kiállítása](https://kasszajs.hu/sandbox?pelda=nyugta) · [Nyugta sztornózása](https://kasszajs.hu/sandbox?pelda=nyugta-sztorno) · [Nyugta lekérdezése](https://kasszajs.hu/sandbox?pelda=nyugta-lekerdezes) · [Nyugta kiküldése e-mailben](https://kasszajs.hu/sandbox?pelda=nyugta-kikuldes)
+**Nyugták:** [Nyugta kiállítása](https://kasszajs.hu/sandbox?pelda=nyugta) · [Pénztári nyugta, dupla gombnyomás](https://kasszajs.hu/sandbox?pelda=penztari-nyugta) · [Nyugta sztornózása](https://kasszajs.hu/sandbox?pelda=nyugta-sztorno) · [Nyugta lekérdezése](https://kasszajs.hu/sandbox?pelda=nyugta-lekerdezes) · [Nyugta kiküldése e-mailben](https://kasszajs.hu/sandbox?pelda=nyugta-kikuldes)
 
 **NAV:** [Adószám lekérdezése](https://kasszajs.hu/sandbox?pelda=adoszam)
 
@@ -207,7 +209,7 @@ const szamla = await kassza.invoices.create({
     city: 'Budapest',
     address: 'Fő utca 1.',
     email: 'vevo@ceg.hu',
-    taxNumber: '12345678-2-42',
+    taxNumber: '12345676-2-42',
   },
   items: [
     { name: 'Póló', quantity: 2, grossUnitPrice: 5_990, vat: 27 },
@@ -466,7 +468,7 @@ A `find` `null`-t ad, ha nincs ilyen számla, a `get` ilyenkor hibát dob.
 
 ## Nyugták
 
-Nyugta kiállítása, kiküldése e-mailben, lekérdezése és sztornózása, forintos kerekítéssel és a dupla nyugta elleni hívásazonosítóval.
+Nyugta kiállítása, kiküldése e-mailben, lekérdezése és sztornózása, forintos kerekítéssel és a dupla nyugta elleni hívásazonosítóval. A Számla Agent nyugtája számítógéppel előállított nyugta, online pénztárgépet nem pótol: csak nem pénztárgép-köteles tevékenységhez adható, például webshopban vagy food truckban. Részletek: [Nyugta vagy számla?](https://kasszajs.hu/docs/alapok/nyugta-vagy-szamla).
 
 <details>
 <summary><b>Nyugta</b> · <code>receipts.create()</code></summary>
@@ -524,6 +526,33 @@ await kassza.receipts.reverse(nyugta.number)
 ```
 
 📖 **Dokumentáció:** [Nyugta sztornó](https://kasszajs.hu/docs/nyugta-sztorno) &nbsp;·&nbsp; ▶️ **Sandbox:** [Nyugta sztornózása](https://kasszajs.hu/sandbox?pelda=nyugta-sztorno)
+
+</details>
+
+<details>
+<summary><b>Nyugta vagy számla?</b> · <code>chooseDocument()</code>, <code>receipts.convertToInvoice()</code></summary>
+
+```ts
+import { chooseDocument } from 'kassza'
+
+const dontes = chooseDocument({ grossTotal: 18_990, invoiceRequested: false })
+
+dontes.type
+dontes.reasons
+```
+
+Nyugta csak akkor adható, ha a vevő nem adóalany és nem jogi személy, az összeg 900 000 Ft alatti, a teljesítésig kifizetik, és a vevő nem kér számlát. Ha a vevő utólag kér számlát, a `convertToInvoice()` sztornózza a nyugtát, és számlát állít ki helyette, pontosan egyszer:
+
+```ts
+const atalakitas = await kassza.receipts.convertToInvoice({
+  receiptNumber: nyugta.number,
+  buyer: { name: 'Példa Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.', taxNumber: '12345676-2-42' },
+})
+
+atalakitas.invoice.number
+```
+
+📖 **Dokumentáció:** [Nyugta vagy számla?](https://kasszajs.hu/docs/alapok/nyugta-vagy-szamla)
 
 </details>
 
@@ -601,12 +630,32 @@ try {
 | `not_found` | Nincs ilyen bizonylat |
 | `auth` / `account` | Rossz kulcs, lejárt előfizetés |
 | `network` / `timeout` / `maintenance` | Átmeneti hiba |
+| `rate_limit` | A tesztfiókban túl sok bizonylat készült rövid idő alatt (167) |
+| `attempt_limit` | Ezt a kérést már ötször sikertelenül küldték el, ezért a kassza el sem küldi |
 
 📖 **Dokumentáció:** [Hibakezelés, hibakódok](https://kasszajs.hu/docs/alapok/hibakezeles) &nbsp;·&nbsp; ▶️ **Sandbox:** [Validációs hibák](https://kasszajs.hu/sandbox?pelda=hibakezeles-validacio)
 
 </details>
 
-> **Számlát a kassza soha nem küld újra.** Újraküldés csak ott történik magától, ahol biztonságos: lekérdezéseknél, hálózati hibánál, legfeljebb 5-ször. A Számlázz.hu kitiltja azt, aki ciklusban próbálkozik. Bizonytalan hiba után a `find({ orderNumber })` megmondja, elkészült-e a számla.
+<details>
+<summary><b>Pontosan egyszer</b> · <code>invoices.createOnce()</code>, <code>receipts.createOnce()</code></summary>
+
+```ts
+const { number, created } = await kassza.invoices.createOnce({
+  orderNumber: 'REND-1001',
+  paid: true,
+  buyer,
+  items,
+})
+```
+
+Kiállítás előtt megkeresi a számlát, hálózati hiba, időtúllépés vagy 56-os hiba után pedig visszakeresi. Ha a webhook kétszer fut le, a második hívás `created: false` eredménnyel a meglévő számlát adja. Ha ugyanazt a kérést több szerver is küldheti, az `attemptLedger` opció a folyamatok között is betartja az öt próbálkozásos korlátot.
+
+📖 **Dokumentáció:** [Pontosan egyszer](https://kasszajs.hu/docs/alapok/pontosan-egyszer) &nbsp;·&nbsp; ▶️ **Sandbox:** [Pénztári nyugta, dupla gombnyomás](https://kasszajs.hu/sandbox?pelda=penztari-nyugta)
+
+</details>
+
+> **Számlát a kassza soha nem küld újra.** Újraküldés csak ott történik magától, ahol biztonságos: lekérdezéseknél, hálózati hibánál, legfeljebb 5-ször. A Számlázz.hu kitiltja azt, aki ciklusban próbálkozik. Bizonytalan hiba után a `find({ orderNumber })` megmondja, elkészült-e a számla, a `createOnce()` pedig ezt el is végzi helyetted.
 
 <p>
   <a href="https://kasszajs.hu/docs/alapok/hibakezeles"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Hibakezelés, hibakódok" height="44"></picture></a>
@@ -658,6 +707,137 @@ Az `x-forwarded-for` fejlécből a **jobb szélső** címet vizsgálja, vagyis a
   <a href="https://kasszajs.hu/docs/befizetes-rogzitese/ipn"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: IPN fizetési értesítés" height="44"></picture></a>
   <a href="https://kasszajs.hu/sandbox?pelda=ipn"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: IPN fizetési értesítés" height="44"></picture></a>
   <a href="https://kasszajs.hu/docs/receptek/ipn-webhook"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-ipn-webhook-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-ipn-webhook-light.svg" alt="Recept: IPN webhook" height="44"></picture></a>
+</p>
+
+## Fizetésből bizonylat
+
+Stripe, SimplePay, Barion, Revolut vagy PayPal fizetésből nyugta vagy számla, a szolgáltató SDK-ja nélkül. A webhookkezelő ellenőrzi az aláírást, az `issueForPayment()` pedig eldönti, hogy nyugta vagy számla jár, és pontosan egyszer kiállítja.
+
+<details>
+<summary><b>Stripe webhook</b> · <code>stripeWebhook()</code>, <code>issueForPayment()</code></summary>
+
+```ts
+import { stripeWebhook } from 'kassza/payments/stripe'
+
+export const POST = stripeWebhook({
+  secret: process.env.STRIPE_WEBHOOK_SECRET!,
+  apiKey: process.env.STRIPE_SECRET_KEY,
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+- Az újraküldött webhook nem állít ki második bizonylatot.
+- Teljes visszatérítéskor a kassza sztornózza a bizonylatot.
+- Ugyanígy működik a `simplePayWebhook`, a `barionWebhook`, a `revolutWebhook` és a `payPalWebhook`.
+
+📖 **Dokumentáció:** [Fizetésből bizonylat](https://kasszajs.hu/docs/fizetesek)
+
+</details>
+
+<p>
+  <a href="https://kasszajs.hu/docs/fizetesek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Fizetésből bizonylat" height="44"></picture></a>
+  <a href="https://kasszajs.hu/docs/receptek/stripe-webhook"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-stripe-webhook-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-recipe-stripe-webhook-light.svg" alt="Recept: Stripe webhook" height="44"></picture></a>
+</p>
+
+## NAV nyugta-adatszolgáltatás
+
+2026. szeptember 1-jétől a számítógéppel előállított nyugtákról is napi összesítőt kell küldeni a NAV-nak. A Számlázz.hu a nála kiállított nyugtákat a NAV összekötés után maga jelenti, a kassza abban segít, hogy ellenőrizd: minden napod megérkezett.
+
+<details>
+<summary><b>Napi összesítő és egyeztetés</b> · <code>navDailyReports()</code>, <code>reconcileNavReports()</code></summary>
+
+```ts
+import { createNavReceiptClient, reconcileNavReports } from 'kassza/nav'
+import { navDailyReports } from 'kassza/reports'
+
+const nav = createNavReceiptClient({
+  environment: 'production',
+  login: process.env.NAV_LOGIN!,
+  password: process.env.NAV_PASSWORD!,
+  signatureKey: process.env.NAV_SIGNATURE_KEY!,
+  taxNumber: process.env.NAV_TAX_NUMBER!,
+})
+
+const helyi = navDailyReports(nyugtak)
+const nalNav = await nav.listAllReports({ from: '2026-09-01', to: '2026-09-30' })
+const { missing, mismatched } = reconcileNavReports(helyi, nalNav)
+```
+
+A NAV kliens alapból csak olvas: a Számlázz.hu által jelentett nyugtákat ne küldd be te is, mert az kettős adatszolgáltatás. Beküldeni csak a kézi tartalék nyugtatömb összesítőjét kell (`paperReceiptReport()`).
+
+📖 **Dokumentáció:** [NAV nyugta-adatszolgáltatás](https://kasszajs.hu/docs/nav-nyugta)
+
+</details>
+
+<p>
+  <a href="https://kasszajs.hu/docs/nav-nyugta"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: NAV nyugta-adatszolgáltatás" height="44"></picture></a>
+</p>
+
+## Megbízotti számlázás
+
+Platformoknak, amelyek sok cég nevében állítanak ki bizonylatot, a cégek saját Számlázz.hu fiókjában.
+
+<details>
+<summary><b>Csatlakozás és kliens megbízónként</b> · <code>connectPrincipal()</code>, <code>createKasszaPool()</code></summary>
+
+```ts
+import { connectPrincipal, createKasszaPool } from 'kassza/delegation'
+
+const { status } = await connectPrincipal({
+  principal: {
+    name: 'Példa Kft.',
+    taxNumber: '12345676-2-42',
+    invoicePrefix: 'PLDA',
+    zip: '1111',
+    city: 'Budapest',
+    address: 'Fő utca 1.',
+    email: 'penzugy@pelda.hu',
+  },
+  user: { email: 'kassza+pelda@platform.hu', password: process.env.DELEGATE_PASSWORD!, firstName: 'Platform' },
+})
+
+const pool = createKasszaPool({ resolve: (megbizoId) => megbizoAdatai(megbizoId) })
+const kliens = await pool.get('pelda')
+await kliens.invoices.createOnce({ orderNumber: 'FOGLALAS-881', buyer, items })
+```
+
+A megbízó e-mailt kap, és a fiók birtokba vétele vagy a csatlakozási kérelem elfogadása után lehet a nevében kiállítani.
+
+📖 **Dokumentáció:** [Megbízotti számlázás](https://kasszajs.hu/docs/megbizott-szamlazas)
+
+</details>
+
+<p>
+  <a href="https://kasszajs.hu/docs/megbizott-szamlazas"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Megbízotti számlázás" height="44"></picture></a>
+</p>
+
+## Pénzügyi adatkapcsolat
+
+Könyvelő- és ERP-rendszereknek: a Számlázz.hu átküldi a kiállított és befogadott számlákat, a banki tranzakciókat és a nyugtákat.
+
+<details>
+<summary><b>Fogadó végpont</b> · <code>dataLinkHandler()</code></summary>
+
+```ts
+import { dataLinkHandler } from 'kassza/data-link'
+
+export const POST = dataLinkHandler({
+  verifyKey: async (kulcs) => (await ugyfelKulcsai()).includes(kulcs),
+  onPush: async (push) => {
+    const iktatoszam = await bizonylatMentese(push)
+    return { registrationNumber: iktatoszam }
+  },
+})
+```
+
+A kulcs ellenőrzése kötelező, mert az üzeneteknek nincs aláírása. A Számlázz.hu által elvárt válasz XML-t a kezelő készíti el.
+
+📖 **Dokumentáció:** [Pénzügyi adatkapcsolat](https://kasszajs.hu/docs/adatkapcsolat)
+
+</details>
+
+<p>
+  <a href="https://kasszajs.hu/docs/adatkapcsolat"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Pénzügyi adatkapcsolat" height="44"></picture></a>
 </p>
 
 ## PDF mentése tárhelyre
@@ -781,6 +961,28 @@ test('hálózati hibánál nem számláz kétszer', async () => {
 
 </details>
 
+<details>
+<summary><b>Hamis Számla Agent</b> · <code>createFakeAgentFetch()</code></summary>
+
+```ts
+import { createFakeAgentFetch } from 'kassza/testing'
+
+const agent = createFakeAgentFetch()
+const kassza = createKassza({ agentKey: 'teszt-kulcs', fetch: agent.fetch, retryDelayMs: 0 })
+
+agent.fail('ghostSuccess', { action: 'createInvoice' })
+const eredmeny = await kassza.invoices.createOnce({ orderNumber: 'WEB-1', buyer, items })
+
+eredmeny.created
+agent.invoices.size
+```
+
+A valódi kliens fut, csak a Számlázz.hu helyett egy memóriában futó hamis Agent válaszol. Elveszett választ, karbantartást, részleges sikert és a Számlázz.hu hibakódjait is szimulálja.
+
+📖 **Dokumentáció:** [Hamis Számla Agent](https://kasszajs.hu/docs/kiegeszitok/hamis-agent)
+
+</details>
+
 <p>
   <a href="https://kasszajs.hu/docs/kiegeszitok/teszteles"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Tesztelés" height="44"></picture></a>
   <a href="https://kasszajs.hu/sandbox?pelda=mock-kliens"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Mock kliens tesztekhez" height="44"></picture></a>
@@ -874,9 +1076,72 @@ await kassza.resetSession()
 
 </details>
 
+<details>
+<summary><b>Bizonylat-események és karbantartási szünet</b> · <code>onDocument</code>, <code>maintenanceCooldownMs</code></summary>
+
+```ts
+const kassza = createKassza({
+  maintenanceCooldownMs: 60_000,
+  hooks: {
+    onDocument: async (esemeny) => {
+      await auditNaplo(esemeny.kind, esemeny.action, esemeny.number)
+    },
+  },
+})
+```
+
+- Az `onDocument` minden kiállított és sztornózott bizonylat, valamint rögzített befizetés után lefut. Ha hibát dob, a bizonylat attól még elkészült.
+- A `maintenanceCooldownMs` karbantartási hiba után ennyi ideig nem küld kérést, hanem azonnal `maintenance` hibát ad, így átválthatsz tartalék folyamatra.
+
+📖 **Dokumentáció:** [Pontosan egyszer](https://kasszajs.hu/docs/alapok/pontosan-egyszer)
+
+</details>
+
 <p>
   <a href="https://kasszajs.hu/docs/alapok/halozat-es-biztonsag"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Hálózat és biztonság" height="44"></picture></a>
   <a href="https://kasszajs.hu/sandbox?pelda=hookok"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-sandbox-light.svg" alt="Futtasd a sandboxban: Hookok és újrapróbálás" height="44"></picture></a>
+</p>
+
+## Parancssor és MCP szerver
+
+<details>
+<summary><b>Parancssor</b> · <code>npx kassza</code></summary>
+
+```bash
+npx kassza doctor
+npx kassza xml preview szamla.json
+npx kassza invoice get --order REND-1001
+```
+
+A `doctor` ellenőrzi a Node.js-t, az Agent kulcsot, a gép óráját és a munkamenetet. Az `xml preview` kiírja a küldendő XML-t az Agent kulcs nélkül, így supportjegyhez is csatolható.
+
+📖 **Dokumentáció:** [Parancssor](https://kasszajs.hu/docs/kiegeszitok/parancssor)
+
+</details>
+
+<details>
+<summary><b>MCP szerver</b> · <code>npx kassza mcp</code></summary>
+
+```json
+{
+  "mcpServers": {
+    "kassza": {
+      "command": "npx",
+      "args": ["-y", "kassza", "mcp"],
+      "env": { "SZAMLAZZ_AGENT_KEY": "..." }
+    }
+  }
+}
+```
+
+Claude, Cursor és más MCP kliensek számára. Alapból csak olvas. Az `--allow-write` kapcsolóval kiállíthat és sztornózhat is, de minden íráshoz kell a megfelelő előnézeti eszköz megerősítő kódja.
+
+📖 **Dokumentáció:** [MCP szerver](https://kasszajs.hu/docs/kiegeszitok/mcp-szerver)
+
+</details>
+
+<p>
+  <a href="https://kasszajs.hu/docs/kiegeszitok/parancssor"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: Parancssor" height="44"></picture></a>
 </p>
 
 ## AI-val kódolsz?

@@ -1,4 +1,4 @@
-import { decodeUtf8 } from '../core/binary'
+import { readRequestText } from '../core/request-body'
 import { WebhookVerificationError } from './errors'
 import type { PaymentProvider } from './types'
 
@@ -12,34 +12,12 @@ function tooLarge(provider: PaymentProvider, maxBytes: number): WebhookVerificat
   )
 }
 
-export async function readRawBody(
+export function readRawBody(
   request: Request,
   provider: PaymentProvider,
   maxBytes: number = DEFAULT_MAX_WEBHOOK_BYTES,
 ): Promise<string> {
-  const declared = Number(request.headers.get('content-length'))
-  if (Number.isFinite(declared) && declared > maxBytes) throw tooLarge(provider, maxBytes)
-  if (!request.body) return ''
-  const reader = request.body.getReader()
-  const chunks: Uint8Array[] = []
-  let total = 0
-  for (;;) {
-    const chunk = await reader.read()
-    if (chunk.done) break
-    total += chunk.value.byteLength
-    if (total > maxBytes) {
-      await reader.cancel().catch(() => undefined)
-      throw tooLarge(provider, maxBytes)
-    }
-    chunks.push(chunk.value)
-  }
-  const bytes = new Uint8Array(total)
-  let offset = 0
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset)
-    offset += chunk.byteLength
-  }
-  return decodeUtf8(bytes)
+  return readRequestText(request, maxBytes, () => tooLarge(provider, maxBytes))
 }
 
 export function parseJsonObject(

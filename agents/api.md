@@ -12,12 +12,14 @@ const kassza = createKassza({
   username?: string, password?: string,
   defaults?: { invoice?: InvoiceDefaults, receipt?: ReceiptDefaults },
   cookieStore?: CookieStore | false,
+  attemptLedger?: CookieStore,
   timeoutMs?: number,
   maxAttempts?: number,
   retryDelayMs?: number,
+  maintenanceCooldownMs?: number,
   fetch?: typeof fetch,
   endpoint?: string,
-  hooks?: { onRequest?, onResponse?, onError? },
+  hooks?: { onRequest?, onResponse?, onError?, onDocument? },
 })
 ```
 
@@ -27,12 +29,16 @@ const kassza = createKassza({
 - `timeoutMs` defaults to 60000.
 - `maxAttempts` defaults to 3 and is capped at 5. It applies only to operations that are safe to retry.
 - `hooks` receive events for logging. They never receive the XML payload or the key.
+- `attemptLedger` is a shared store with the `CookieStore` interface (for example `upstashRedisCookieStore(redis)` from `kassza/cookie-stores`). It counts failed attempts of identical requests across processes for a day. After 5 failures kassza throws an `attempt_limit` error without sending the request; after a human fixed the cause, call `kassza.resetAttempts(error)`.
+- `maintenanceCooldownMs` defaults to 0. When set, a maintenance error (code 1) blocks all requests of the client for that long, and they fail at once with category `maintenance`.
+- `hooks.onDocument(event)` runs after every created or reversed document and every registered payment, with `{ kind: 'invoice' | 'receipt', action: 'created' | 'reversed' | 'payment', number, document }` (plus `reversedNumber` for reversals and `input` for created invoices). It is awaited, and an error thrown in it is logged, never rethrown.
 
 ## Invoices: `kassza.invoices`
 
 | Method | Returns | Retried automatically |
 |---|---|---|
 | `create(input: CreateInvoiceInput)` | `CreatedInvoice` | never |
+| `createOnce(input: CreateInvoiceInput, options?: CreateOnceOptions)` | `InvoiceOnceResult` | never resends; looks the invoice up instead |
 | `preview(input: CreateInvoiceInput)` | `InvoicePreview` (PDF only, no document is created) | never |
 | `reverse(input: string \| ReverseInvoiceOptions)` | `ReversedInvoice` | never |
 | `registerPayment(input: RegisterPaymentInput)` | `RegisteredPayment` | only when `additive: false` |
@@ -43,6 +49,19 @@ const kassza = createKassza({
 | `deleteProforma(ref: string \| { proformaNumber } \| { orderNumber })` | `void` | never |
 
 `InvoiceReference` is `string` (the invoice number), `{ invoiceNumber }`, `{ orderNumber }`, or `{ externalId }`. When several documents share an order number, the latest one is returned.
+
+### createOnce
+
+`invoices.createOnce(input, { lookupFirst?, matchOrderNumber?, recoveryDelayMs?, signal? })` makes invoicing exactly-once:
+
+1. It looks the invoice up by external ID (and, with `matchOrderNumber`, by order number) and returns it if it exists.
+2. Otherwise it creates the invoice.
+3. After an uncertain failure (`network`, `timeout`, `partial_success`, `duplicate`, `unexpected_response`, `unknown`) it looks the invoice up twice more, after `recoveryDelayMs` (default 1000, doubled for the second lookup).
+
+- `orderNumber` is required. The external ID defaults to the order number with a suffix per type: `/D` proforma, `/E` advance, `/V` final, `/H` corrective, `/SZL` delivery note, none for a normal invoice. Pass `externalId` to override it.
+- `lookupFirst` and `matchOrderNumber` default to `true`.
+- It returns `InvoiceOnceResult`: `{ number, created, externalId, invoice?: CreatedInvoice, details?: InvoiceDetails }`. `created` is `false` when the invoice already existed.
+- If the outcome stays unknown, it rethrows the original error with `details.outcome: 'unknown'`. Do not create the invoice by hand then; call `createOnce` again later.
 
 ### CreateInvoiceInput
 
@@ -136,6 +155,8 @@ Notes on the fields:
 | Method | Returns | Retried automatically |
 |---|---|---|
 | `create(input: CreateReceiptInput)` | `Receipt` | only with `callId` |
+| `createOnce(input: CreateReceiptInput, options?: CreateOnceOptions)` | `{ receipt: Receipt, created: boolean }` | only with `callId` (defaults to `orderNumber`) |
+| `convertToInvoice(input: ConvertReceiptInput, options?: CreateOnceOptions)` | `ConvertedReceipt` | never resends; looks the invoice up instead |
 | `reverse(input: string \| { receiptNumber, callId?, downloadPdf?, template? })` | `Receipt` | only with `callId` |
 | `get(input: string \| { receiptNumber } \| { orderNumber }, + downloadPdf?)` | `Receipt` | yes |
 | `find(same as get)` | `Receipt \| null` | yes |
@@ -161,9 +182,12 @@ Notes on the fields:
 
 `Receipt` is `{ id, number, callId?, type: 'receipt' | 'reversal', isReversed, reversedReceiptNumber?, issueDate, paymentMethod, currency, orderNumber?, items, payments, totals: { netAmount, vatAmount, grossAmount, byVat }, pdf? }`.
 
+- `receipts.createOnce` requires `orderNumber`, uses it as `callId` unless you give one, looks the receipt up by order number first (skip with `lookupFirst: false`), and after error 338 or another uncertain failure returns the receipt that already exists.
+- `receipts.convertToInvoice({ receiptNumber, buyer, orderNumber?, prefix?, comment?, language?, template?, seller?, eInvoice?, downloadPdf?, vatMapping?, allowAlreadyReversed? })` reverses the receipt and issues an invoice for the same items to `buyer`, exactly once. It returns `{ receipt, reversal?, invoice: InvoiceOnceResult }`. The invoice external ID is `CONV/{receiptNumber}`. Receipt-only VAT codes (`ÁKK`, `MAA`, `EU`, `EUK`) need a `vatMapping` entry, chosen with an accountant.
+
 ## Taxpayer: `kassza.taxpayer`
 
-`query(taxNumber: string): TaxpayerInfo` accepts `12345678`, `12345678-2-42` or `HU12345678`.
+`query(taxNumber: string): TaxpayerInfo` accepts `12345676`, `12345676-2-42` or `HU12345676`.
 
 `TaxpayerInfo` is `{ valid, name?, shortName?, taxNumber?: { taxpayerId, vatCode?, countyCode?, formatted? }, address?: TaxpayerAddress, addresses, incorporation?, infoDate? }`, and `TaxpayerAddress.formatted` looks like `'1031 Budapest, Záhony utca 7.'`.
 
@@ -171,6 +195,29 @@ Notes on the fields:
 
 - `kassza.verifyCredentials(): Promise<boolean>` returns `false` for a wrong key and throws for account problems.
 - `kassza.resetSession()` clears the session. Call it after changing account data in Számlázz.hu.
+- `kassza.resetAttempts(errorOrKey)` clears the `attemptLedger` counter of an `attempt_limit` error (or of its `details.attemptKey`).
+- `kassza.issueForPayment(payment, options?)` issues a receipt or invoice for a `PaymentEvent`, exactly once. See `kassza/payments` below.
+
+## Receipt or invoice: `chooseDocument`
+
+```ts
+import { chooseDocument } from 'kassza'
+
+const decision = chooseDocument({
+  grossTotal: 18_990,
+  currency: 'HUF',
+  exchangeRate?: number,
+  buyer?: { taxNumber?, euTaxNumber?, isBusiness? },
+  paidByFulfillment?: boolean,
+  invoiceRequested?: boolean,
+  cashRegisterRequired?: boolean,
+})
+```
+
+- It returns `{ type: 'receipt' | 'invoice' | 'cash-register', reasons: string[], grossTotalHuf }` and makes no network call.
+- `invoice` means at least one of the four receipt conditions fails: a business buyer, a total of 900 000 HUF or more, not paid by fulfilment (`paidByFulfillment: false`), or `invoiceRequested: true`. `reasons` says which, in Hungarian.
+- `cash-register` means a receipt would be due, but the activity needs an online cash register (`cashRegisterRequired: true`), so an Agent receipt must not be issued. An invoice is still allowed.
+- Foreign currency totals need `exchangeRate`, because the limit is in HUF.
 
 ## Subpath modules
 
@@ -183,6 +230,17 @@ createMockKassza({ defaults?, taxpayers?: Record<taxpayerId, TaxpayerInfo>, cred
 - A `MockKassza` has the same interface as `Kassza`, plus `calls`, `invoiceRecords`, `receiptRecords`, `failNext(method, error?)` and `reset()`.
 - The method names used in `calls` and `failNext` look like `'invoices.create'` and `'receipts.send'`.
 - The mock runs the real validation and rounding, and throws the same error codes: 7, 335, 338 and 339.
+- `createMockKassza({ hooks: { onDocument } })` fires the same document events as the real client.
+
+```ts
+createFakeAgentFetch(options?: FakeAgentOptions): FakeAgent
+```
+
+- A fake Számla Agent behind a `fetch`: pass `agent.fetch` to the real `createKassza({ agentKey, fetch: agent.fetch, retryDelayMs: 0 })`. It parses the real request XML, numbers documents, applies the Számlázz.hu rules (259–261, 336–340, 363–365, 395, 152, 202, 524, 7, 335, 339, 53, 57, 3) and answers in the real response formats.
+- `FakeAgent` is `{ fetch, requests, invoices, receipts, fail(fault, { action?, times? }), acceptDelegation(taxNumber), reset() }`.
+- Faults: `'ghostSuccess'` (created, but the response is lost), `'timeout'`, `'networkError'`, `'serverError'`, `'maintenance'`, `'partialSuccess'` (56), `'testAccountLimit'` (167), `'duplicateCallId'` (338), `'duplicateOrderNumber'` (152), or `{ code, message?, afterSuccess? }`.
+- Options: `now`, `agentKeys` and `users` (strict authentication), `testAccount` (default `true`), `invoicePrefixes`, `defaultInvoicePrefix` (default `KASSZA`), `receiptPrefixes`, `rejectDuplicateOrderNumbers` (`boolean` or `{ invoices?, receipts? }`), `seller`, `taxpayers`, `principals` (`{ [taxNumber]: 'owned' | 'unowned' }`), `faults`.
+- Use the mock for business logic, and the fake Agent for webhooks, retries and `createOnce` recovery.
 
 ### `kassza/ipn`
 
@@ -205,3 +263,108 @@ createMockKassza({ defaults?, taxpayers?: Record<taxpayerId, TaxpayerInfo>, cred
 - `calculateInvoiceItem(input, currency?)` and `calculateReceiptItem(input, currency?)` return `ItemAmounts`.
 - `summarizeItems(items)` returns `{ netAmount, vatAmount, grossAmount, byVat }`.
 - `roundMoney(value, decimals)`, `isVatRate(value)`, `NUMERIC_VAT_RATES`, `SPECIAL_VAT_CODES`.
+
+### `kassza/storage` and `kassza/cookie-stores`
+
+- `storePdf(storage, key, pdf)` and `invoicePdfKey({ number })` save PDFs through adapters: `s3FetchStorage`, `s3Storage`, `r2BindingStorage`, `vercelBlobStorage`, `uploadthingStorage`, `supabaseStorage`, `memoryStorage`, and `fsStorage` from `kassza/storage/fs`.
+- Session and attempt-ledger stores: `upstashRedisCookieStore`, `ioredisCookieStore`, `nodeRedisCookieStore`, `cloudflareKvCookieStore`, `customCookieStore({ get, set, delete })`, `memoryCookieStore`.
+
+### `kassza/payments`
+
+Webhook handlers are `(request: Request) => Promise<Response>`, usable directly as Next.js route handlers, in Hono or in Workers. Each one verifies the request, turns it into a `PaymentEvent` and calls `onPayment`:
+
+| Import | Handler | Required options |
+|---|---|---|
+| `kassza/payments/stripe` | `stripeWebhook` | `secret` (string or array for rotation); optional `apiKey` to load line items and refunds |
+| `kassza/payments/simplepay` | `simplePayWebhook` | `secretKey` or `merchants` |
+| `kassza/payments/barion` | `barionWebhook` | `posKey` |
+| `kassza/payments/revolut` | `revolutWebhook` | `secret`, `apiKey` |
+| `kassza/payments/paypal` | `payPalWebhook` | `webhookId`, `clientId`, `clientSecret` |
+
+- Common options: `onPayment(payment)`, `onError?(error)`, `method?` (the payment method written on the document), `maxBodyBytes?`, `fetch?`; `sandbox?` where the provider has one.
+- Responses: `400` for a bad signature or payload (never reaches `onPayment`), `200` on success (`204` for Revolut, a signed JSON for SimplePay), `500` when `onPayment` throws, so the provider redelivers.
+- `PaymentEvent` is `{ provider, kind: 'paid' | 'refunded' | 'partially-refunded' | 'failed' | 'other', id, eventId?, eventType?, orderRef?, amount?: { value, currency }, refundedAmount?, paidAt?, method, customer?, items?, raw }`. Amounts are in major units (12700 HUF, not minor units).
+
+```ts
+const result = await kassza.issueForPayment(payment, {
+  vat?: VatRate,
+  vatFor?: (item: PaymentLineItem) => VatRate,
+  items?: PaymentDocumentItem[],
+  fallbackItemName?: string,
+  document?: 'auto' | 'receipt' | 'invoice',
+  buyer?: InvoiceBuyer,
+  buyerIsBusiness?, invoiceRequested?, cashRegisterRequired?,
+  orderNumber?: string,
+  exchangeRate?, exchangeBank?,
+  allowAmountMismatch?: boolean,
+  receipt?: Partial<CreateReceiptInput>,
+  invoice?: Partial<CreateInvoiceInput>,
+})
+```
+
+- `paid`: chooses receipt or invoice with `chooseDocument` (override with `document`) and issues it with `createOnce`. `refunded`: reverses that document exactly once. `partially-refunded`, `failed` and `other`: skipped, because a partial refund needs a corrective document decided by a human.
+- The order number defaults to `{PROVIDER}-{payment id}`, for example `STRIPE-pi_123`, so the payment and its refund share it.
+- Items come from `items`, then the provider's line items, then one item with the paid amount (`fallbackItemName`). VAT comes from `vatFor`, the provider's per-item rate, then `vat`. Without any, it throws `validation`: kassza never guesses VAT.
+- The document total must equal the paid amount, unless `allowAmountMismatch: true`.
+- It returns `{ kind: 'receipt', number, created, receipt, decision, orderNumber }`, `{ kind: 'invoice', number, created, invoice, decision, orderNumber }`, `{ kind: 'reversal', document, reversedNumber, number?, created, orderNumber }` or `{ kind: 'skipped', reason, orderNumber }`.
+- `issueForPayment(api, payment, options)` from `kassza/payments` does the same with any object that has `invoices` and `receipts` (`createOnce`, `find`, `reverse`), for example a delegated client.
+
+### `kassza/delegation`
+
+```ts
+connectPrincipal({ principal, user }, { agentKey?, verifyTaxNumber?, ... }): Promise<ConnectPrincipalResult>
+probeDelegation({ username, password, ... }): Promise<DelegationProbeResult>
+createDelegateKassza({ username, password, invoicePrefix, receiptPrefix?, defaults?, ... }): Kassza
+createKasszaPool({ resolve, maxClients?, ... }): KasszaPool
+```
+
+- `connectPrincipal` (the Agent call `action-agent_ceg_mb`) creates or links a principal's account. `principal` is `{ name, taxNumber, invoicePrefix, zip, city, address, email, postalAddress?, bankName?, bankAccount?, replyToEmail?, cashAccountingFrom?, cashAccountingTo?, kataFrom?, kataTo? }`; `user` is the dedicated user `{ email, password (8–128 characters), firstName, lastName? }`. The tax number must pass the checksum, and the prefix is at most 5 uppercase letters or digits.
+- Its `status` is `'account-created'`, `'owner-invite-resent'`, `'join-request-sent'`, `'join-request-resent'` or `'unknown'`. Every call emails the principal again, so never call it in a loop.
+- `probeDelegation` signs in as the dedicated user and returns `state`: `'active'`, `'awaiting-approval'` (error 3), `'awaiting-owner-registration'` (error 250) or `'multi-account-user'` (error 164). It also re-sends the owner invitation, so call it rarely.
+- `createDelegateKassza` returns a normal `Kassza` that authenticates as the dedicated user and sends the principal's prefix on every document.
+- `createKasszaPool({ resolve: (principalId) => credentials | undefined })` caches clients per principal (LRU, `maxClients` default 100): `get(principalId)`, `forget(principalId)`, `clear()`, `size`.
+- `suggestedPrefix(error)` reads the prefix Számlázz.hu suggests in error 356.
+
+### `kassza/reports`
+
+- `navDailyReports(receipts: Receipt[], { includeTest?, vatCategory?, series? }): NavReceiptReport[]` builds the NAV daily receipt report: one entry per day, receipt series and currency, with `applicableDate`, `series`, `serialNumber` (the first receipt number), `currency`, `exchangeRate`, `vatCategories: [{ vat, saleDocument, modifyingDocument }]`, `total`, `numberOfSaleDocument`, `numberOfModifyingDocument`, `receiptNumbers`. Test-account receipts are skipped unless `includeTest`.
+- `dailyClose(receipts, { includeTest? })` returns per-day totals by payment method and VAT rate.
+- `navVatCategory(vat)` maps a VAT rate to the NAV category (`0%`, `5%`, `18%`, `27%`, `Alanyi adómentes`, `Egyéb`); `describeNavReport(report)` gives a one-line Hungarian summary.
+
+### `kassza/nav`
+
+```ts
+const nav = createNavReceiptClient({
+  environment: 'test' | 'production',
+  login, password | passwordHash, signatureKey, taxNumber,
+  softwareName?, allowWrite?: boolean, timeoutMs?, fetch?,
+})
+```
+
+- Reads: `listReports({ from, to, page?, pageSize? })`, `listAllReports({ from, to })`, `getReport(id)`, `listSoftware()`, `vatCategories()`, `currencies()`.
+- Writes (`submitReport(data)`, `modifyReport(id, data)`, `invalidateReport(id)`, `registerSoftware(name?)`) throw `write_blocked` unless `allowWrite: true`. Never submit receipts that Számlázz.hu reports.
+- `reconcileNavReports(local, remote)` compares local daily reports (for example `navDailyReports()` output) with `listAllReports()` and returns `{ matched, mismatched, missing, unexpected }`.
+- `paperReceiptReport({ applicableDate, currency?, exchangeRate?, entries: [{ number, vat, gross, modifying? }] })` builds the daily report of a paper receipt pad, the one thing you submit yourself.
+- Errors are `NavReceiptError` with `category`, `code`, `hint` and field errors.
+
+### `kassza/data-link`
+
+```ts
+export const POST = dataLinkHandler({
+  keys?: string[],
+  verifyKey?: (key, push) => boolean | 'KEY_ERR' | 'KEY_DEL' | Promise<...>,
+  onPush: (push) => void | { registrationNumber?, keyError? },
+  onError?, maxBodyBytes?,
+})
+```
+
+- Receives the Számlázz.hu financial data link (PUSH). Either `keys` or `verifyKey` is required, because the requests are not signed; the key is in the `X-Szamlazzhu-Key` header.
+- `push.kind` is `'invoice'` or `'incoming-invoice'` (`{ id, invoice: InvoiceDetails, deleted }`), `'bank-transaction'` (`{ transaction }`) or `'receipts'` (`{ receipts: [{ receipt, issuerTaxNumber? }] }`).
+- The handler builds the required response XML. Return `registrationNumber` to store your filing number for invoices. Use the `id` field as the key: the same invoice can arrive again after a payment or reversal.
+- `400` for bad XML (Számlázz.hu retries), `500` when `onPush` throws (retries for 72 hours), `KEY_ERR` for an unknown key, `KEY_DEL` to switch the link off for that customer.
+
+### `kassza/mcp` and the CLI
+
+- `createKasszaMcpServer({ ...KasszaOptions, allowWrite?, confirmationSecret?, confirmationTtlMs? })` is a runtime-neutral Model Context Protocol server; `connect()` returns `{ handle(message), handleLine(line) }`.
+- `npx kassza mcp` runs it over stdio. Tools: `preview_invoice`, `preview_receipt`, `preview_reversal`, `get_invoice`, `get_receipt`, `query_taxpayer`, `nav_daily_summary`, and with `--allow-write` (or `KASSZA_MCP_ALLOW_WRITE=1`) `create_invoice`, `create_receipt`, `reverse_invoice`, `reverse_receipt`. Write tools need the confirmation code returned by the matching preview tool for exactly the same input.
+- Other commands: `kassza doctor` (Node, time zone, key, clock skew, session), `kassza verify`, `kassza xml preview <file.json>` (the XML kassza would send, with the key masked), `kassza invoice get`, `kassza receipt get`, `kassza nav summary --file receipts.json`. Exit codes: 0 success, 1 error, 2 usage.

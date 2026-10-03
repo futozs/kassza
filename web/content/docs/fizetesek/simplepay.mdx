@@ -1,0 +1,99 @@
+---
+title: SimplePay
+description: OTP SimplePay v2 IPN-ből nyugta vagy számla a kassza/payments/simplepay kezelővel. Aláírás-ellenőrzés, aláírt IPN-visszaigazolás, tranzakció-lekérdezés, több kereskedői fiók és a visszairányítás ellenőrzése.
+---
+
+A SimplePay minden lezárt fizetésről és visszatérítésről IPN üzenetet küld. A `simplePayWebhook()` ellenőrzi az aláírást (HMAC-SHA384), lekérdezi a tranzakció részleteit, meghívja az `onPayment` függvényedet, majd a SimplePay által elvárt aláírt visszaigazolással válaszol. Ha a visszaigazolás elmarad vagy hibás, a SimplePay újraküldi az IPN-t.
+
+## Beállítás
+
+A SimplePay kereskedői felületén az IPN URL legyen a végpontod, például `https://bolt.example.hu/api/simplepay/ipn`. A titkos kulcs (SECRET_KEY) a kereskedői fiók adatai között van.
+
+```dotenv title=".env.local"
+SIMPLEPAY_SECRET_KEY=...
+```
+
+## A webhook
+
+```ts title="app/api/simplepay/ipn/route.ts"
+import { simplePayWebhook } from 'kassza/payments/simplepay'
+import { kassza } from '@/lib/kassza'
+import { rendelesTetelei } from '@/lib/rendelesek'
+
+export const POST = simplePayWebhook({
+  secretKey: process.env.SIMPLEPAY_SECRET_KEY!,
+  onPayment: async (payment) => {
+    const items = payment.orderRef ? await rendelesTetelei(payment.orderRef) : undefined
+    await kassza.issueForPayment(payment, { vat: 27, items })
+  },
+})
+```
+
+A SimplePay IPN-je nem tartalmaz tételeket. A recept ezért a saját rendelésedből tölti be őket a `orderRef` alapján. Tételek nélkül a bizonylat egyetlen tételből áll a kifizetett összeggel.
+
+| Opció | Alapérték | Jelentés |
+| --- | --- | --- |
+| `secretKey` | – | A kereskedői fiók titkos kulcsa. |
+| `merchants` | – | Több kereskedői fiók: `{ MERCHANT: 'kulcs' }` vagy `{ MERCHANT: { secretKey, method } }`. |
+| `fetchDetails` | `true` | Lekérdezi a tranzakciót (összeg, pénznem, vevő, visszatérítések). |
+| `sandbox` | `false` | A sandbox API-t hívja. |
+| `method` | – | Fix fizetési mód. Alapból bankkártyás fizetésnél `bankkártya`, átutalásnál `átutalás`. |
+| `onPayment`, `onError`, `maxBodyBytes` | – | Lásd [Fizetésből bizonylat](/docs/fizetesek#a-webhook-válaszai). |
+
+## Állapotok
+
+| SimplePay állapot | `kind` |
+| --- | --- |
+| `FINISHED` | `paid` |
+| `REFUND`, egyetlen teljes visszatérítés | `refunded` |
+| `REFUND`, részleges vagy több részletben | `partially-refunded` |
+| `NOTAUTHORIZED`, `FRAUD`, `TIMEOUT`, `CANCELLED`, `REVERSED` | `failed` |
+| Egyéb | `other` |
+
+A visszatérítés fajtáját a tranzakció lekérdezése alapján dönti el. Ha a lekérdezés nem adja vissza a tranzakciót, a kezelő `500`-at ad, és a SimplePay később újraküldi az IPN-t.
+
+## Több kereskedői fiók
+
+A SZÉP-kártyás fizetés például külön kereskedői fiókkal megy. A `merchants` opcióban fiókonként adhatod meg a kulcsot és a bizonylatra kerülő fizetési módot:
+
+```ts
+export const POST = simplePayWebhook({
+  merchants: {
+    [process.env.SIMPLEPAY_MERCHANT!]: process.env.SIMPLEPAY_SECRET_KEY!,
+    [process.env.SIMPLEPAY_SZEP_MERCHANT!]: {
+      secretKey: process.env.SIMPLEPAY_SZEP_SECRET_KEY!,
+      method: 'SZÉP kártya',
+    },
+  },
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+Ismeretlen kereskedő IPN-jére a kezelő `400`-at ad.
+
+## A visszairányítás ellenőrzése
+
+A fizetés után a SimplePay a vevőt az `r` és `s` paraméterrel irányítja vissza az oldaladra. A `verifySimplePayRedirect()` ellenőrzi az aláírást, és visszaadja az eredményt. A bizonylatot ne itt állítsd ki: a visszairányítás elmaradhat, az IPN viszont megérkezik.
+
+```ts title="app/fizetes/vissza/page.tsx"
+import { verifySimplePayRedirect } from 'kassza/payments/simplepay'
+
+export default async function Vissza({ searchParams }: { searchParams: Promise<Record<string, string>> }) {
+  const eredmeny = await verifySimplePayRedirect(
+    new URLSearchParams(await searchParams),
+    process.env.SIMPLEPAY_SECRET_KEY!,
+  )
+  return <p>{eredmeny.event === 'SUCCESS' ? 'Köszönjük a fizetést!' : 'A fizetés nem sikerült.'}</p>
+}
+```
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Fizetésből bizonylat" href="/docs/fizetesek">
+    Az issueForPayment döntései, tételek, áfa és hibakezelés.
+  </Card>
+  <Card title="Barion" href="/docs/fizetesek/barion">
+    A másik nagy hazai fizetési szolgáltató.
+  </Card>
+</Cards>

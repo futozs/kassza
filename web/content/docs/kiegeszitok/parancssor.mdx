@@ -1,0 +1,96 @@
+---
+title: Parancssor
+description: A kassza parancs (npx kassza). Környezetellenőrzés a doctor paranccsal, Agent kulcs ellenőrzése, a küldendő XML előnézete supportjegyhez, bizonylat lekérdezése és napi NAV nyugta-összesítő.
+---
+
+A csomag egy `kassza` parancsot is ad. Telepítés nélkül az `npx kassza` futtatja, egy projektben a `node_modules/.bin/kassza`. Node.js 22 vagy újabb kell hozzá. Az Agent kulcsot a `SZAMLAZZ_AGENT_KEY` környezeti változóból veszi.
+
+```bash
+npx kassza help
+```
+
+## doctor
+
+```bash
+npx kassza doctor
+```
+
+```text
+✓ Node.js 22.11.0
+✓ Időzóna-adatok: Europe/Budapest elérhető.
+✓ Agent kulcs: 40 karakter, kisbetűs.
+✓ Hitelesítés: a Számlázz.hu elfogadta az Agent kulcsot.
+! Óra: a gép órája 9,5 mp-et siet; éjfél körül 9,5 mp ideig rossz napra kerülhet a bizonylat kelte (352-es hiba). Szinkronizáld az órát (NTP).
+✓ Munkamenet: a Számlázz.hu munkamenet-sütit adott, a kassza újrahasznosítja.
+- Fiók típusa: add meg egy meglévő bizonylat számát (--invoice vagy --receipt), abból kiderül, hogy teszt- vagy éles fiók.
+
+Összegzés: 0 hiba, 1 figyelmeztetés.
+```
+
+| Ellenőrzés | Mit néz |
+| --- | --- |
+| Node.js | Legalább 22-es verzió. |
+| Időzóna-adatok | Elérhető-e az `Europe/Budapest` időzóna (a kassza ebben számolja a dátumokat). |
+| Agent kulcs | Megvan-e, kisbetűs-e, nincs-e körülötte szóköz. A kulcsot nem írja ki. |
+| Hitelesítés | Egy nem létező számla lekérésével próbálja ki a kulcsot; bizonylatot nem hoz létre. |
+| Óra | A gép órájának eltérése a Számlázz.hu válaszának `Date` fejlécétől. Éjfél körül néhány másodperc eltérés is rossz kelte dátumot okozhat. |
+| Munkamenet | Kapott-e munkamenet-sütit. Ha egy proxy kiszűri, minden kérés új bejelentkezés lesz. |
+| Fiók típusa | A `--invoice <számlaszám>` vagy `--receipt <nyugtaszám>` megadásával a bizonylatból megállapítja, teszt- vagy éles fiók-e. |
+
+Hiba esetén 1-es kilépési kóddal áll le, így CI-ban vagy telepítési szkriptben is használható. A `--json` kapcsoló gépi feldolgozásra alkalmas kimenetet ad.
+
+## verify
+
+```bash
+npx kassza verify
+```
+
+Csak az Agent kulcsot ellenőrzi. Érvényes kulcsnál 0, elutasított kulcsnál 1 a kilépési kód.
+
+## xml preview
+
+A Számlázz.hu ügyfélszolgálata egy hibánál leggyakrabban a pontos XML-t kéri. Az `xml preview` kiírja azt az XML-t, amit a kassza az adott bemenetre küldene. Az Agent kulcs helyén `***` áll, így a kimenet nyugodtan elküldhető.
+
+```bash
+npx kassza xml preview szamla.json
+npx kassza xml preview nyugta.json --type receipt --defaults alapok.json
+cat szamla.json | npx kassza xml preview -
+```
+
+A bemenet a `invoices.create()` (vagy `--type receipt` esetén a `receipts.create()`) bemenete JSON-ban. Az alapértelmezéseket a `--defaults` fájlban (a `createKassza()` `defaults` opciója), vagy egy `{ "defaults": …, "input": … }` szerkezetű bemenetben is megadhatod.
+
+## invoice get, receipt get
+
+```bash
+npx kassza invoice get WEB-2026-118
+npx kassza invoice get --order RENDELES-42
+npx kassza invoice get --external CRM-42
+npx kassza receipt get NYGT-2026-31
+npx kassza receipt get --order RENDELES-42
+```
+
+A bizonylatot JSON-ban írja ki, PDF nélkül. Ha nincs ilyen bizonylat, 1-es kóddal áll le.
+
+## nav summary
+
+```bash
+npx kassza nav summary --file nyugtak.json --from 2026-09-01 --to 2026-09-30
+```
+
+Egy JSON fájlban lévő nyugtalistából (kassza `Receipt` objektumok tömbje, vagy `{ "receipts": [...] }`) elkészíti a [napi NAV-összesítőt](/docs/nav-nyugta/napi-osszesito). A `--from` és `--to` a kelte szerint szűr, az `--include-test` a tesztfiókos nyugtákat is beveszi, a `--json` gépi kimenetet ad.
+
+## mcp
+
+```bash
+npx kassza mcp
+```
+
+MCP szervert indít a szabványos bemeneten és kimeneten, AI asszisztensekhez. Lásd [MCP szerver](/docs/kiegeszitok/mcp-szerver).
+
+## Kilépési kódok
+
+| Kód | Jelentés |
+| --- | --- |
+| `0` | Sikeres |
+| `1` | Hiba (hitelesítés, Számlázz.hu hiba, nem található bizonylat, hibás fájl) |
+| `2` | Hibás használat (ismeretlen parancs vagy kapcsoló) |

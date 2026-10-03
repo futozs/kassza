@@ -70,35 +70,39 @@ function roundingRuleFor(kind: DocumentKind, currency: string | undefined): Roun
   return { netDecimals: 0, vatDecimals: 0, grossDecimals: 0 }
 }
 
+function splitGross(
+  grossAmount: number,
+  percentage: number,
+  rule: RoundingRule,
+): { readonly netAmount: number; readonly vatAmount: number } {
+  const vatAmount = roundMoney((grossAmount * percentage) / (100 + percentage), rule.vatDecimals)
+  return { netAmount: roundMoney(grossAmount - vatAmount, rule.netDecimals), vatAmount }
+}
+
+function hasConsistentVat(netAmount: number, vatAmount: number, percentage: number): boolean {
+  if (percentage === 0) return vatAmount === 0
+  return Math.sign(vatAmount) === Math.sign(netAmount)
+}
+
 function fromNet(
   input: ItemPriceInput & { netUnitPrice: number },
   quantity: number,
   rule: RoundingRule,
 ): ItemAmounts {
   const percentage = vatPercentage(input.vat)
+  const base = { quantity, vat: input.vat, netUnitPrice: input.netUnitPrice }
   const netAmount = roundMoney(input.netUnitPrice * quantity, rule.netDecimals)
   if (rule.grossDecimals < rule.netDecimals) {
     const grossAmount = roundMoney(netAmount * (1 + percentage / 100), rule.grossDecimals)
     const vatAmount = roundMoney(grossAmount - netAmount, rule.vatDecimals)
-    return {
-      quantity,
-      vat: input.vat,
-      netUnitPrice: input.netUnitPrice,
-      netAmount,
-      vatAmount,
-      grossAmount,
+    if (hasConsistentVat(netAmount, vatAmount, percentage)) {
+      return { ...base, netAmount, vatAmount, grossAmount }
     }
+    return { ...base, ...splitGross(grossAmount, percentage, rule), grossAmount }
   }
   const vatAmount = roundMoney((netAmount * percentage) / 100, rule.vatDecimals)
   const grossAmount = roundMoney(netAmount + vatAmount, rule.grossDecimals)
-  return {
-    quantity,
-    vat: input.vat,
-    netUnitPrice: input.netUnitPrice,
-    netAmount,
-    vatAmount,
-    grossAmount,
-  }
+  return { ...base, netAmount, vatAmount, grossAmount }
 }
 
 function fromGross(
@@ -108,8 +112,7 @@ function fromGross(
 ): ItemAmounts {
   const percentage = vatPercentage(input.vat)
   const grossAmount = roundMoney(input.grossUnitPrice * quantity, rule.grossDecimals)
-  const vatAmount = roundMoney((grossAmount * percentage) / (100 + percentage), rule.vatDecimals)
-  const netAmount = roundMoney(grossAmount - vatAmount, rule.netDecimals)
+  const { netAmount, vatAmount } = splitGross(grossAmount, percentage, rule)
   return {
     quantity,
     vat: input.vat,

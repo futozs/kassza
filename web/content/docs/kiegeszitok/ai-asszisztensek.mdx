@@ -5,6 +5,12 @@ description: A kassza csomagban szállított agents mappa és az llms.txt haszn�
 
 Az AI kódoló asszisztensek a Számlázz.hu integrációt gyakran a saját, elavult emlékeikből írják. Ilyenkor maguk számolják az áfát, ciklusban küldik újra a sikertelen számlát, vagy UTC dátumot adnak át. A kassza csomagban ezért van egy `agents/` mappa, amely az asszisztensnek szól. Pontosan a telepített verzió API-ját írja le, és felsorolja a buktatókat is.
 
+<Callout type="info" title="Nem kódot íratnál, hanem számláznál?">
+  Ez az oldal arról szól, hogyan írjon az AI jó kódot a kasszával. Ha azt szeretnéd, hogy egy
+  asszisztens (Claude, Cursor) közvetlenül állítson ki vagy kérdezzen le bizonylatot, az [MCP
+  szerver](/docs/kiegeszitok/mcp-szerver) kell.
+</Callout>
+
 ## Mi van a csomagban?
 
 Az npm csomag az `agents/` mappát és az `llms.txt` fájlt is tartalmazza, így telepítés után a projektedben is ott vannak. A fájlok angol nyelvűek.
@@ -12,19 +18,19 @@ Az npm csomag az `agents/` mappát és az `llms.txt` fájlt is tartalmazza, így
 | Fájl | Tartalom |
 | --- | --- |
 | `node_modules/kassza/agents/README.md` | Áttekintés, olvasási sorrend, az öt legfontosabb szabály, egy minimális példa és egy magyar–angol szótár (számla → `invoice`, díjbekérő → `proforma`, rendelésszám → `orderNumber`). |
-| `node_modules/kassza/agents/pitfalls.md` | Kötelező szabályok, a gyakori helyzetek hibakódokkal és teendőkkel, a hibakategóriák. |
+| `node_modules/kassza/agents/pitfalls.md` | Kötelező szabályok (a nyugtákra vonatkozó jogi szabályokkal együtt), a gyakori helyzetek hibakódokkal és teendőkkel, a hibakategóriák. |
 | `node_modules/kassza/agents/api.md` | Minden metódus bemenete és kimenete, az alcsomagokkal együtt. |
-| `node_modules/kassza/agents/recipes.md` | Tíz kész minta: megosztott kliens, idempotens számlázás webhookból, díjbekérő és számla, IPN, nyugta, PDF mentése S3-ba vagy R2-be, serverless munkamenet, tesztek mock klienssel, vevő adatai adószámból, devizás számla EU-s vevőnek. |
+| `node_modules/kassza/agents/recipes.md` | 17 kész minta: megosztott kliens, pontosan egyszeri számlázás, díjbekérő és számla, IPN, pénztári nyugta, PDF mentése S3-ba vagy R2-be, serverless munkamenet, tesztek mock klienssel, vevő adatai adószámból, devizás számla EU-s vevőnek, fizetési szolgáltatók webhookja, nyugta vagy számla, NAV napi összesítő és egyeztetés, megbízotti számlázás, pénzügyi adatkapcsolat, tesztek hamis Számla Agenttel, MCP szerver. |
 | `node_modules/kassza/agents/skills/kassza/SKILL.md` | Kész Claude Code skill a szabályokkal és egy ellenőrzőlistával. |
 | `node_modules/kassza/llms.txt` | Tartalomjegyzék [llms.txt](https://llmstxt.org) formátumban, linkekkel a fenti fájlokra. |
 
 Az `agents/README.md` öt szabálya, amit a generált kódban érdemes ellenőrizni:
 
 1. A kliens egyszer jön létre, csak szerveren: `createKassza()`, a kulcs a `SZAMLAZZ_AGENT_KEY` változóból.
-2. Minden számlán van `orderNumber`, minden nyugtán `callId`, a rendelés azonosítójából képezve.
+2. Minden számlán és nyugtán van `orderNumber` (nyugtán `callId` is), a rendelés azonosítójából képezve.
 3. Az árak `netUnitPrice` vagy `grossUnitPrice` mezőben vannak a `vat` mellett, a nettó, áfa és bruttó értéket nem a kód számolja.
-4. A `create` soha nem fut ciklusban. `network`, `timeout`, `partial_success` vagy `duplicate` hiba után `invoices.find({ orderNumber })` következik.
-5. A tesztek a `kassza/testing` `createMockKassza()` függvényét használják.
+4. A `create` soha nem fut ciklusban. Az `invoices.createOnce()` és a `receipts.createOnce()` ezt megoldja; sima `create` után `network`, `timeout`, `partial_success` vagy `duplicate` hibánál `invoices.find({ orderNumber })` következik.
+5. A tesztek a `kassza/testing` `createMockKassza()` vagy `createFakeAgentFetch()` függvényét használják.
 
 ## Claude Code
 
@@ -109,13 +115,15 @@ Az `/llms-full.txt` akkor jó, ha az asszisztens egyszerre lássa a teljes dokum
 
 A `SKILL.md` és a `pitfalls.md` alapján ezeket nézd át, mielőtt elfogadod az AI kódját:
 
-- A számlát kiállító webhook vagy háttérfeladat idempotens: előbb `find`-dal keres, vagy a `duplicate` hibát kezeli.
+- A számlát kiállító webhook vagy háttérfeladat idempotens: `createOnce()`-t használ, előbb `find`-dal keres, vagy a `duplicate` hibát kezeli.
+- Fizetési szolgáltató webhookjánál a `kassza/payments` kezelője és az `issueForPayment()` fut, és a nem újrapróbálható hibákat ember kapja meg.
+- Nyugtát csak nem pénztárgép-köteles tevékenységhez állít ki, és csak akkor, ha mind a négy feltétel teljesül (`chooseDocument()`).
 - Nincs saját újrapróbáló ciklus az `invoices.create` vagy a `receipts.create` körül.
 - A dátumok nem `new Date().toISOString().slice(0, 10)` alakban készülnek, mert éjfél és hajnali 2 óra között ez a budapesti tegnapot adja.
 - A PDF a `kassza/storage` modullal tárhelyre kerül, vagy az `invoices.getPdf()` hívással újra lekérhető, és nincs base64-ként az adatbázisban.
 - Az IPN végpont `ipnOkResponse()`-szal, HTTP 200-zal válaszol, és a feldolgozás idempotens.
 - Serverless vagy edge környezetben közös `cookieStore` van beállítva a `kassza/cookie-stores` modulból.
-- Van unit teszt a `createMockKassza()` klienssel, és egyik teszt sem használ valódi Agent kulcsot.
+- Van unit teszt a `createMockKassza()` klienssel vagy integrációs teszt a `createFakeAgentFetch()`-csel, és egyik teszt sem használ valódi Agent kulcsot.
 - A `createKassza()` csak szerveroldali kódban szerepel, a kulcs nem kerül a böngészőbe.
 
 ## Ha a kassza kódján dolgozol
@@ -128,5 +136,8 @@ A repó gyökerében lévő `AGENTS.md` nem a csomag felhasználóinak szól, ha
   </Card>
   <Card title="Hibakezelés, hibakódok" href="/docs/alapok/hibakezeles">
     A bizonytalan kimenetű hibák és a teljes hibakód táblázat.
+  </Card>
+  <Card title="MCP szerver" href="/docs/kiegeszitok/mcp-szerver">
+    Számla és nyugta közvetlenül AI asszisztensből, előnézettel és megerősítéssel.
   </Card>
 </Cards>

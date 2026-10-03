@@ -1,22 +1,32 @@
 ---
 title: Kiegészítők
-description: A kassza alcsomagjai a számlázás körüli munkához. Mock kliens tesztekhez, validátorok, pénzszámítás, PDF tárhely, serverless futtatás és AI asszisztensek.
+description: A kassza alcsomagjai a számlázás körüli munkához. Mock kliens és hamis Számla Agent tesztekhez, validátorok, pénzszámítás, PDF tárhely, serverless futtatás, parancssor, MCP szerver és AI asszisztensek.
 ---
 
 A fő `kassza` modul a Számla Agent hívásait intézi. A körülötte lévő feladatokra külön alcsomagok vannak, amelyeket csak akkor importálsz, ha kellenek. Egyiknek sincs futásidejű függősége, és a `kassza/storage/fs` kivételével egyik sem használ Node.js API-t.
 
 | Alcsomag | Mire való? |
 | --- | --- |
-| `kassza/testing` | Mock kliens hálózat és Agent kulcs nélküli tesztekhez |
+| `kassza/testing` | Mock kliens és hamis Számla Agent hálózat és Agent kulcs nélküli tesztekhez |
 | `kassza/validators` | Adószám, bankszámla, IBAN, EU adószám, e-mail és cím ellenőrzése |
 | `kassza/money` | A számlán használt kerekítés és összegzés a saját kódodban |
 | `kassza/storage`, `kassza/storage/fs` | A bizonylat PDF mentése S3-ba, R2-be, Vercel Blobba, Supabase-be vagy lemezre |
 | `kassza/cookie-stores` | Közös munkamenet-tároló serverless és edge környezethez |
 | `kassza/ipn` | A Számlázz.hu fizetési értesítéseinek fogadása |
+| `kassza/payments` és szolgáltatónként `kassza/payments/stripe`, `…/simplepay`, `…/barion`, `…/revolut`, `…/paypal` | [Fizetésből bizonylat](/docs/fizetesek): webhookok és `issueForPayment` |
+| `kassza/reports`, `kassza/nav` | [NAV nyugta-adatszolgáltatás](/docs/nav-nyugta): napi összesítő, NAV kliens, egyeztetés |
+| `kassza/delegation` | [Megbízotti számlázás](/docs/megbizott-szamlazas) sok cég nevében |
+| `kassza/data-link` | A [pénzügyi adatkapcsolat](/docs/adatkapcsolat) fogadása |
+| `kassza/mcp` | [MCP szerver](/docs/kiegeszitok/mcp-szerver) AI asszisztenseknek, saját átvitellel |
+
+A csomag egy `kassza` parancsot is ad (`npx kassza`), lásd [Parancssor](/docs/kiegeszitok/parancssor).
 
 <Cards>
   <Card title="Tesztelés" href="/docs/kiegeszitok/teszteles">
     createMockKassza: hívásnapló, szimulált hibák és Vitest példák valódi API nélkül.
+  </Card>
+  <Card title="Hamis Számla Agent" href="/docs/kiegeszitok/hamis-agent">
+    createFakeAgentFetch: a valódi kliens tesztje elveszett válasszal, karbantartással és a Számlázz.hu szabályaival.
   </Card>
   <Card title="Validátorok" href="/docs/kiegeszitok/validatorok">
     Adószám CDV, bankszámla, IBAN, EU adószám, e-mail és magyar cím feldolgozása.
@@ -32,5 +42,11 @@ A fő `kassza` modul a Számla Agent hívásait intézi. A körülötte lévő f
   </Card>
   <Card title="AI asszisztensek" href="/docs/kiegeszitok/ai-asszisztensek">
     Az agents mappa és az llms.txt használata Claude Code, Cursor és Copilot mellett.
+  </Card>
+  <Card title="Parancssor" href="/docs/kiegeszitok/parancssor">
+    kassza doctor, verify, xml preview, lekérdezések és napi NAV-összesítő.
+  </Card>
+  <Card title="MCP szerver" href="/docs/kiegeszitok/mcp-szerver">
+    Számla és nyugta AI asszisztensből, előnézettel és megerősítéssel.
   </Card>
 </Cards>

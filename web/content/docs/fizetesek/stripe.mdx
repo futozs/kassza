@@ -1,0 +1,98 @@
+---
+title: Stripe
+description: Stripe Checkout és Payment Intent fizetésből nyugta vagy számla, visszatérítésből sztornó a kassza/payments/stripe webhookkezelővel, Stripe SDK nélkül.
+---
+
+A `stripeWebhook()` ellenőrzi a `Stripe-Signature` fejlécet, a Stripe eseményéből `PaymentEvent`-et készít, és meghívja az `onPayment` függvényedet. A Stripe SDK nem kell hozzá.
+
+## Beállítás
+
+1. A Stripe Dashboardon a **Developers / Webhooks** alatt vegyél fel egy végpontot, például `https://bolt.example.hu/api/stripe/webhook`.
+2. Válaszd ki az eseményeket: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` és `charge.refunded`. Checkout nélkül (saját Payment Element) a `payment_intent.succeeded` és a `payment_intent.payment_failed` kell a Checkout események helyett.
+3. Másold ki a végpont aláíró titkát (`whsec_…`).
+
+```dotenv title=".env.local"
+STRIPE_WEBHOOK_SECRET=whsec_...
+STRIPE_SECRET_KEY=rk_live_...
+```
+
+Az API-kulcs nem kötelező, de nélküle a bizonylat egyetlen tételből áll a kifizetett összeggel. Elég egy korlátozott (restricted) kulcs, amely olvashatja a Checkout Sessionöket és a Refundokat.
+
+## A webhook
+
+```ts title="app/api/stripe/webhook/route.ts"
+import { stripeWebhook } from 'kassza/payments/stripe'
+import { kassza } from '@/lib/kassza'
+
+export const POST = stripeWebhook({
+  secret: process.env.STRIPE_WEBHOOK_SECRET!,
+  apiKey: process.env.STRIPE_SECRET_KEY,
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+| Opció | Alapérték | Jelentés |
+| --- | --- | --- |
+| `secret` | – | Az aláíró titok. Kulcsváltáskor tömbként a régit és az újat is megadhatod. |
+| `apiKey` | – | Titkos vagy korlátozott API-kulcs a tételek és a visszatérítések lekéréséhez. |
+| `toleranceSeconds` | `300` | Ennél régebbi aláírást elutasít (visszajátszás elleni védelem). |
+| `method` | `bankkártya` | A bizonylatra kerülő fizetési mód. |
+| `shippingItemName` | `Szállítási díj` | A szállítási díj tételének neve. |
+| `onPayment` | – | A feldolgozó függvényed. |
+| `onError` | `console.error` | Az `500`-as válaszhoz vezető hibák naplózása. |
+| `maxBodyBytes` | 1 MiB | A törzs legnagyobb mérete. |
+
+## Események
+
+| Stripe esemény | `kind` |
+| --- | --- |
+| `checkout.session.completed` fizetett állapotban | `paid` |
+| `checkout.session.completed` fizetés nélküli munkamenetre | `other` |
+| `checkout.session.async_payment_succeeded` | `paid` |
+| `checkout.session.async_payment_failed` | `failed` |
+| `payment_intent.succeeded` | `paid` |
+| `payment_intent.payment_failed` | `failed` |
+| `charge.refunded` | `refunded` vagy `partially-refunded` |
+
+Más eseményre a kezelő `200`-at ad, és nem hívja meg az `onPayment`-et. A fizetés azonosítója mindig a Payment Intent azonosítója, így a `charge.refunded` ugyanahhoz a rendelésszámhoz tartozik, mint a fizetés.
+
+## Mit tölt ki API-kulccsal?
+
+- **Tételek:** a Checkout Session `line_items` listáját lapozva lekéri, a szállítási díjat külön tételként adja hozzá.
+- **Payment Intent → Checkout:** a `payment_intent.succeeded` eseményhez megkeresi a hozzá tartozó Checkout Sessiont, és abból veszi a vevőt és a tételeket.
+- **Visszatérítés:** ha egy fizetést több részletben térítettél vissza, a teljes összeg elérésekor sem sztornóz automatikusan, hanem `partially-refunded` eseményt ad. Ezt a könyvelőddel egyeztetve kell rendezni.
+
+## Vevőadatok és céges számla
+
+A vevőt a Checkout `customer_details` mezőjéből veszi: név (cégnév, ha van), e-mail, cím, adószám. A magyar adószám (`hu_tin`) a `taxNumber`, az uniós adószám (`eu_vat`) az `euTaxNumber` mezőbe kerül, és bármelyik adószám esetén a vevőt cégnek tekinti, így számla készül. Kapcsold be a Checkoutban a számlázási cím (`billing_address_collection: 'required'`) és az adószám (`tax_id_collection`) bekérését.
+
+A saját rendelésazonosítódat a `client_reference_id` mezőben vagy a `metadata` `orderRef`, `orderId` vagy `orderNumber` kulcsán add át; a `PaymentEvent` `orderRef` mezőjében kapod vissza.
+
+<Callout type="info" title="Forint a Stripe-ban">
+  A Stripe a forintot is két tizedesjegyű fillérben adja meg (`1270000` = 12 700 Ft). A kassza ezt
+  átváltja, a `PaymentEvent` összegei mindig főegységben vannak.
+</Callout>
+
+## Buktatók
+
+<Callout type="danger" title="Ne olvasd be előre a törzset">
+  Az aláírás a nyers törzsre szól. Ha egy middleware előbb JSON-ként beolvassa a kérést, az
+  ellenőrzés elbukik. App Routerben a `stripeWebhook()` maga olvassa a törzset, ne nyúlj hozzá
+  előtte.
+</Callout>
+
+<Callout type="warning" title="Teszt- és éles mód">
+  A Stripe teszt- és éles módban külön végpontot és titkot használ. A teszt módú végpont mellé
+  Számlázz.hu tesztfiók tartozzon, különben valódi bizonylatok készülnek.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Fizetésből bizonylat" href="/docs/fizetesek">
+    Az issueForPayment döntései, tételek, áfa és hibakezelés.
+  </Card>
+  <Card title="Stripe webhook recept" href="/docs/receptek/stripe-webhook">
+    Ugyanez a Stripe SDK-val és saját számlázó függvénnyel.
+  </Card>
+</Cards>

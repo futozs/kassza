@@ -28,11 +28,11 @@ const szamla = await kassza.invoices.create({
 | `multipart/form-data` kérés és mellékletek | `attachments` tömb |
 | Session cookie mentése és visszaküldése | Automatikus, serverless környezethez közös tárolóval |
 | Hibák kiolvasása fejlécből, XML-ből vagy `[ERR]` szövegből | Egységes `SzamlazzError` kóddal, kategóriával és magyar tippel |
-| Újrapróbálás úgy, hogy ne legyen dupla számla | Csak biztonságos műveleteket próbál újra, számlát soha |
+| Újrapróbálás úgy, hogy ne legyen dupla számla | Csak biztonságos műveleteket próbál újra, számlát soha; a `createOnce()` bizonytalan hiba után visszakeres |
 
 ## A 11 művelet
 
-A kassza mind a 11 Számla Agent műveletet lefedi: számla (díjbekérő, előleg-, vég- és helyesbítő számla, szállítólevél) és előnézet, sztornó, befizetés rögzítése, PDF és számlaadatok lekérése, díjbekérő törlése, nyugta létrehozása, sztornója, lekérdezése és kiküldése, valamint az adószám lekérdezése a NAV adatbázisából. A teljes lista a [dokumentáció kezdőlapján](/docs#a-11-számla-agent-művelet) található.
+A kassza mind a 11 Számla Agent műveletet lefedi: számla (díjbekérő, előleg-, vég- és helyesbítő számla, szállítólevél) és előnézet, sztornó, befizetés rögzítése, PDF és számlaadatok lekérése, díjbekérő törlése, nyugta létrehozása, sztornója, lekérdezése és kiküldése, valamint az adószám lekérdezése a NAV adatbázisából. A teljes lista a [dokumentáció kezdőlapján](/docs#a-11-számla-agent-művelet) található. A megbízott számlakibocsátáshoz tartozó Agent hívást, a megbízói fiók csatlakoztatását a `kassza/delegation` modul végzi.
 
 ## Kiegészítő modulok
 
@@ -40,7 +40,12 @@ A fő csomag mellett külön importálható modulok is vannak, amelyek csak akko
 
 | Modul | Mire jó |
 | --- | --- |
-| `kassza/testing` | Mock kliens unit tesztekhez, valódi validációval és kerekítéssel |
+| `kassza/testing` | Mock kliens unit tesztekhez, valódi validációval és kerekítéssel, és hamis Számla Agent integrációs tesztekhez |
+| `kassza/payments` | Stripe, SimplePay, Barion, Revolut és PayPal webhookból nyugta vagy számla, pontosan egyszer |
+| `kassza/reports`, `kassza/nav` | A NAV napi nyugta-összesítője, egyeztetés és a NAV nyugta-adatszolgáltatási interfész kliense |
+| `kassza/delegation` | Megbízotti számlázás: megbízói fiók csatlakoztatása és kliensek megbízónként |
+| `kassza/data-link` | A Számlázz.hu pénzügyi adatkapcsolatának fogadása könyvelő- és ERP-rendszerben |
+| `kassza/mcp` | MCP szerver AI asszisztensekhez; parancssorból `npx kassza mcp` |
 | `kassza/ipn` | A Számlázz.hu fizetési értesítésének (IPN) feldolgozása |
 | `kassza/storage` | PDF mentése S3-ra, R2-re, Vercel Blobra, UploadThingre vagy Supabase-re |
 | `kassza/cookie-stores` | Közös session tároló Redishez és Cloudflare KV-hez |

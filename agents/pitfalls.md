@@ -5,11 +5,14 @@ Read this before writing any code that issues invoices or receipts. These rules 
 ## Hard rules
 
 1. **Never retry creating an invoice or receipt in a loop.** Számlázz.hu bans accounts that resend requests. kassza already retries only when it is safe to do so. Do not wrap `invoices.create` in your own retry loop.
-2. **After an uncertain failure, look the document up before creating it again.** A timeout, a network error, or error `56` (`partial_success`) can mean the invoice was created anyway. Always set an `orderNumber`, and on those errors call `kassza.invoices.find({ orderNumber })` first.
+2. **After an uncertain failure, look the document up before creating it again.** A timeout, a network error, or error `56` (`partial_success`) can mean the invoice was created anyway. Always set an `orderNumber`, and on those errors call `kassza.invoices.find({ orderNumber })` first. `invoices.createOnce()` and `receipts.createOnce()` do this for you.
 3. **Do not compute item amounts yourself.** Pass `netUnitPrice` (B2B) or `grossUnitPrice` (B2C) plus `vat`, and kassza applies the official rounding rules. Hand-computed floats cause errors 259–264, and on receipts 261 and 363–365.
 4. **Never use `new Date().toISOString().slice(0, 10)` for invoice dates.** Between midnight and 02:00 Budapest time it returns yesterday, which gives error 352. Leave dates out (kassza defaults to today in `Europe/Budapest`) or pass a `Date`.
 5. **The Agent key is a secret and must be lowercase.** Read it from `SZAMLAZZ_AGENT_KEY` on the server only, and never ship it to a browser bundle. kassza rejects keys containing uppercase letters before sending anything.
-6. **Use the test account while developing.** It allows at most 500 invoices per 10 minutes. Never run tests against a production Agent key.
+6. **Use the test account while developing.** It allows at most 500 invoices per 10 minutes (error `167`, `rate_limit`). Never run tests against a production Agent key.
+7. **An Agent receipt is a computer-generated receipt (számítógéppel előállított nyugta).** It is not an online cash register receipt and not an e-receipt (e-nyugta). Issue it only for activities without the online cash register (OPG) obligation. Fixed-location retail (TEÁOR 47.1–47.7), restaurants and bars (56.1, 56.3, except mobile catering), accommodation (55.1–55.3), rental (77.1–77.2, 77.33), repair (95.1–95.2) and pharmacies need an online cash register or e-cash register instead. Typical valid uses: webshops, online tickets, downloadable products, food trucks and other mobile sales, services without a cash register obligation.
+8. **A receipt may replace an invoice only if all four conditions hold:** the buyer is not a taxable person or legal entity, the total is below 900 000 HUF, it is paid in full by fulfilment, and the buyer did not ask for an invoice. `chooseDocument()` applies these rules, and `issueForPayment()` uses it. If the buyer asks for an invoice later, use `receipts.convertToInvoice()`.
+9. **Never submit NAV receipt reports for receipts issued in Számlázz.hu.** Számlázz.hu reports them itself after the NAV connection, so a second submission is double reporting. The `kassza/nav` client is read-only unless you pass `allowWrite: true`; submit only reports of paper receipt pads.
 
 ## Behaviour worth knowing
 
@@ -32,7 +35,14 @@ Read this before writing any code that issues invoices or receipts. These rules 
 | IPN webhook | Retried every 3 minutes, at most 10 times; only the latest one per invoice is sent | Respond with HTTP 200 quickly and process idempotently |
 | IPN source check | `isSzamlazzIp` checks the rightmost `x-forwarded-for` entry, the address your nearest proxy saw; the left side is client-controlled | Behind several proxies pass `{ trustedProxies: n }`; never feed it a header that no proxy of yours writes |
 | `buyer.groupTaxNumber`, item `dataDeletionCode` | Documented on docs.szamlazz.hu, but missing from the downloadable `xmlszamla.xsd` (and `torloKod` from `xmlnyugtacreate.xsd`) | Use them only when needed; if you get error 57, remove them |
-| NAV receipt data reporting | Mandatory since 2026-09-01, with a grace period until 2026-12-31 | No code change needed yet; watch the kassza changelog |
+| NAV receipt data reporting | Mandatory since 2026-09-01, with a grace period until 2026-12-31; Számlázz.hu reports the receipts issued there after the NAV connection | Check with `navDailyReports()` and `reconcileNavReports()`; report only paper receipts yourself |
+| Receipts and the NAV Online data connection | Számlázz.hu issues receipts only from accounts where the NAV Online data connection is set up | Set it up in Számlázz.hu before the first receipt |
+| Error `524` | The receipt prefix is not enabled in the account | Enable it under Beállítások / Előtagok |
+| Error `491` | KATA protection blocks documents to businesses | Leave out the buyer's tax number, or a human disables the protection |
+| Error `250` | A delegated account has not been taken over by its owner, or the delegation is not accepted | Wait for the principal; check with `probeDelegation()` rarely, never in a loop |
+| Error `167` (`rate_limit`) | Too many documents in the test account in a short time | Wait a few minutes; never retry automatically |
+| `attempt_limit` error | The same request already failed 5 times (counted across processes with `attemptLedger`) | A human fixes the cause, then `kassza.resetAttempts(error)` |
+| `maintenanceCooldownMs` | After error `1`, kassza sends nothing for the cooldown and throws `maintenance` at once | Switch to a fallback, for example a paper receipt pad |
 
 ## Error categories
 
@@ -47,6 +57,9 @@ Read this before writing any code that issues invoices or receipts. These rules 
 | `not_found` | The document does not exist | No |
 | `partial_success` | The document exists, but a side effect (email) failed | No |
 | `maintenance` | Számlázz.hu maintenance (code 1) | kassza retries lookups automatically |
+| `rate_limit` | Too many documents in the test account (code 167) | No, wait a few minutes |
+| `attempt_limit` | The request already failed 5 times; kassza did not send it | No, a human must act, then `resetAttempts` |
 | `network` / `timeout` | Transport failure; the outcome is unknown for writes | Look up by `orderNumber` before trying again |
 | `configuration` | Missing key, bad options | No |
 | `unexpected_response` | Számlázz.hu answered in an unknown format | Report it |
+| `unknown` | An error code kassza does not know; the original message is kept | No, read `code` and `message` |

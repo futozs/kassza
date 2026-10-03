@@ -1,0 +1,114 @@
+---
+title: MCP szerver
+description: A kassza MCP szervere Claude, Cursor és más MCP kliensek számára. Számla, nyugta és sztornó előnézettel és megerősítéssel, lekérdezések, adószám-ellenőrzés és napi NAV-összesítő. Alapból csak olvas.
+---
+
+A kassza a Model Context Protocol (MCP) szerint is elérhető, így egy AI asszisztens közvetlenül kérdezhet le vagy állíthat ki bizonylatot: „Állíts ki számlát a Példa Kft.-nek 3 óra tanácsadásról.” A szerver a `kassza mcp` paranccsal indul, a szabványos bemeneten és kimeneten (stdio) kommunikál, és nem kell hozzá semmilyen függőség.
+
+<Callout type="warning" title="Tesztfiókkal kezdd">
+  Egy AI asszisztens valódi számlát is kiállíthat, ha engeded. Először Számlázz.hu tesztfiókkal
+  próbáld ki, és az írási jogot csak akkor kapcsold be, ha a megerősítési folyamat neked is
+  megfelel.
+</Callout>
+
+## Beállítás
+
+### Claude Desktop
+
+A `claude_desktop_config.json` fájlban:
+
+```json title="claude_desktop_config.json"
+{
+  "mcpServers": {
+    "kassza": {
+      "command": "npx",
+      "args": ["-y", "kassza", "mcp"],
+      "env": { "SZAMLAZZ_AGENT_KEY": "..." }
+    }
+  }
+}
+```
+
+### Claude Code
+
+```bash
+claude mcp add kassza --env SZAMLAZZ_AGENT_KEY=... -- npx -y kassza mcp
+```
+
+### Cursor
+
+```json title=".cursor/mcp.json"
+{
+  "mcpServers": {
+    "kassza": {
+      "command": "npx",
+      "args": ["-y", "kassza", "mcp"],
+      "env": { "SZAMLAZZ_AGENT_KEY": "..." }
+    }
+  }
+}
+```
+
+Az alapértelmezéseket (például a nyugta előtagját és fizetési módját) a `--defaults alapok.json` kapcsolóval adhatod meg; a fájl a `createKassza()` `defaults` opciója JSON-ban.
+
+## Eszközök
+
+| Eszköz | Mit csinál | Ír? |
+| --- | --- | --- |
+| `preview_invoice` | Számla vagy díjbekérő előnézete: tételek, áfa, végösszeg, dátumok. A Számlázz.hu-t nem hívja. | Nem |
+| `preview_receipt` | Nyugta előnézete a forintos kerekítési szabályok ellenőrzésével. | Nem |
+| `preview_reversal` | Lekéri a sztornózandó számlát vagy nyugtát, és ellenőrzi, sztornózható-e. | Nem |
+| `create_invoice` | Számla vagy díjbekérő kiállítása. | Igen |
+| `create_receipt` | Nyugta kiállítása. | Igen |
+| `reverse_invoice`, `reverse_receipt` | Sztornó. | Igen |
+| `get_invoice` | Számla lekérése számlaszám, rendelésszám vagy külső azonosító alapján. | Nem |
+| `get_receipt` | Nyugta lekérése nyugtaszám vagy rendelésszám alapján. | Nem |
+| `query_taxpayer` | Adószám ellenőrzése a NAV adatai alapján, cégnévvel és székhellyel. | Nem |
+| `nav_daily_summary` | A megadott nyugtákból (vagy egy sorszámtartományból) a napi NAV-összesítő. | Nem |
+
+## Biztonság
+
+**Alapból csak olvas.** Az író eszközök (`create_*`, `reverse_*`) csak akkor jelennek meg, ha a szervert írási joggal indítod:
+
+```json
+"args": ["-y", "kassza", "mcp", "--allow-write"]
+```
+
+vagy a `KASSZA_MCP_ALLOW_WRITE=1` környezeti változóval.
+
+**Megerősítés nélkül nem ír.** Minden író eszköz egy megerősítő kódot vár, amelyet csak a hozzá tartozó előnézeti eszköz ad. A folyamat:
+
+1. Az asszisztens meghívja a `preview_invoice` eszközt, és megmutatja neked az előnézetet (vevő, tételek, végösszeg, dátumok, hogy kap-e a vevő e-mailt).
+2. Ha jóváhagyod, a `create_invoice` eszközt pontosan ugyanazokkal az adatokkal és a kapott kóddal hívja.
+
+A kód 15 percig érvényes, és csak ugyanarra a kérésre jó: ha az asszisztens bármit megváltoztat az adatokon, a kiállítás elutasítva, új előnézet kell. A kódot a szerver egy indításonként véletlen titokkal írja alá, így kitalálni nem lehet.
+
+**Pontosan egyszer.** A `create_invoice` a kiállítás előtt külső azonosító alapján megkeresi a már elkészült számlát, így egy újrapróbált hívás nem állít ki másodikat. A `create_receipt` hívásazonosítóval dolgozik, rendelésszámmal pedig egy rendeléshez egy nyugtát enged. A sztornó eszközök egy bizonylatot csak egyszer sztornóznak.
+
+**Nem küld e-mailt magától.** A `create_invoice` alapból nem küldi el a számlát a vevőnek; ehhez a `sendEmail: true` mező kell, ami az előnézetben is látszik.
+
+## Protokoll
+
+A szerver az MCP 2026-07-28-as, állapotmentes változatát beszéli (`server/discover`, kérésenkénti `_meta`), és a régebbi, `initialize` kézfogásos klienseket is kiszolgálja (2025-11-25, 2025-06-18, 2025-03-26, 2024-11-05). Soronként egy JSON-RPC 2.0 üzenet megy; a naplózás a szabványos hibakimenetre kerül, a kimenetet nem szennyezi.
+
+A futtatókörnyezet-független szerver a `kassza/mcp` modulból saját átvitellel is használható:
+
+```ts
+import { createKasszaMcpServer } from 'kassza/mcp'
+
+const server = createKasszaMcpServer({ agentKey: process.env.SZAMLAZZ_AGENT_KEY! })
+const kapcsolat = server.connect()
+
+const valasz = await kapcsolat.handle(uzenet)
+```
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="AI asszisztensek" href="/docs/kiegeszitok/ai-asszisztensek">
+    Az agents mappa és az llms.txt, ha az asszisztens kódot ír.
+  </Card>
+  <Card title="Parancssor" href="/docs/kiegeszitok/parancssor">
+    A kassza parancs többi része.
+  </Card>
+</Cards>

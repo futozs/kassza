@@ -1,0 +1,54 @@
+---
+title: Egyeztetés
+description: Ellenőrzés, hogy a NAV-hoz minden nap nyugta-összesítője megérkezett-e, és egyezik-e a kiállított nyugtákkal. reconcileNavReports a helyi összesítő és a NAV lista összevetésére.
+---
+
+Ha a nyugtáidat a Számlázz.hu jelenti a NAV-nak, a te dolgod annyi, hogy ellenőrizd: minden napod megérkezett, és jó adatokkal. A `reconcileNavReports()` összeveti a saját nyugtáidból számolt [napi összesítőt](/docs/nav-nyugta/napi-osszesito) a NAV-nál rögzített adatszolgáltatásokkal.
+
+```ts title="scripts/nav-egyeztetes.ts"
+import { reconcileNavReports } from 'kassza/nav'
+import { navDailyReports } from 'kassza/reports'
+import { nav } from '@/lib/nav'
+import { nyugtakIdoszakra } from '@/lib/nyugtak'
+
+const nyugtak = await nyugtakIdoszakra('2026-09-01', '2026-09-30')
+const helyi = navDailyReports(nyugtak)
+const nalNav = await nav.listAllReports({ from: '2026-09-01', to: '2026-09-30' })
+
+const eredmeny = reconcileNavReports(helyi, nalNav)
+
+for (const hiany of eredmeny.missing) {
+  console.warn('Nincs a NAV-nál:', hiany.applicableDate, hiany.serialNumber)
+}
+for (const elteres of eredmeny.mismatched) {
+  console.warn('Eltér:', elteres.local.applicableDate, elteres.differences.join('; '))
+}
+```
+
+A NAV klienshez itt csak olvasási jog kell, `allowWrite` nélkül.
+
+| Mező | Jelentés |
+| --- | --- |
+| `matched` | Egyező napok: a tárgynap és a kezdő sorszám megvan a NAV-nál, a végösszeg és a két darabszám egyezik. |
+| `mismatched` | A nap megvan, de eltér; a `differences` magyarul írja le, miben. |
+| `missing` | A helyi összesítő napja hiányzik a NAV-nál. |
+| `unexpected` | A NAV-nál van olyan érvényes adatszolgáltatás, amelyhez nincs helyi nap. |
+
+A párosítás kulcsa a tárgynap és a kezdő sorszám. Az érvénytelenített (`INVALIDATED`) rekordokat figyelmen kívül hagyja, csak a `RECORDED` állapotúakat veti össze.
+
+<Callout type="tip" title="Mikor futtasd?">
+  A beküldési határidő a kibocsátást követő 3. nap vége. Érdemes naponta futtatni az egy héttel
+  korábbi napokig visszamenőleg, így a késve beérkező adatszolgáltatás sem okoz téves riasztást,
+  a hiányra pedig még időben fény derül.
+</Callout>
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="NAV kliens" href="/docs/nav-nyugta/nav-kliens">
+    Lekérdezés, beküldés és javítás.
+  </Card>
+  <Card title="Napi összesítő" href="/docs/nav-nyugta/napi-osszesito">
+    A helyi oldal: navDailyReports.
+  </Card>
+</Cards>

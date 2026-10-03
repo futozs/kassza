@@ -42,7 +42,9 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 
 - **Mind a 11 Agent művelet.** Számla, díjbekérő, nyugta, sztornó, befizetés, PDF és adószám, nem csak a számla kiállítása.
 - **Pontos kerekítés.** A tételek nettó, áfa és bruttó értékét a Számlázz.hu szabályai szerint számolja, mert egy forint eltérés is elég, hogy a számla ne készüljön el.
-- **Nincs dupla számla.** Számlát a kassza soha nem küld újra magától, bizonytalan hiba után pedig a rendelésszámmal visszakeresheted.
+- **Nincs dupla számla.** Számlát a kassza soha nem küld újra magától. A `createOnce()` kiállítás előtt megkeresi a bizonylatot, bizonytalan hiba után pedig visszakeresi.
+- **Fizetésből bizonylat.** Stripe, SimplePay, Barion, Revolut és PayPal webhookból pontosan egyszer nyugta vagy számla, visszatérítéskor sztornó.
+- **NAV nyugta-adatszolgáltatás.** Napi összesítő és egyeztetés a 2026. szeptember 1-jétől kötelező adatszolgáltatáshoz.
 - **Egy hibatípus.** A Számlázz.hu háromféle hibaformátumából egyetlen `SzamlazzError` lesz, magyar üzenettel és javítási tippel.
 - **Serverless és edge.** Node, Bun, Deno, Cloudflare Workers és Vercel Edge alatt is fut, a session cookie közös tárolóban is lehet.
 
@@ -72,13 +74,13 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 
 ## Tartalom
 
-| Kezdés | Műveletek | Kiegészítők |
-| --- | --- | --- |
-| 🌐 [Weboldal, sandbox és receptek](#weboldal-sandbox-és-receptek) | 📄 [Számlák](#számlák) | 🗄️ [PDF mentése tárhelyre](#pdf-mentése-tárhelyre) |
-| ⚙️ [Beállítás](#beállítás) | 🧾 [Nyugták](#nyugták) | ⚡ [Serverless és edge](#serverless-és-edge) |
-| 🚨 [Hibakezelés](#hibakezelés) | 🏛️ [Adószám lekérdezés](#adószám-lekérdezés) | 🧪 [Tesztelés](#tesztelés) |
-| 🎛️ [Haladó beállítások](#haladó-beállítások) | 🔔 [Fizetési értesítés (IPN)](#fizetési-értesítés-ipn) | 🧮 [Validátorok és pénzszámítás](#validátorok-és-pénzszámítás) |
-| 🤖 [AI-val kódolsz?](#ai-val-kódolsz) | | |
+| Kezdés | Műveletek | Integrációk | Kiegészítők |
+| --- | --- | --- | --- |
+| 🌐 [Weboldal, sandbox és receptek](#weboldal-sandbox-és-receptek) | 📄 [Számlák](#számlák) | 💳 [Fizetésből bizonylat](#fizetésből-bizonylat) | 🗄️ [PDF mentése tárhelyre](#pdf-mentése-tárhelyre) |
+| ⚙️ [Beállítás](#beállítás) | 🧾 [Nyugták](#nyugták) | 📊 [NAV nyugta-adatszolgáltatás](#nav-nyugta-adatszolgáltatás) | ⚡ [Serverless és edge](#serverless-és-edge) |
+| 🚨 [Hibakezelés](#hibakezelés) | 🏛️ [Adószám lekérdezés](#adószám-lekérdezés) | 🤝 [Megbízotti számlázás](#megbízotti-számlázás) | 🧪 [Tesztelés](#tesztelés) |
+| 🎛️ [Haladó beállítások](#haladó-beállítások) | 🔔 [Fizetési értesítés (IPN)](#fizetési-értesítés-ipn) | 🔗 [Pénzügyi adatkapcsolat](#pénzügyi-adatkapcsolat) | 🧮 [Validátorok és pénzszámítás](#validátorok-és-pénzszámítás) |
+| 🤖 [AI-val kódolsz?](#ai-val-kódolsz) | | | 💻 [Parancssor és MCP szerver](#parancssor-és-mcp-szerver) |
 
 ## Weboldal, sandbox és receptek
 
@@ -169,7 +171,7 @@ const szamla = await kassza.invoices.create({
     city: 'Budapest',
     address: 'Fő utca 1.',
     email: 'vevo@ceg.hu',
-    taxNumber: '12345678-2-42',
+    taxNumber: '12345676-2-42',
   },
   items: [
     { name: 'Póló', quantity: 2, grossUnitPrice: 5_990, vat: 27 },
@@ -424,7 +426,7 @@ A `find` `null`-t ad, ha nincs ilyen számla, a `get` ilyenkor hibát dob.
 
 ## Nyugták
 
-Nyugta kiállítása, kiküldése e-mailben, lekérdezése és sztornózása, forintos kerekítéssel és a dupla nyugta elleni hívásazonosítóval.
+Nyugta kiállítása, kiküldése e-mailben, lekérdezése és sztornózása, forintos kerekítéssel és a dupla nyugta elleni hívásazonosítóval. A Számla Agent nyugtája számítógéppel előállított nyugta, online pénztárgépet nem pótol: csak nem pénztárgép-köteles tevékenységhez adható, például webshopban vagy food truckban. Részletek: {{doc:alapok/nyugta-vagy-szamla}}.
 
 <details>
 <summary><b>Nyugta</b> · <code>receipts.create()</code></summary>
@@ -482,6 +484,33 @@ await kassza.receipts.reverse(nyugta.number)
 ```
 
 {{more:nyugta-sztorno|nyugta-sztorno}}
+
+</details>
+
+<details>
+<summary><b>Nyugta vagy számla?</b> · <code>chooseDocument()</code>, <code>receipts.convertToInvoice()</code></summary>
+
+```ts
+import { chooseDocument } from 'kassza'
+
+const dontes = chooseDocument({ grossTotal: 18_990, invoiceRequested: false })
+
+dontes.type
+dontes.reasons
+```
+
+Nyugta csak akkor adható, ha a vevő nem adóalany és nem jogi személy, az összeg 900 000 Ft alatti, a teljesítésig kifizetik, és a vevő nem kér számlát. Ha a vevő utólag kér számlát, a `convertToInvoice()` sztornózza a nyugtát, és számlát állít ki helyette, pontosan egyszer:
+
+```ts
+const atalakitas = await kassza.receipts.convertToInvoice({
+  receiptNumber: nyugta.number,
+  buyer: { name: 'Példa Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.', taxNumber: '12345676-2-42' },
+})
+
+atalakitas.invoice.number
+```
+
+{{more:alapok/nyugta-vagy-szamla|}}
 
 </details>
 
@@ -551,12 +580,32 @@ try {
 | `not_found` | Nincs ilyen bizonylat |
 | `auth` / `account` | Rossz kulcs, lejárt előfizetés |
 | `network` / `timeout` / `maintenance` | Átmeneti hiba |
+| `rate_limit` | A tesztfiókban túl sok bizonylat készült rövid idő alatt (167) |
+| `attempt_limit` | Ezt a kérést már ötször sikertelenül küldték el, ezért a kassza el sem küldi |
 
 {{more:alapok/hibakezeles|hibakezeles-validacio}}
 
 </details>
 
-> **Számlát a kassza soha nem küld újra.** Újraküldés csak ott történik magától, ahol biztonságos: lekérdezéseknél, hálózati hibánál, legfeljebb 5-ször. A Számlázz.hu kitiltja azt, aki ciklusban próbálkozik. Bizonytalan hiba után a `find({ orderNumber })` megmondja, elkészült-e a számla.
+<details>
+<summary><b>Pontosan egyszer</b> · <code>invoices.createOnce()</code>, <code>receipts.createOnce()</code></summary>
+
+```ts
+const { number, created } = await kassza.invoices.createOnce({
+  orderNumber: 'REND-1001',
+  paid: true,
+  buyer,
+  items,
+})
+```
+
+Kiállítás előtt megkeresi a számlát, hálózati hiba, időtúllépés vagy 56-os hiba után pedig visszakeresi. Ha a webhook kétszer fut le, a második hívás `created: false` eredménnyel a meglévő számlát adja. Ha ugyanazt a kérést több szerver is küldheti, az `attemptLedger` opció a folyamatok között is betartja az öt próbálkozásos korlátot.
+
+{{more:alapok/pontosan-egyszer|penztari-nyugta}}
+
+</details>
+
+> **Számlát a kassza soha nem küld újra.** Újraküldés csak ott történik magától, ahol biztonságos: lekérdezéseknél, hálózati hibánál, legfeljebb 5-ször. A Számlázz.hu kitiltja azt, aki ciklusban próbálkozik. Bizonytalan hiba után a `find({ orderNumber })` megmondja, elkészült-e a számla, a `createOnce()` pedig ezt el is végzi helyetted.
 
 {{links:alapok/hibakezeles|hibakezeles-idempotens|fizetett-rendeles-szamla}}
 
@@ -601,6 +650,128 @@ Az `x-forwarded-for` fejlécből a **jobb szélső** címet vizsgálja, vagyis a
 </details>
 
 {{links:befizetes-rogzitese/ipn|ipn|ipn-webhook}}
+
+## Fizetésből bizonylat
+
+Stripe, SimplePay, Barion, Revolut vagy PayPal fizetésből nyugta vagy számla, a szolgáltató SDK-ja nélkül. A webhookkezelő ellenőrzi az aláírást, az `issueForPayment()` pedig eldönti, hogy nyugta vagy számla jár, és pontosan egyszer kiállítja.
+
+<details>
+<summary><b>Stripe webhook</b> · <code>stripeWebhook()</code>, <code>issueForPayment()</code></summary>
+
+```ts
+import { stripeWebhook } from 'kassza/payments/stripe'
+
+export const POST = stripeWebhook({
+  secret: process.env.STRIPE_WEBHOOK_SECRET!,
+  apiKey: process.env.STRIPE_SECRET_KEY,
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+- Az újraküldött webhook nem állít ki második bizonylatot.
+- Teljes visszatérítéskor a kassza sztornózza a bizonylatot.
+- Ugyanígy működik a `simplePayWebhook`, a `barionWebhook`, a `revolutWebhook` és a `payPalWebhook`.
+
+{{more:fizetesek|}}
+
+</details>
+
+{{links:fizetesek||stripe-webhook}}
+
+## NAV nyugta-adatszolgáltatás
+
+2026. szeptember 1-jétől a számítógéppel előállított nyugtákról is napi összesítőt kell küldeni a NAV-nak. A Számlázz.hu a nála kiállított nyugtákat a NAV összekötés után maga jelenti, a kassza abban segít, hogy ellenőrizd: minden napod megérkezett.
+
+<details>
+<summary><b>Napi összesítő és egyeztetés</b> · <code>navDailyReports()</code>, <code>reconcileNavReports()</code></summary>
+
+```ts
+import { createNavReceiptClient, reconcileNavReports } from 'kassza/nav'
+import { navDailyReports } from 'kassza/reports'
+
+const nav = createNavReceiptClient({
+  environment: 'production',
+  login: process.env.NAV_LOGIN!,
+  password: process.env.NAV_PASSWORD!,
+  signatureKey: process.env.NAV_SIGNATURE_KEY!,
+  taxNumber: process.env.NAV_TAX_NUMBER!,
+})
+
+const helyi = navDailyReports(nyugtak)
+const nalNav = await nav.listAllReports({ from: '2026-09-01', to: '2026-09-30' })
+const { missing, mismatched } = reconcileNavReports(helyi, nalNav)
+```
+
+A NAV kliens alapból csak olvas: a Számlázz.hu által jelentett nyugtákat ne küldd be te is, mert az kettős adatszolgáltatás. Beküldeni csak a kézi tartalék nyugtatömb összesítőjét kell (`paperReceiptReport()`).
+
+{{more:nav-nyugta|}}
+
+</details>
+
+{{links:nav-nyugta}}
+
+## Megbízotti számlázás
+
+Platformoknak, amelyek sok cég nevében állítanak ki bizonylatot, a cégek saját Számlázz.hu fiókjában.
+
+<details>
+<summary><b>Csatlakozás és kliens megbízónként</b> · <code>connectPrincipal()</code>, <code>createKasszaPool()</code></summary>
+
+```ts
+import { connectPrincipal, createKasszaPool } from 'kassza/delegation'
+
+const { status } = await connectPrincipal({
+  principal: {
+    name: 'Példa Kft.',
+    taxNumber: '12345676-2-42',
+    invoicePrefix: 'PLDA',
+    zip: '1111',
+    city: 'Budapest',
+    address: 'Fő utca 1.',
+    email: 'penzugy@pelda.hu',
+  },
+  user: { email: 'kassza+pelda@platform.hu', password: process.env.DELEGATE_PASSWORD!, firstName: 'Platform' },
+})
+
+const pool = createKasszaPool({ resolve: (megbizoId) => megbizoAdatai(megbizoId) })
+const kliens = await pool.get('pelda')
+await kliens.invoices.createOnce({ orderNumber: 'FOGLALAS-881', buyer, items })
+```
+
+A megbízó e-mailt kap, és a fiók birtokba vétele vagy a csatlakozási kérelem elfogadása után lehet a nevében kiállítani.
+
+{{more:megbizott-szamlazas|}}
+
+</details>
+
+{{links:megbizott-szamlazas}}
+
+## Pénzügyi adatkapcsolat
+
+Könyvelő- és ERP-rendszereknek: a Számlázz.hu átküldi a kiállított és befogadott számlákat, a banki tranzakciókat és a nyugtákat.
+
+<details>
+<summary><b>Fogadó végpont</b> · <code>dataLinkHandler()</code></summary>
+
+```ts
+import { dataLinkHandler } from 'kassza/data-link'
+
+export const POST = dataLinkHandler({
+  verifyKey: async (kulcs) => (await ugyfelKulcsai()).includes(kulcs),
+  onPush: async (push) => {
+    const iktatoszam = await bizonylatMentese(push)
+    return { registrationNumber: iktatoszam }
+  },
+})
+```
+
+A kulcs ellenőrzése kötelező, mert az üzeneteknek nincs aláírása. A Számlázz.hu által elvárt válasz XML-t a kezelő készíti el.
+
+{{more:adatkapcsolat|}}
+
+</details>
+
+{{links:adatkapcsolat}}
 
 ## PDF mentése tárhelyre
 
@@ -715,6 +886,28 @@ test('hálózati hibánál nem számláz kétszer', async () => {
 
 </details>
 
+<details>
+<summary><b>Hamis Számla Agent</b> · <code>createFakeAgentFetch()</code></summary>
+
+```ts
+import { createFakeAgentFetch } from 'kassza/testing'
+
+const agent = createFakeAgentFetch()
+const kassza = createKassza({ agentKey: 'teszt-kulcs', fetch: agent.fetch, retryDelayMs: 0 })
+
+agent.fail('ghostSuccess', { action: 'createInvoice' })
+const eredmeny = await kassza.invoices.createOnce({ orderNumber: 'WEB-1', buyer, items })
+
+eredmeny.created
+agent.invoices.size
+```
+
+A valódi kliens fut, csak a Számlázz.hu helyett egy memóriában futó hamis Agent válaszol. Elveszett választ, karbantartást, részleges sikert és a Számlázz.hu hibakódjait is szimulálja.
+
+{{more:kiegeszitok/hamis-agent|}}
+
+</details>
+
 {{links:kiegeszitok/teszteles|mock-kliens|egysegtesztek}}
 
 ## Validátorok és pénzszámítás
@@ -801,7 +994,68 @@ await kassza.resetSession()
 
 </details>
 
+<details>
+<summary><b>Bizonylat-események és karbantartási szünet</b> · <code>onDocument</code>, <code>maintenanceCooldownMs</code></summary>
+
+```ts
+const kassza = createKassza({
+  maintenanceCooldownMs: 60_000,
+  hooks: {
+    onDocument: async (esemeny) => {
+      await auditNaplo(esemeny.kind, esemeny.action, esemeny.number)
+    },
+  },
+})
+```
+
+- Az `onDocument` minden kiállított és sztornózott bizonylat, valamint rögzített befizetés után lefut. Ha hibát dob, a bizonylat attól még elkészült.
+- A `maintenanceCooldownMs` karbantartási hiba után ennyi ideig nem küld kérést, hanem azonnal `maintenance` hibát ad, így átválthatsz tartalék folyamatra.
+
+{{more:alapok/pontosan-egyszer|}}
+
+</details>
+
 {{links:alapok/halozat-es-biztonsag|hookok}}
+
+## Parancssor és MCP szerver
+
+<details>
+<summary><b>Parancssor</b> · <code>npx kassza</code></summary>
+
+```bash
+npx kassza doctor
+npx kassza xml preview szamla.json
+npx kassza invoice get --order REND-1001
+```
+
+A `doctor` ellenőrzi a Node.js-t, az Agent kulcsot, a gép óráját és a munkamenetet. Az `xml preview` kiírja a küldendő XML-t az Agent kulcs nélkül, így supportjegyhez is csatolható.
+
+{{more:kiegeszitok/parancssor|}}
+
+</details>
+
+<details>
+<summary><b>MCP szerver</b> · <code>npx kassza mcp</code></summary>
+
+```json
+{
+  "mcpServers": {
+    "kassza": {
+      "command": "npx",
+      "args": ["-y", "kassza", "mcp"],
+      "env": { "SZAMLAZZ_AGENT_KEY": "..." }
+    }
+  }
+}
+```
+
+Claude, Cursor és más MCP kliensek számára. Alapból csak olvas. Az `--allow-write` kapcsolóval kiállíthat és sztornózhat is, de minden íráshoz kell a megfelelő előnézeti eszköz megerősítő kódja.
+
+{{more:kiegeszitok/mcp-szerver|}}
+
+</details>
+
+{{links:kiegeszitok/parancssor}}
 
 ## AI-val kódolsz?
 

@@ -1,0 +1,4 @@
+{
+  "title": "Fizetésből bizonylat",
+  "pages": ["stripe", "simplepay", "barion", "revolut", "paypal"]
+}

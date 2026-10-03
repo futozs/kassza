@@ -16,6 +16,35 @@ import { createReceiptOnce } from '../receipts/create-once'
 import type { CreateReceiptInput, Receipt, SendReceiptInput } from '../receipts/types'
 import type { TaxpayerInfo } from '../taxpayer/query-taxpayer'
 
+export {
+  createFakeAgentFetch,
+  type FakeAgent,
+  type FakeAgentCodeFault,
+  type FakeAgentDuplicateOrderNumbers,
+  type FakeAgentFault,
+  type FakeAgentFaultName,
+  type FakeAgentFaultOptions,
+  type FakeAgentOptions,
+  type FakeAgentScheduledFault,
+} from './fake-agent'
+export { CONNECT_PRINCIPAL_MESSAGES } from './fake-agent-account'
+export type { FakeAgentAttachment, FakeAgentRequestRecord } from './fake-agent-request'
+export type {
+  FakeAgentBuyer,
+  FakeAgentInvoice,
+  FakeAgentInvoicePayment,
+  FakeAgentItem,
+  FakeAgentItemLedger,
+  FakeAgentPrincipalState,
+  FakeAgentReceipt,
+  FakeAgentReceiptPayment,
+  FakeAgentSeller,
+  FakeAgentTaxpayer,
+  FakeAgentTaxpayerAddress,
+  FakeAgentTotals,
+  FakeInvoiceTypeCode,
+} from './fake-agent-state'
+
 export const MOCK_PDF: Uint8Array = new TextEncoder().encode(
   '%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n',
 )

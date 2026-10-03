@@ -122,14 +122,16 @@ function parsePdf(root: XmlElement): Uint8Array | undefined {
   return bytes.length > 0 ? bytes : undefined
 }
 
-export function parseReceiptXml(root: XmlElement, response: AgentResponse): Receipt {
-  const receipt = findChild(root, 'nyugta')
+export function parseReceiptElement(
+  receipt: XmlElement,
+  response: AgentResponse,
+  pdf?: Uint8Array,
+): Receipt {
   const base = findChild(receipt, 'alap')
-  if (!receipt || !base) {
-    throw unexpectedResponse(response, 'A nyugta válaszból hiányzik a <nyugta> blokk.')
+  if (!base) {
+    throw unexpectedResponse(response, 'A nyugta XML-ből hiányzik az <alap> blokk.')
   }
   const items = findChildren(findChild(receipt, 'tetelek'), 'tetel').map(parseItem)
-  const pdf = parsePdf(root)
   return {
     id: childNumber(base, 'id') ?? 0,
     number: requiredText(base, 'nyugtaszam', response),
@@ -151,6 +153,14 @@ export function parseReceiptXml(root: XmlElement, response: AgentResponse): Rece
     totals: parseTotals(receipt, items),
     ...(pdf ? { pdf } : {}),
   }
+}
+
+export function parseReceiptXml(root: XmlElement, response: AgentResponse): Receipt {
+  const receipt = findChild(root, 'nyugta')
+  if (!receipt || !findChild(receipt, 'alap')) {
+    throw unexpectedResponse(response, 'A nyugta válaszból hiányzik a <nyugta> blokk.')
+  }
+  return parseReceiptElement(receipt, response, parsePdf(root))
 }
 
 function throwIfNotXml(response: AgentResponse): void {

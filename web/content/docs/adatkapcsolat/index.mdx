@@ -1,0 +1,84 @@
+---
+title: Pénzügyi adatkapcsolat
+description: A Számlázz.hu pénzügyi adatkapcsolat (PUSH) fogadása a kassza/data-link kezelővel. Kimenő és bejövő számlák, banki tranzakciók és nyugták, azonosító kulcsok, iktatószám és helyes válasz XML.
+official: https://docs.szamlazz.hu/hu/penzugyi-adatkapcsolat/mukodes
+---
+
+A pénzügyi adatkapcsolattal a Számlázz.hu magától átküldi a fogadó rendszernek (például egy könyvelőprogramnak vagy ERP-nek) a kiállított és befogadott számlákat, a banki tranzakciókat és a nyugtákat. Az átküldés PUSH jellegű: a Számlázz.hu hív téged, lekérdezni nem lehet.
+
+A `dataLinkHandler()` fogadja ezeket a kéréseket, ellenőrzi az azonosító kulcsot, a bizonylatot kassza típusokká alakítja, és a Számlázz.hu által elvárt válasz XML-t is elkészíti.
+
+```ts title="app/api/szamlazz/adatkapcsolat/route.ts"
+import { dataLinkHandler } from 'kassza/data-link'
+import { bizonylatMentese, ugyfelKulcsai } from '@/lib/konyveles'
+
+export const POST = dataLinkHandler({
+  verifyKey: async (kulcs) => (await ugyfelKulcsai()).includes(kulcs),
+  onPush: async (push) => {
+    const iktatoszam = await bizonylatMentese(push)
+    return { registrationNumber: iktatoszam }
+  },
+})
+```
+
+## Beállítás
+
+1. A fogadó rendszeredet a Számlázz.hu-nál regisztráltatni kell: ehhez vedd fel velük a kapcsolatot. A regisztrációkor adod meg a fogadó URL-t, és itt dől el az is, kérsz-e PDF-et az üzenetekben.
+2. Az ügyfeleidnek te adsz azonosító kulcsot (legfeljebb 40 karakter). A kulcs utolsó 5 karaktere a rendszeredre jellemző, a regisztrációkor rögzített végződés: a Számlázz.hu csak ilyen kulcsot enged beállítani.
+3. Az ügyfél a Számlázz.hu fiókjában a **Beállítások / Fiók beállításai / Online pénzügyi adatkapcsolat** menüben kiválasztja a rendszeredet, és beírja a kulcsot. A szolgáltatáshoz #profi csomag kell; tesztfiókban ez alapból adott.
+
+Minden ügyfél ugyanarra az URL-re küld, az `X-Szamlazzhu-Key` fejlécben a saját kulcsával. Aláírás nincs, ezért a kulcs ellenőrzése kötelező: a `keys` (fix lista) vagy a `verifyKey` (például adatbázisból) opció nélkül a kezelő el sem indul.
+
+## Üzenetek
+
+Egy kérés egy bizonylatot hoz. Számla a kiállítás után 15 percen belül érkezik, a banki tranzakciók kötegelve, a nyugták naponta egyszer. A `push.kind` szerint:
+
+| `kind` | Tartalom |
+| --- | --- |
+| `invoice` | Kimenő számla: `invoice` (ugyanaz az `InvoiceDetails`, mint az `invoices.get()` válasza, a PDF-fel együtt, ha kérted), `id`, `deleted` |
+| `incoming-invoice` | Befogadott számla ugyanígy; a `deleted` jelzi, ha törölték |
+| `bank-transaction` | `transaction`: bankszámla, értéknap, irány (`in` vagy `out`), összeg, pénznem, partner, közlemény |
+| `receipts` | `receipts`: a nap nyugtái (`Receipt`) a kibocsátó adószámával |
+
+<Callout type="warning" title="Ugyanaz a számla többször is jöhet">
+  A Számlázz.hu egy számlát többször is átküldhet, például befizetés vagy sztornó után. A
+  frissítéshez az `id` mezőt használd kulcsnak (a Számlázz.hu is ezt ajánlja), ne a
+  számlaszámot és ne az iktatószámot.
+</Callout>
+
+## Válasz
+
+A kezelő a helyes válasz XML-t magától elkészíti, a kimenő és bejövő számláknál a kötelező `id` visszaküldésével együtt. Az `onPush` visszatérési értéke opcionális:
+
+| Mező | Jelentés |
+| --- | --- |
+| `registrationNumber` | Iktatószám számlákhoz. A Számlázz.hu eltárolja, és a későbbi újraküldésekben visszaküldi; a PDF-en nem jelenik meg. |
+| `keyError` | `KEY_ERR` vagy `KEY_DEL`, ha az `onPush` dönt a kulcsról. |
+
+## Kulcshibák
+
+| Válasz | Mit tesz a Számlázz.hu |
+| --- | --- |
+| `KEY_ERR` | A kulcs ismeretlen; a bizonylatot a következő változásáig nem küldi újra. A kezelő ezt adja, ha a kulcs hiányzik, vagy nincs a `keys` listában, vagy a `verifyKey` `false`-t ad. |
+| `KEY_DEL` | A kulcs törlendő: a Számlázz.hu kikapcsolja az adatkapcsolatot az ügyfél fiókjában, és e-mailben értesíti. Akkor használd, ha az ügyfél megszűnt nálad. A `verifyKey` ezt `'KEY_DEL'` visszaadásával kéri. |
+
+## Hibák és újraküldés
+
+| Helyzet | Válasz | Következmény |
+| --- | --- | --- |
+| Hibás vagy ismeretlen XML, túl nagy törzs (alapból 64 MB felett) | `400` | A Számlázz.hu újrapróbálja. |
+| Az `onPush` vagy a `verifyKey` hibát dobott | `500` | A Számlázz.hu újrapróbálja; a hibát az `onError` kapja. |
+| Sikeres feldolgozás | `200` és válasz XML | Kész. |
+
+A Számlázz.hu 72 órán át próbálkozik, utána a bizonylat kikerül a küldési sorból. Ha a végpont hosszan hibás, lassú vagy nem válaszol, a Számlázz.hu az egész fogadó rendszert leállítja, és csak kérésre kapcsolja vissza. Ezért az `onPush` legyen gyors: mentsd el a bizonylatot, a nehezebb feldolgozást végezd háttérben. Átirányítással (például HTTP 302) válaszoló végpont nem működik.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Napi NAV-összesítő" href="/docs/nav-nyugta/napi-osszesito">
+    Az adatkapcsolaton érkező nyugtákból is számolható.
+  </Card>
+  <Card title="Számla adatai" href="/docs/szamla-adatai">
+    Az InvoiceDetails mezői.
+  </Card>
+</Cards>

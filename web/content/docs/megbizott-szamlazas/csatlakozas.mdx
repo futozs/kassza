@@ -1,0 +1,77 @@
+---
+title: Csatlakozás
+description: Megbízói Számlázz.hu fiók létrehozása vagy összekapcsolása a connectPrincipal függvénnyel. A négy lehetséges kimenet, az adószám ellenőrzése és az előtagok.
+---
+
+A `connectPrincipal()` a megbízott saját hitelesítésével (Agent kulcs vagy felhasználónév és jelszó) küldi el a megbízó cégadatait és a dedikált felhasználó adatait. A Számlázz.hu az adószám alapján dönti el, hogy új fiókot hoz létre, vagy a meglévőhöz kér csatlakozást.
+
+```ts title="lib/csatlakozas.ts"
+import { connectPrincipal } from 'kassza/delegation'
+
+const eredmeny = await connectPrincipal(
+  {
+    principal: {
+      name: 'Példa Kft.',
+      taxNumber: '12345676-2-42',
+      invoicePrefix: 'PLDA',
+      zip: '1111',
+      city: 'Budapest',
+      address: 'Fő utca 1.',
+      email: 'penzugy@pelda.hu',
+    },
+    user: {
+      email: 'kassza+pelda@platform.hu',
+      password: process.env.DELEGATE_PASSWORD!,
+      firstName: 'Platform',
+      lastName: 'Számlázás',
+    },
+  },
+  { verifyTaxNumber: true },
+)
+
+console.log(eredmeny.status, eredmeny.message)
+```
+
+A megbízott Agent kulcsát a kassza a `SZAMLAZZ_AGENT_KEY` környezeti változóból veszi, de az `agentKey` opcióban is megadhatod. A dedikált felhasználó e-mail címe legyen egyedi megbízónként, a jelszava 8 és 128 karakter közötti. Ezeket a hitelesítő adatokat titkosítva tárold, ezekkel fogsz kiállítani.
+
+## A négy kimenet
+
+| `status` | Mit jelent | Teendő |
+| --- | --- | --- |
+| `account-created` | Új fiók jött létre a megbízónak, a dedikált felhasználóval. | A megbízó e-mailt kap, és birtokba veszi a fiókot. Addig a kiállítás 250-es hibát ad. |
+| `owner-invite-resent` | A fiók már létezik, de még nincs tulajdonosa; a Számlázz.hu újraküldte a meghívót. | Várj a megbízóra. |
+| `join-request-sent` | A fióknak van tulajdonosa; a Számlázz.hu csatlakozási kérelmet küldött neki. | A megbízó elfogadja a kérelmet. Addig a belépés 3-as hibát ad. |
+| `join-request-resent` | A csatlakozási kérelmet a Számlázz.hu újraküldte. | Várj a megbízóra. |
+
+Ha a Számlázz.hu ismeretlen szöveggel válaszol, a `status` értéke `unknown`, és a teljes szöveg a `message` mezőben van.
+
+<Callout type="danger" title="Ne hívd ciklusban">
+  Minden hívás újabb e-mailt küld a megbízónak (meghívót vagy csatlakozási kérelmet). A kapcsolat
+  állapotát a [`probeDelegation()`](/docs/megbizott-szamlazas/allapot) függvénnyel ellenőrizd,
+  ritkán, ne ezzel.
+</Callout>
+
+## Adószám-ellenőrzés
+
+A `verifyTaxNumber: true` opcióval a kassza a csatlakozás előtt lekérdezi az adószámot a NAV-tól (a Számlázz.hu adószám-lekérdezésével), és érvénytelen adószámnál el sem küldi a kérést. Egy elgépelt adószám ugyanis új, felesleges fiókot hozna létre.
+
+## Hibák
+
+| Kód | Jelentés |
+| --- | --- |
+| `68` | Ezzel az adószámmal és előtaggal már van cég: egyeztess másik előtagot. |
+| `101` | A dedikált felhasználó e-mail címe már foglalt. |
+| `137` | A megbízott fiókjában nincs engedélyezve a fiókok Agenten keresztüli létrehozása. |
+| `200`, `362` | Az előtagot ez az adószám vagy egy másik fiók már használja. |
+| `506`, `507` | A jelszó túl rövid vagy túl hosszú. |
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="A kapcsolat állapota" href="/docs/megbizott-szamlazas/allapot">
+    Mikor lehet már kiállítani?
+  </Card>
+  <Card title="Kliensek megbízónként" href="/docs/megbizott-szamlazas/kliensek">
+    Kiállítás a dedikált felhasználóval.
+  </Card>
+</Cards>

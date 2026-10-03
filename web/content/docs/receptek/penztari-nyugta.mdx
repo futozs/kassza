@@ -1,18 +1,26 @@
 ---
 title: Pénztári nyugta
-description: Nyugta egy pénztári eladásról hívásazonosítóval, a dupla nyugta kezelésével és e-mail kiküldéssel, Next.js route handlerben.
+description: Nyugta egy food truck pénztárprogramjából a receipts.createOnce metódussal, a dupla nyugta kezelésével és e-mail kiküldéssel, Next.js route handlerben. Ki adhat így nyugtát, és mi a teendő, ha a Számlázz.hu nem érhető el.
 ---
 
-Egy bolt vagy büfé pénztárprogramja minden eladás után nyugtát kér. A vevő kérheti e-mailben is. A hálózat itt sem megbízható: ha a kérés elakad, a pénztáros újra megnyomja a gombot, és ebből nem lehet két nyugta.
+Egy food truck tabletes pénztárprogramja minden eladás után nyugtát kér. A vevő kérheti e-mailben is. A hálózat itt sem megbízható: ha a kérés elakad, a pénztáros újra megnyomja a gombot, és ebből nem lehet két nyugta.
 
-Nyugtánál ezt a hívásazonosító (`callId`) oldja meg. Ugyanazzal a `callId`-val a Számlázz.hu nem készít második nyugtát, hanem 338-as hibát ad, amelyet a kassza `duplicate` kategóriájú hibává alakít. Emiatt a kassza hálózati hiba után a nyugtát magától is újrapróbálja, ha van `callId`.
+<Callout type="warning" title="Csak nem pénztárgép-köteles tevékenységhez">
+  A Számla Agent nyugtája számítógéppel előállított nyugta, nem pótolja az online pénztárgépet.
+  Egy helyhez kötött bolt, büfé vagy étterem online pénztárgéppel vagy e-pénztárgéppel ad nyugtát.
+  A mozgó vendéglátás, például egy food truck, nem pénztárgép-köteles, ezért ott a kassza
+  használható. A részletek a [Nyugta vagy számla?](/docs/alapok/nyugta-vagy-szamla) oldalon
+  vannak.
+</Callout>
+
+Nyugtánál a dupla kiállítást a hívásazonosító (`callId`) akadályozza meg. Ugyanazzal a `callId`-val a Számlázz.hu nem készít második nyugtát, hanem 338-as hibát ad, amelyet a kassza `duplicate` kategóriájú hibává alakít. Emiatt a kassza hálózati hiba után a nyugtát magától is újrapróbálja, ha van `callId`.
 
 ## A nyugtakészítő függvény
 
 A nyugta előtagját és alapértelmezett fizetési módját a [Közös kliens](/docs/receptek/kozos-kliens) `defaults.receipt` beállítása adja.
 
 ```ts title="lib/penztar.ts"
-import { isSzamlazzError, type Kassza, type Receipt, type ReceiptItemInput } from 'kassza'
+import type { Kassza, Receipt, ReceiptItemInput } from 'kassza'
 import { kassza as alapKliens } from '@/lib/kassza'
 
 export interface Eladas {
@@ -25,36 +33,35 @@ export async function nyugtaEladasrol(
   eladas: Eladas,
   kliens: Kassza = alapKliens,
 ): Promise<Receipt> {
-  const azonosito = `POS-${eladas.id}`
-  try {
-    return await kliens.receipts.create({
-      callId: azonosito,
-      orderNumber: azonosito,
+  const { receipt } = await kliens.receipts.createOnce(
+    {
+      orderNumber: `POS-${eladas.id}`,
       paymentMethod: eladas.fizetesiMod,
       downloadPdf: false,
       items: eladas.tetelek,
-    })
-  } catch (error) {
-    if (!isSzamlazzError(error) || !error.isDuplicate) throw error
-    const meglevo = await kliens.receipts.find({ orderNumber: azonosito, downloadPdf: false })
-    if (meglevo) return meglevo
-    throw error
-  }
+    },
+    { lookupFirst: false },
+  )
+  return receipt
 }
 ```
 
-A `callId` és a rendelésszám ugyanaz. A Számla Agent hívásazonosító alapján nem ad lekérdezést, ezért a dupla nyugta hibája után a rendelésszám alapján keressük meg a már elkészült nyugtát.
+A `receipts.createOnce()` a rendelésszámot hívásazonosítóként is elküldi. Ha a Számlázz.hu 338-as hibát ad, vagy a kimenet bizonytalan (hálózati hiba, időtúllépés), a rendelésszám alapján megkeresi és visszaadja a már elkészült nyugtát. A Számla Agent hívásazonosító alapján nem ad lekérdezést, ezért kell a rendelésszám is.
+
+A `lookupFirst: false` kihagyja a kiállítás előtti lekérdezést. A pénztárnál minden eladás új, így eladásonként egy kéréssel kevesebb megy el, az ismételt gombnyomást pedig a hívásazonosító így is kiszűri. A részletek a [Pontosan egyszer](/docs/alapok/pontosan-egyszer) oldalon vannak.
 
 A tételeknél bruttó egységárat adj meg, a nettó és az áfa összegét a kassza számolja ki a nyugtákra vonatkozó kerekítéssel:
 
 ```ts title="lib/penztar-tetelek.ts"
 import type { ReceiptItemInput } from 'kassza'
 
-export const KAVE: ReceiptItemInput = { name: 'Kávé', grossUnitPrice: 890, vat: 27 }
-export const KIFLI: ReceiptItemInput = { name: 'Kifli', grossUnitPrice: 250, vat: 5 }
+export const LANGOS: ReceiptItemInput = { name: 'Lángos', grossUnitPrice: 1_490, vat: 5 }
+export const ASVANYVIZ: ReceiptItemInput = { name: 'Ásványvíz 0,5 l', grossUnitPrice: 590, vat: 27 }
 ```
 
-<Example slug="nyugta" />
+Az áfakulcsot a könyvelőddel egyeztesd: vendéglátásban például a helyben készített étel 5%-os, a palackozott ital 27%-os lehet.
+
+<Example slug="penztari-nyugta" />
 
 ## Route handler
 
@@ -120,12 +127,18 @@ Ha a végpont `503`-mal válaszol, a pénztáros nyugodtan újrapróbálhatja: u
 
 <Example slug="nyugta-kikuldes" />
 
+## Ha a Számlázz.hu nem érhető el
+
+Karbantartás (1-es hiba) vagy hosszabb hálózati hiba alatt az árusítás nem állhat le. A pénztáros ilyenkor a nyomdai nyugtatömbből ad kézi nyugtát, a pénztárprogram pedig rögzíti, melyik eladáshoz melyik tömbnyugta tartozik. Ugyanarról az eladásról később ne állíts ki Agent-nyugtát is.
+
+A kézi nyugtákról a Számlázz.hu nem tud, ezért a napi NAV-összesítőjüket neked kell beküldeni. Ehhez ad eszközt a [Kézi nyugtatömb](/docs/nav-nyugta/kezi-nyugtatomb) oldal.
+
 ## Buktatók
 
-<Callout type="danger" title="A callId legyen állandó">
-  A hívásazonosító az eladás azonosítójából készüljön, soha ne véletlen értékből vagy
-  időbélyegből. Új `callId`-val minden újrapróbálás új nyugtát állít ki. Egy kérést itt is
-  legfeljebb ötször szabad elküldeni, utána embernek kell ránéznie.
+<Callout type="danger" title="A rendelésszám legyen állandó">
+  A rendelésszám (és vele a hívásazonosító) az eladás azonosítójából készüljön, soha ne véletlen
+  értékből vagy időbélyegből. Új rendelésszámmal minden újrapróbálás új nyugtát állít ki. Egy
+  kérést itt is legfeljebb ötször szabad elküldeni, utána embernek kell ránéznie.
 </Callout>
 
 <Callout type="warning" title="Nyugta előtag és fizetési mód">
@@ -141,9 +154,11 @@ Ha a végpont `503`-mal válaszol, a pénztáros nyugodtan újrapróbálhatja: u
 </Callout>
 
 <Callout type="note" title="NAV adatszolgáltatás">
-  A nyugtákról 2026. szeptember 1-jétől adatot kell szolgáltatni a NAV felé, de 2026. december
-  31-ig türelmi idő van. A Számlázz.hu leírása szerint ezzel egyelőre nincs teendőd, a kassza
-  változásait a changelogban követheted.
+  2026. szeptember 1-jétől a számítógéppel előállított nyugtákról is napi összesítőt kell küldeni
+  a NAV-nak, 2026. december 31-ig türelmi idővel. Az Agenttel kiállított nyugtákat a Számlázz.hu a
+  NAV összekötés után maga jelenti, és értesít, ha ehhez a fiókban beállítás kell. Neked az
+  ellenőrzés marad. Nyugtát csak olyan fiókból lehet kiállítani, ahol be van állítva a NAV Online
+  adatkapcsolat. Lásd [NAV nyugta-adatszolgáltatás](/docs/nav-nyugta).
 </Callout>
 
 <Callout type="tip" title="Ne számold ki az összegeket">
@@ -155,6 +170,9 @@ Ha a végpont `503`-mal válaszol, a pénztáros nyugodtan újrapróbálhatja: u
 ## Kapcsolódó
 
 <Cards>
+  <Card title="Nyugta vagy számla?" href="/docs/alapok/nyugta-vagy-szamla">
+    Ki adhat számítógéppel előállított nyugtát, és mikor kell számla.
+  </Card>
   <Card title="Nyugta létrehozás" href="/docs/nyugta-letrehozas">
     A nyugtakérés összes mezője, a PDF sablonok és a kerekítés.
   </Card>
@@ -166,5 +184,8 @@ Ha a végpont `503`-mal válaszol, a pénztáros nyugodtan újrapróbálhatja: u
   </Card>
   <Card title="Egységtesztek" href="/docs/receptek/egysegtesztek">
     A dupla nyugta esetének tesztelése mock klienssel.
+  </Card>
+  <Card title="Kézi nyugtatömb" href="/docs/nav-nyugta/kezi-nyugtatomb">
+    A tartalék nyugtatömb napi NAV-összesítője.
   </Card>
 </Cards>

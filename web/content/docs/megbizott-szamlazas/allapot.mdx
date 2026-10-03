@@ -1,0 +1,45 @@
+---
+title: A kapcsolat állapota
+description: A probeDelegation ellenőrzi, hogy a dedikált felhasználó be tud-e már lépni a megbízó fiókjába, és ha nem, miért nem.
+---
+
+A csatlakozás után a megbízónak lépnie kell: birtokba venni az új fiókot, vagy elfogadni a csatlakozási kérelmet. A `probeDelegation()` a dedikált felhasználó adataival megnézi, hol tart a folyamat. Egy nem létező számla PDF-jét kéri le, így bizonylatot nem hoz létre és nem is módosít.
+
+```ts
+import { probeDelegation } from 'kassza/delegation'
+
+const allapot = await probeDelegation({
+  username: 'kassza+pelda@platform.hu',
+  password: process.env.DELEGATE_PASSWORD!,
+})
+
+console.log(allapot.state, allapot.message)
+```
+
+| `state` | Jelentés |
+| --- | --- |
+| `active` | A kapcsolat él, lehet kiállítani. |
+| `awaiting-approval` | A belépés sikertelen (3): a megbízó még nem fogadta el a csatlakozási kérelmet, vagy hibás a jelszó. |
+| `awaiting-owner-registration` | A megbízó még nem vette birtokba az új fiókot (250). |
+| `multi-account-user` | A dedikált felhasználó több fiókhoz is hozzáfér (164), így Agenttel nem használható. |
+
+Más hiba (például hálózati hiba) esetén a függvény a `SzamlazzError`-t dobja tovább.
+
+<Callout type="warning" title="Ritkán ellenőrizz">
+  A 250-es állapotnál a Számlázz.hu minden belépési kísérletre újraküldi a megbízónak a
+  fiókgazdai meghívót. Ne ellenőrizd ciklusban: elég, ha a megbízó a felületeden jelzi, hogy
+  végzett, vagy ha napi egyszer megnézed.
+</Callout>
+
+A függvény Agent kulccsal hibát ad, mert az Agent kulcs a fiókhoz tartozik, nem a megbízotti kapcsolathoz.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Csatlakozás" href="/docs/megbizott-szamlazas/csatlakozas">
+    A négy kimenet és a hibakódok.
+  </Card>
+  <Card title="Kliensek megbízónként" href="/docs/megbizott-szamlazas/kliensek">
+    Kiállítás, ha a kapcsolat él.
+  </Card>
+</Cards>

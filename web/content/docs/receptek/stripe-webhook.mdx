@@ -7,6 +7,12 @@ A vevő a Stripe Checkout oldalán fizet, a Stripe pedig `checkout.session.compl
 
 A recept a [Fizetett rendelés számlája](/docs/receptek/fizetett-rendeles-szamla) recept `szamlazFizetettRendelest()` függvényét használja, amely kiállítás előtt rendelésszám alapján megkeresi a számlát.
 
+<Callout type="tip" title="Kész megoldás: kassza/payments/stripe">
+  Ez a recept a Stripe SDK-val, lépésenként mutatja a számlázást. Ugyanezt a
+  [`stripeWebhook()`](/docs/fizetesek/stripe) kezelő SDK nélkül, néhány sorban elvégzi: ellenőrzi
+  az aláírást, pontosan egyszer állít ki nyugtát vagy számlát, és visszatérítéskor sztornóz.
+</Callout>
+
 ## Telepítés
 
 ```package-install
@@ -187,6 +193,9 @@ A válaszkódok szándékosak:
 ## Kapcsolódó
 
 <Cards>
+  <Card title="Stripe (kassza/payments)" href="/docs/fizetesek/stripe">
+    Webhookkezelő Stripe SDK nélkül, nyugtával, számlával és sztornóval.
+  </Card>
   <Card title="Fizetett rendelés számlája" href="/docs/receptek/fizetett-rendeles-szamla">
     Az idempotens számlázó függvény, amelyet a webhook hív.
   </Card>

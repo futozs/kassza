@@ -1,0 +1,69 @@
+---
+title: PayPal
+description: PayPal capture-ből nyugta vagy számla, visszatérítésből sztornó a kassza/payments/paypal webhookkezelővel. Aláírás-ellenőrzés a PayPal API-val, tételek a rendelésből.
+---
+
+A `payPalWebhook()` a PayPal hivatalos ellenőrző végpontjával (`/v1/notifications/verify-webhook-signature`) vizsgálja meg az eseményt, majd lekéri a hozzá tartozó rendelést, és abból készít `PaymentEvent`-et. Az OAuth tokent a kassza kéri le és tárolja, lejáratkor magától megújítja.
+
+## Beállítás
+
+1. A PayPal Developer Dashboardon (**Apps & Credentials**) az alkalmazásodhoz vegyél fel webhookot a végpontodra, például `https://bolt.example.hu/api/paypal/webhook`, a `PAYMENT.CAPTURE.COMPLETED`, `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.DECLINED`, `PAYMENT.CAPTURE.PENDING` és `PAYMENT.CAPTURE.REFUNDED` eseményekre.
+2. Másold ki a webhook azonosítóját (Webhook ID), az alkalmazás Client ID-ját és titkát.
+
+```dotenv title=".env.local"
+PAYPAL_WEBHOOK_ID=...
+PAYPAL_CLIENT_ID=...
+PAYPAL_CLIENT_SECRET=...
+```
+
+## A webhook
+
+```ts title="app/api/paypal/webhook/route.ts"
+import { payPalWebhook } from 'kassza/payments/paypal'
+import { kassza } from '@/lib/kassza'
+
+export const POST = payPalWebhook({
+  webhookId: process.env.PAYPAL_WEBHOOK_ID!,
+  clientId: process.env.PAYPAL_CLIENT_ID!,
+  clientSecret: process.env.PAYPAL_CLIENT_SECRET!,
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+| Opció | Alapérték | Jelentés |
+| --- | --- | --- |
+| `webhookId` | – | A webhook azonosítója az aláírás ellenőrzéséhez. |
+| `clientId`, `clientSecret` | – | Az alkalmazás azonosítója és titka. |
+| `sandbox` | `false` | A sandbox API-t hívja. |
+| `fetchOrder` | `true` | Fizetésnél lekéri a rendelést a tételekért és a vevőért. |
+| `method` | `PayPal` | A bizonylatra kerülő fizetési mód. |
+| `onPayment`, `onError`, `maxBodyBytes` | – | Lásd [Fizetésből bizonylat](/docs/fizetesek#a-webhook-válaszai). |
+
+## Események
+
+| PayPal esemény | `kind` |
+| --- | --- |
+| `PAYMENT.CAPTURE.COMPLETED` | `paid` |
+| `PAYMENT.CAPTURE.DENIED`, `PAYMENT.CAPTURE.DECLINED` | `failed` |
+| `PAYMENT.CAPTURE.PENDING` | `other` |
+| `PAYMENT.CAPTURE.REFUNDED`, a teljes összegről | `refunded` |
+| `PAYMENT.CAPTURE.REFUNDED`, részleges | `partially-refunded` |
+
+A fizetés azonosítója a capture azonosítója. A visszatérítést a kassza a capture-höz köti, így ugyanahhoz a rendelésszámhoz tartozik, mint a fizetés.
+
+## Tételek
+
+A tételeket a rendelés `purchase_units` mezőjéből veszi, tételenként az áfával együtt, a szállítási, kezelési és biztosítási díjat külön tételként. Ha a rendelésben kedvezmény van, vagy nem egyértelmű a felosztás (több purchase unit, eltérő pénznem, hiányzó tételadó), a tételeket kihagyja. Ilyenkor a bizonylat egyetlen tételből áll a kifizetett összeggel, vagy add át a tételeket a saját rendelésedből az `items` opcióban.
+
+A saját rendelésazonosítódat a `custom_id` vagy az `invoice_id` mezőben add át; a `PaymentEvent` `orderRef` mezőjében kapod vissza.
+
+## Kapcsolódó
+
+<Cards>
+  <Card title="Fizetésből bizonylat" href="/docs/fizetesek">
+    Az issueForPayment döntései, tételek, áfa és hibakezelés.
+  </Card>
+  <Card title="Stripe" href="/docs/fizetesek/stripe">
+    Checkout Session és Payment Intent.
+  </Card>
+</Cards>

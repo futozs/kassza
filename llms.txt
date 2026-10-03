@@ -1,13 +1,13 @@
 # kassza
 
-> Zero-dependency TypeScript client for the Számlázz.hu Számla Agent API (Hungarian invoicing): invoices, proformas, receipts, reversals, payments, PDFs, NAV taxpayer lookup, IPN webhooks. Unofficial.
+> Zero-dependency TypeScript client for the Számlázz.hu Számla Agent API (Hungarian invoicing): invoices, proformas, receipts, reversals, payments, PDFs, NAV taxpayer lookup, IPN webhooks. Also: exactly-once documents from Stripe, SimplePay, Barion, Revolut and PayPal payments, NAV daily receipt reports, delegated invoicing, the Számlázz.hu data link, a fake Számla Agent for tests, a CLI and an MCP server. Unofficial.
 
 ## Docs for coding agents
 
 - [Start here](agents/README.md): overview, the five rules, vocabulary
-- [Pitfalls](agents/pitfalls.md): hard rules and error categories
-- [API reference](agents/api.md): every method, input and output
-- [Recipes](agents/recipes.md): webhooks, idempotency, receipts, IPN, storage, serverless, tests
+- [Pitfalls](agents/pitfalls.md): hard rules, legal rules for receipts, error categories
+- [API reference](agents/api.md): every method, input and output, all subpath modules
+- [Recipes](agents/recipes.md): webhooks, exactly-once invoicing, receipts, IPN, storage, serverless, tests, payment providers, NAV reports, delegated invoicing, data link, MCP
 - [Claude Code skill](agents/skills/kassza/SKILL.md)
 
 ## Human docs
