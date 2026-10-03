@@ -1,5 +1,9 @@
 # Változásnapló
 
+## 0.13.0 (2026-10-03)
+
+- Karbantartási kiadás
+
 ## 0.12.0 (2026-10-02)
 
 ### Újdonságok
