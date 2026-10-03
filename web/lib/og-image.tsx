@@ -46,7 +46,7 @@ export function receiptEdgePath(width: number): string {
 function LogoMark({ size }: { size: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 512 512" aria-hidden="true">
-      <LogoArt />
+      {LogoArt()}
     </svg>
   )
 }

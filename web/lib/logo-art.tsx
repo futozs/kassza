@@ -1,34 +1,26 @@
 import { logoGradients, logoPaths } from '@/lib/brand'
 
-function Gradient({
-  id,
-  stops,
-  diagonal,
-}: {
-  id: string
-  stops: readonly string[]
-  diagonal?: boolean
-}) {
-  return (
-    <linearGradient id={id} x1="0" y1="0" x2={diagonal ? '1' : '0'} y2="1">
-      <stop offset="0" stopColor={stops[0]} />
-      <stop offset="1" stopColor={stops[1]} />
-    </linearGradient>
-  )
-}
-
 export function LogoArt() {
   return (
-    <>
+    <g>
       <defs>
-        <Gradient id="km-tile" stops={logoGradients.tile} />
+        <linearGradient id="km-tile" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={logoGradients.tile[0]} />
+          <stop offset="1" stopColor={logoGradients.tile[1]} />
+        </linearGradient>
         <linearGradient id="km-rim" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stopColor="#ffffff" stopOpacity={logoGradients.rim} />
           <stop offset="0.45" stopColor="#ffffff" stopOpacity="0" />
           <stop offset="1" stopColor="#ffffff" stopOpacity="0.08" />
         </linearGradient>
-        <Gradient id="km-stem" stops={logoGradients.stem} />
-        <Gradient id="km-chev" stops={logoGradients.chevron} diagonal />
+        <linearGradient id="km-stem" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor={logoGradients.stem[0]} />
+          <stop offset="1" stopColor={logoGradients.stem[1]} />
+        </linearGradient>
+        <linearGradient id="km-chev" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stopColor={logoGradients.chevron[0]} />
+          <stop offset="1" stopColor={logoGradients.chevron[1]} />
+        </linearGradient>
         <filter
           id="km-shadow"
           x="-25%"
@@ -61,6 +53,6 @@ export function LogoArt() {
         <path d={logoPaths.stem} fill="url(#km-stem)" />
         <path d={logoPaths.chevron} fill="url(#km-chev)" />
       </g>
-    </>
+    </g>
   )
 }
