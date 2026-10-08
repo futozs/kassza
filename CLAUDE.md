@@ -17,9 +17,11 @@ A részletes útmutató AI agenteknek: `AGENTS.md`.
 - Üzleti hibára soha nincs automatikus retry (a docs max. 5 próbálkozást enged, a túllépés kitiltáshoz vezet)
 - Nulla runtime függőség (saját XML író és olvasó)
 - Teszt minden új modulhoz, a coverage küszöb 80%
+- A tesztek nem hívják az éles API-t, kivéve a `tests/e2e/live.test.ts`-t (csak `npm run e2e`)
 
 ## Parancsok
 - `npm test`, `npm run ci` (lint + typecheck + README check + coverage + build + publint/attw)
+- `npm run e2e`: az összes Számla Agent művelet élőben a Számlázz.hu tesztfiókon (`SZAMLAZZ_TEST_AGENT_KEY` kell, nem része a `ci`-nek). Kulcsot soha ne kérj el és ne commitolj. Részletek: `AGENTS.md`, E2E rész.
 - `npm run readme`: a `README.md` generált fájl, kézzel ne szerkeszd. A forrás a `readme/template.md`, a változók (például a weboldal URL-je) a `readme/config.json`-ban vannak. Részletek: `AGENTS.md`.
 
 ## Publikálás

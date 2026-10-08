@@ -12,12 +12,14 @@ This file guides AI agents that work **on this repository**. If you only *use* t
 npm test
 npm run xsd:fetch
 npm run readme
+npm run e2e
 npm run ci
 ```
 
 - `npm test` runs Vitest.
 - `npm run xsd:fetch` downloads the official XSDs into `.xsd-cache/`. The contract tests need these and `xmllint`.
 - `npm run readme` regenerates the README images in `readme/assets/` and then `README.md` (see [README](#readme)).
+- `npm run e2e` runs every Számla Agent operation (all but `connectPrincipal`) against the real Számlázz.hu **test account**. It needs `SZAMLAZZ_TEST_AGENT_KEY` (see `.env.example`), and it is not part of `npm run ci`. See [E2E](#e2e).
 - `npm run ci` runs lint, typecheck, the README sync check, coverage (at least 80%), build, publint and attw.
 
 ## Layout
@@ -42,6 +44,7 @@ npm run ci
 | `tests/helpers.ts` | `createTestContext` and `mockAgent`, a fake `fetch` that captures multipart requests |
 | `tests/fake-agent.ts`, `tests/mcp.ts` | Helpers for tests that run the real client against `createFakeAgentFetch`, and for MCP tests |
 | `tests/xsd.ts` | `validateAgainstXsd` via `xmllint` |
+| `tests/e2e/` | The live end-to-end scenario: `suite.ts` (the scenario), `guard.ts` (test-account guard and shared inputs), `live.test.ts` (real API, only via `npm run e2e`), `fake.test.ts` (the same scenario against `createFakeAgentFetch`, runs in `npm test`) |
 | `agents/` | Docs shipped in the npm package for AI agents of package users |
 | `readme/` | README source: `template.md`, `config.json`, the `build.mjs` renderer, the `art/` SVG generator and the generated `assets/` |
 
@@ -56,8 +59,19 @@ npm run ci
 - XML request elements must follow XSD order. Build requests with `buildXmlDocument`, `el` and `optionalEl`, and add an XSD contract test for every request.
 - Dates are always `Europe/Budapest` (`toAgentDate`, `todayInBudapest`).
 - Never add automatic retries for business errors, and never mark a create operation `safeToRetry` unless it has an idempotency key.
-- Every module has colocated `*.test.ts` files. Never call the real Számlázz.hu API in tests.
+- Every module has colocated `*.test.ts` files. Tests never call the real Számlázz.hu API, with one exception: `tests/e2e/live.test.ts`, which `vitest.config.ts` excludes and only `npm run e2e` runs.
 - When a public API changes, update `readme/template.md` (then run `npm run readme`), `agents/api.md` and `agents/recipes.md` in the same change.
+
+## E2E
+
+`npm run e2e` is the only thing that proves the client still matches what Számlázz.hu really answers. The fake agent cannot show that, because it is built from the same docs as the client.
+
+- It needs the **test account** Agent key in `SZAMLAZZ_TEST_AGENT_KEY` (lowercase). Optional: `SZAMLAZZ_E2E_EMAIL` (recipient of the receipt e-mail test), `SZAMLAZZ_E2E_RECEIPT_PREFIX` (a receipt block that exists in the account, default `NYGTA`) and `SZAMLAZZ_E2E_TAXPAYER` (default `13421739`). `scripts/e2e.mjs` loads `.env` and fails loudly when the key is missing, so a skipped run never looks green.
+- The scenario in `tests/e2e/suite.ts` creates and fetches an invoice (by number, order number and external ID), downloads its PDF, adds, replaces and clears payments, runs `createOnce` twice, reverses the invoice, creates and deletes a proforma, creates, fetches, e-mails and reverses a receipt, and queries a taxpayer. A last test fails when any of the 11 operations never ran.
+- The first step creates a proforma and checks that the account reports it as a test document (`header.test`). If it does not, it deletes the proforma and stops everything. Never weaken this guard (`tests/e2e/guard.ts`).
+- Each group of steps stops at its first failure. An `auth`, `attempt_limit`, `rate_limit` or `maintenance` error stops the whole run. Never add retries or loops here: the docs allow at most 5 attempts for a failing request, and going over leads to a ban.
+- `tests/e2e/fake.test.ts` runs the same scenario against `createFakeAgentFetch` in `npm test`, so the scenario itself does not rot. When you change the scenario, run `npm test` too.
+- `.github/workflows/e2e.yml` runs it on pushes to `main` that touch the library, weekly, and by hand. It needs the repository secrets `SZAMLAZZ_TEST_AGENT_KEY` and `SZAMLAZZ_E2E_EMAIL`, and optionally the variables `SZAMLAZZ_E2E_RECEIPT_PREFIX` and `SZAMLAZZ_E2E_TAXPAYER`.
 
 ## README
 
