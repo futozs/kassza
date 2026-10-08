@@ -1,15 +1,7 @@
 name: E2E
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'src/**'
-      - 'tests/e2e/**'
-      - 'scripts/e2e.mjs'
-      - 'vitest.e2e.config.ts'
-      - 'package.json'
-      - '.github/workflows/e2e.yml'
+  workflow_call:
   schedule:
     - cron: '17 5 * * 1'
   workflow_dispatch:
@@ -26,6 +18,7 @@ jobs:
     if: github.repository == 'futozs/kassza'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    environment: e2e
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444

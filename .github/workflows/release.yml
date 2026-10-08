@@ -21,7 +21,18 @@ permissions:
   id-token: write
 
 jobs:
+  e2e:
+    if: >-
+      github.repository == 'futozs/kassza' &&
+      !startsWith(github.event.head_commit.message, 'release:') &&
+      !contains(github.event.head_commit.message, '[skip release]')
+    uses: ./.github/workflows/e2e.yml
+    secrets: inherit
+    permissions:
+      contents: read
+
   release:
+    needs: e2e
     if: >-
       github.repository == 'futozs/kassza' &&
       !startsWith(github.event.head_commit.message, 'release:') &&
