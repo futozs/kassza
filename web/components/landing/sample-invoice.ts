@@ -7,6 +7,13 @@ const SAMPLE_VAT = 27
 const SAMPLE_AGENT_KEY = 'a-te-agent-kulcsod'
 const INVOICE_XML_FIELD = 'action-xmlagentxmlfile'
 
+export const sampleItem = {
+  name: SAMPLE_ITEM_NAME,
+  quantity: SAMPLE_QUANTITY,
+  grossUnitPrice: SAMPLE_UNIT_PRICE,
+  vat: SAMPLE_VAT,
+} as const
+
 export const sampleInvoice = {
   orderNumber: 'REND-1001',
   paid: true,
@@ -18,14 +25,7 @@ export const sampleInvoice = {
     address: 'Fő utca 1.',
     email: 'peter@example.hu',
   },
-  items: [
-    {
-      name: SAMPLE_ITEM_NAME,
-      quantity: SAMPLE_QUANTITY,
-      grossUnitPrice: SAMPLE_UNIT_PRICE,
-      vat: SAMPLE_VAT,
-    },
-  ],
+  items: [sampleItem],
 } satisfies CreateInvoiceInput
 
 class CapturedRequest extends Error {
@@ -48,6 +48,29 @@ function findCapturedXml(error: unknown): string | undefined {
   if (error instanceof CapturedRequest) return error.xml
   if (error instanceof Error && error.cause !== undefined) return findCapturedXml(error.cause)
   return undefined
+}
+
+export interface InvoiceTotals {
+  readonly netUnitPrice: number
+  readonly net: number
+  readonly vat: number
+  readonly gross: number
+}
+
+function readNumber(xml: string, tag: string): number {
+  const match = new RegExp(`<${tag}>([^<]+)</${tag}>`).exec(xml)
+  const value = match?.[1] === undefined ? Number.NaN : Number(match[1])
+  if (!Number.isFinite(value)) throw new Error(`A minta XML-ből hiányzik a(z) ${tag} érték.`)
+  return value
+}
+
+export function readInvoiceTotals(xml: string): InvoiceTotals {
+  return {
+    netUnitPrice: readNumber(xml, 'nettoEgysegar'),
+    net: readNumber(xml, 'nettoErtek'),
+    vat: readNumber(xml, 'afaErtek'),
+    gross: readNumber(xml, 'bruttoErtek'),
+  }
 }
 
 export async function renderSampleInvoiceXml(): Promise<string> {

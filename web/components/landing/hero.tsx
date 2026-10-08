@@ -1,78 +1,80 @@
-import { ButtonLink } from './button-link'
-import { CodeSwitch, type CodeTab } from './code-switch'
-import { InstallCommand } from './install-command'
-import { Accent, Eyebrow, LandingContainer } from './section-heading'
-import { installSnippet } from './snippets'
+import { ArrowRight } from 'lucide-react'
+import Link from 'next/link'
+import type { CSSProperties, ReactNode } from 'react'
+import { type HeroInvoice, HeroStage } from './hero-stage'
+import { LandingContainer } from './landing-container'
 
-export interface HeroFacts {
-  readonly operations: number
-  readonly examples: number
-  readonly recipes: number
-  readonly version: string
+function Line({ index, children }: { index: number; children: ReactNode }) {
+  return (
+    <span className="hero-line">
+      <span className="hero-line-inner" style={{ '--i': index } as CSSProperties}>
+        {children}
+      </span>
+    </span>
+  )
 }
 
-const TAGS = ['típusos', 'nulla függőség', 'nyílt forráskód'] as const
-
 export function Hero({
-  tabs,
-  xmlLines,
-  facts,
+  invoice,
+  version,
+  operations,
 }: {
-  tabs: readonly CodeTab[]
-  xmlLines: number
-  facts: HeroFacts
+  invoice: HeroInvoice
+  version: string
+  operations: number
 }) {
-  const factList: readonly string[] = [
-    `${facts.operations}/${facts.operations} Agent művelet`,
-    `${facts.examples} futtatható példa`,
-    `${facts.recipes} kész recept`,
-    `v${facts.version} · MIT`,
-  ]
   return (
-    <section aria-labelledby="hero-title" className="border-b border-rule">
-      <LandingContainer className="grid items-center gap-14 py-16 sm:py-20 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-16 lg:py-24">
-        <div className="flex min-w-0 flex-col items-start">
-          <div className="flex flex-wrap gap-2">
-            {TAGS.map((tag) => (
-              <Eyebrow key={tag}>{tag}</Eyebrow>
-            ))}
-          </div>
-          <h1
-            id="hero-title"
-            className="mt-6 font-display text-[length:var(--text-display-s)] leading-[1.04] font-semibold tracking-[-0.03em] text-balance text-ink [overflow-wrap:anywhere]"
-          >
-            Számlázz és nyugtázz <Accent>TypeScriptből.</Accent>
-          </h1>
-          <p className="mt-6 max-w-[33rem] text-[length:var(--text-lede)] leading-relaxed text-pretty text-ink-2">
-            A kassza a Számlázz.hu Számla Agent kliense. Te megadod a vevőt és a tételeket, ő
-            elkészíti a hibátlan XML-t, kiszámolja az összegeket, és nem enged dupla számlát
-            kiállítani.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-            <ButtonLink href="/docs/alapok/telepites">Első lépések</ButtonLink>
-            <ButtonLink href="/sandbox" variant="secondary">
-              Kipróbálom a sandboxban
-            </ButtonLink>
-          </div>
-          <InstallCommand command={installSnippet} className="mt-6" />
-          <ul className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-sm text-muted">
-            {factList.map((fact) => (
-              <li key={fact} className="tnum">
-                {fact}
-              </li>
-            ))}
-          </ul>
+    <section aria-labelledby="hero-title" className="hero relative isolate">
+      <noscript>
+        <style>{'.hs-scene *,.hs-scene *::after{animation:none!important}'}</style>
+      </noscript>
+      <LandingContainer className="flex flex-col items-center pt-14 pb-20 text-center sm:pt-20 lg:pt-24 lg:pb-24">
+        <Link
+          href="/docs"
+          className="hero-fade hero-pill group"
+          style={{ '--i': 0 } as CSSProperties}
+        >
+          <span className="hero-pill-tag tnum">v{version}</span>
+          Mind a {operations} Számla Agent művelet
+          <ArrowRight
+            className="size-3.5 text-muted transition-transform duration-300 group-hover:translate-x-0.5"
+            aria-hidden="true"
+          />
+        </Link>
+
+        <h1 id="hero-title" className="hero-title mt-8">
+          <Line index={1}>Számlázz és nyugtázz</Line>
+          <Line index={2}>
+            <span className="hero-accent">TypeScriptből.</span>
+          </Line>
+        </h1>
+
+        <p
+          className="hero-fade mt-7 max-w-[36rem] text-[clamp(1.05rem,0.5vw+0.95rem,1.25rem)] leading-relaxed text-pretty text-ink-2"
+          style={{ '--i': 4 } as CSSProperties}
+        >
+          Egy függvényhívás, és a számla kész a Számlázz.hu-n.
+        </p>
+
+        <div
+          className="hero-fade mt-9 flex flex-wrap items-center justify-center gap-3"
+          style={{ '--i': 5 } as CSSProperties}
+        >
+          <Link href="/docs/alapok/telepites" className="pill-button pill-button--primary group">
+            Kezdd el
+            <ArrowRight
+              className="size-4 transition-transform duration-300 group-hover:translate-x-0.5"
+              aria-hidden="true"
+            />
+          </Link>
+          <Link href="/sandbox" className="pill-button pill-button--secondary">
+            Kipróbálom
+          </Link>
         </div>
 
-        <CodeSwitch
-          tabs={tabs}
-          caption={
-            <>
-              Ugyanaz a számla két nyelven. A {xmlLines} soros XML-t a kassza építi fel helyetted,
-              kötött sorrendben, hivatalos kerekítéssel.
-            </>
-          }
-        />
+        <div className="mt-16 w-full sm:mt-20">
+          <HeroStage invoice={invoice} />
+        </div>
       </LandingContainer>
     </section>
   )

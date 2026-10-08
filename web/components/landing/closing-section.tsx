@@ -1,32 +1,72 @@
+'use client'
+
+import { ArrowRight, ArrowUpRight } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
+import Link from 'next/link'
+import { LogoMark } from '@/components/site/logo'
 import { site } from '@/lib/site'
-import { ButtonLink } from './button-link'
-import { LandingContainer } from './section-heading'
+import { InstallCommand } from './install-command'
+import { LandingContainer } from './landing-container'
+import { Wave } from './wave'
+
+const INSTALL_COMMAND = 'npm i kassza'
+const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const
+
+function useReveal(delay: number) {
+  const reduce = useReducedMotion()
+  if (reduce) return {}
+  return {
+    initial: { opacity: 0, y: 32 },
+    whileInView: { opacity: 1, y: 0 },
+    viewport: { once: true, amount: 0.4 },
+    transition: { duration: 1, delay, ease: EASE_OUT_EXPO },
+  }
+}
 
 export function ClosingSection() {
+  const logo = useReveal(0)
+  const title = useReveal(0.08)
+  const install = useReveal(0.16)
+  const actions = useReveal(0.24)
+
   return (
-    <section aria-labelledby="kezdd-el" className="pb-20 lg:pb-28">
-      <LandingContainer>
-        <div className="flex flex-col items-start gap-8 rounded-[1.25rem] border border-tint-edge/60 bg-tint px-6 py-10 sm:px-12 sm:py-14 lg:flex-row lg:items-center lg:justify-between">
-          <div className="max-w-[36rem]">
-            <h2
-              id="kezdd-el"
-              className="font-display text-[length:var(--text-section)] leading-[1.1] font-semibold tracking-[-0.025em] text-balance text-ink"
+    <section aria-labelledby="kezdd-el">
+      <Wave className="text-brand-deep" />
+      <div className="bg-brand-deep pt-12 pb-28 sm:pt-16 lg:pb-36">
+        <LandingContainer className="flex flex-col items-center text-center">
+          <motion.div {...logo}>
+            <LogoMark className="closing-logo size-16 sm:size-20" />
+          </motion.div>
+          <motion.h2 id="kezdd-el" className="closing-title mt-10" {...title}>
+            Kezdd el <span className="text-amber">most.</span>
+          </motion.h2>
+          <motion.div className="mt-10 flex w-full justify-center" {...install}>
+            <InstallCommand command={INSTALL_COMMAND} className="install-dark" />
+          </motion.div>
+          <motion.div
+            className="mt-8 flex flex-wrap items-center justify-center gap-3"
+            {...actions}
+          >
+            <Link href="/docs/alapok/telepites" className="pill-button pill-button--amber group">
+              Dokumentáció
+              <ArrowRight
+                className="size-4 transition-transform duration-300 group-hover:translate-x-0.5"
+                aria-hidden="true"
+              />
+            </Link>
+            <a
+              href={site.repo}
+              target="_blank"
+              rel="noreferrer"
+              className="pill-button pill-button--ghost"
             >
-              Próbáld ki most, Agent kulcs nélkül.
-            </h2>
-            <p className="mt-4 text-[length:var(--text-lede)] leading-relaxed text-pretty text-ink-2">
-              A sandbox a böngészőben futtatja a példákat, és megmutatja, pontosan milyen XML megy a
-              Számlázz.hu felé.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-3">
-            <ButtonLink href="/sandbox">Sandbox megnyitása</ButtonLink>
-            <ButtonLink href={site.repo} variant="secondary" external>
               GitHub
-            </ButtonLink>
-          </div>
-        </div>
-      </LandingContainer>
+              <ArrowUpRight className="size-4" aria-hidden="true" />
+            </a>
+          </motion.div>
+        </LandingContainer>
+      </div>
+      <Wave flip className="bg-surface text-brand-deep" />
     </section>
   )
 }

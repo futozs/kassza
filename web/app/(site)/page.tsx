@@ -1,18 +1,26 @@
+import { AGENT_ERROR_CODES } from 'kassza'
 import type { Metadata } from 'next'
-import type { ReactNode } from 'react'
-import { BenefitsSection } from '@/components/landing/benefits-section'
 import { ClosingSection } from '@/components/landing/closing-section'
-import { CoverageSection } from '@/components/landing/coverage-section'
-import { Hero, type HeroFacts } from '@/components/landing/hero'
+import { CompareSection } from '@/components/landing/compare-section'
+import type { FeatureData } from '@/components/landing/feature-visuals'
+import { FeaturesSection } from '@/components/landing/features-section'
+import { Hero } from '@/components/landing/hero'
+import type { HeroInvoice } from '@/components/landing/hero-stage'
 import { OPERATION_COUNT } from '@/components/landing/operations'
-import { renderSampleInvoiceXml } from '@/components/landing/sample-invoice'
+import { OperationsStatement } from '@/components/landing/operations-statement'
+import { PaymentsSection } from '@/components/landing/payments-section'
+import { ProofSection } from '@/components/landing/proof-section'
+import { proofSnippet } from '@/components/landing/proof-snippet'
+import { RuntimeOrbit } from '@/components/landing/runtime-orbit'
 import {
-  envSnippet,
-  heroSnippet,
-  installSnippet,
-  quickInvoiceSnippet,
-} from '@/components/landing/snippets'
-import { StartSection, type StartStep } from '@/components/landing/start-section'
+  type InvoiceTotals,
+  readInvoiceTotals,
+  renderSampleInvoiceXml,
+  sampleInvoice,
+  sampleItem,
+} from '@/components/landing/sample-invoice'
+import { SmoothScroll } from '@/components/landing/smooth-scroll'
+import { type Stat, StatsBand } from '@/components/landing/stats-band'
 import examples from '@/generated/examples.json'
 import { highlightCode } from '@/lib/highlight'
 import { site } from '@/lib/site'
@@ -25,89 +33,96 @@ export const metadata: Metadata = {
   alternates: { canonical: '/' },
 }
 
+const SAMPLE_INVOICE_SEQUENCE = 148
+const DATE_ERROR_CODE = 352
 const RECIPES_PREFIX = '/docs/receptek/'
-const XML_PREVIEW_LINES = 24
+const XML_PREVIEW_LINES = 30
 
-function Code({ children }: { children: ReactNode }) {
-  return <code className="font-mono text-[0.88em] text-ink">{children}</code>
+const huf = new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 0, useGrouping: 'always' })
+
+const unitPrice = new Intl.NumberFormat('hu-HU', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+  useGrouping: 'always',
+})
+
+function invoiceNumber(): string {
+  return `KSZ-${new Date().getFullYear()}-${SAMPLE_INVOICE_SEQUENCE}`
 }
 
-function heroFacts(): HeroFacts {
-  const pages = source.getPages()
+function heroInvoice(totals: InvoiceTotals): HeroInvoice {
   return {
-    operations: OPERATION_COUNT,
-    examples: examples.length,
-    recipes: pages.filter((page) => page.url.startsWith(RECIPES_PREFIX)).length,
-    version: site.version,
+    number: invoiceNumber(),
+    buyerName: sampleInvoice.buyer.name,
+    itemName: sampleItem.name,
+    itemLine: `${sampleItem.quantity} db × ${huf.format(sampleItem.grossUnitPrice)} Ft`,
+    vatLabel: `ÁFA ${sampleItem.vat}%`,
+    vat: `${huf.format(totals.vat)} Ft`,
+    gross: `${huf.format(totals.gross)} Ft`,
+    grossValue: totals.gross,
   }
+}
+
+function featureData(totals: InvoiceTotals): FeatureData {
+  const error = AGENT_ERROR_CODES[DATE_ERROR_CODE]
+  if (!error?.hint) throw new Error(`Hiányzik a(z) ${DATE_ERROR_CODE}-es hibakód leírása.`)
+  return {
+    orderNumber: sampleInvoice.orderNumber,
+    invoiceNumber: invoiceNumber(),
+    netUnitPrice: `${unitPrice.format(totals.netUnitPrice)} Ft`,
+    quantity: sampleItem.quantity,
+    net: `${huf.format(totals.net)} Ft`,
+    vatLabel: `ÁFA ${sampleItem.vat}%`,
+    vat: `${huf.format(totals.vat)} Ft`,
+    gross: `${huf.format(totals.gross)} Ft`,
+    errorCode: DATE_ERROR_CODE,
+    errorCount: Object.keys(AGENT_ERROR_CODES).length,
+    errorMessage: error.message,
+    errorHint: error.hint,
+  }
+}
+
+function stats(): readonly Stat[] {
+  const recipes = source.getPages().filter((page) => page.url.startsWith(RECIPES_PREFIX)).length
+  return [
+    { value: OPERATION_COUNT, suffix: `/${OPERATION_COUNT}`, label: 'Számla Agent művelet' },
+    { value: Object.keys(AGENT_ERROR_CODES).length, label: 'hibakód magyarul' },
+    { value: examples.length, label: 'futtatható példa' },
+    { value: recipes, label: 'kész recept' },
+    { value: 0, label: 'futásidejű függőség' },
+  ]
 }
 
 function previewXml(xml: string): { preview: string; total: number } {
   const lines = xml.trimEnd().split('\n')
-  if (lines.length <= XML_PREVIEW_LINES) return { preview: lines.join('\n'), total: lines.length }
-  const rest = lines.length - XML_PREVIEW_LINES
-  const preview = [...lines.slice(0, XML_PREVIEW_LINES), `<!-- … és még ${rest} sor -->`]
-  return { preview: preview.join('\n'), total: lines.length }
-}
-
-async function buildStartSteps(): Promise<StartStep[]> {
-  const [install, env, invoice] = await Promise.all([
-    highlightCode(installSnippet, { lang: 'bash' }),
-    highlightCode(envSnippet, { lang: 'dotenv', title: '.env' }),
-    highlightCode(quickInvoiceSnippet, { lang: 'ts', title: 'szamla.ts' }),
-  ])
-  return [
-    {
-      title: 'Telepítsd',
-      body: <p>Egyetlen csomag, futásidejű függőség nélkül. Node.js 22 vagy újabb kell hozzá.</p>,
-      code: install,
-      link: { href: '/docs/alapok/telepites', label: 'Telepítés' },
-    },
-    {
-      title: 'Add meg az Agent kulcsot',
-      body: (
-        <p>
-          A kulcsot a Számlázz.hu fiókodban hozod létre. A <Code>verifyCredentials()</Code>{' '}
-          ellenőrzi, hogy működik-e.
-        </p>
-      ),
-      code: env,
-      link: { href: '/docs/alapok/hitelesites', label: 'Hitelesítés' },
-    },
-    {
-      title: 'Állítsd ki a számlát',
-      body: (
-        <p>
-          Az <Code>orderNumber</Code> a saját rendelésszámod, ezzel később visszakeresed a számlát.
-        </p>
-      ),
-      code: invoice,
-      link: { href: '/docs/szamla-letrehozas', label: 'Számla létrehozása' },
-    },
-  ]
+  return { preview: lines.slice(0, XML_PREVIEW_LINES).join('\n'), total: lines.length }
 }
 
 export default async function HomePage() {
-  const { preview, total } = previewXml(await renderSampleInvoiceXml())
-  const [tsCode, xmlCode, steps] = await Promise.all([
-    highlightCode(heroSnippet, { lang: 'ts', title: 'szamla.ts' }),
-    highlightCode(preview, { lang: 'xml', title: 'A Számlázz.hu ezt kapja' }),
-    buildStartSteps(),
+  const xml = await renderSampleInvoiceXml()
+  const totals = readInvoiceTotals(xml)
+  const { preview, total } = previewXml(xml)
+  const [tsCode, xmlCode] = await Promise.all([
+    highlightCode(proofSnippet, { lang: 'ts', title: 'szamla.ts' }),
+    highlightCode(preview, { lang: 'xml', title: 'xmlagentxmlfile' }),
   ])
 
   return (
     <>
-      <Hero
-        tabs={[
-          { id: 'ts', label: 'Amit te írsz', node: tsCode },
-          { id: 'xml', label: 'Amit a kassza elküld', node: xmlCode },
-        ]}
+      <SmoothScroll />
+      <Hero invoice={heroInvoice(totals)} version={site.version} operations={OPERATION_COUNT} />
+      <StatsBand stats={stats()} />
+      <OperationsStatement count={OPERATION_COUNT} />
+      <FeaturesSection data={featureData(totals)} />
+      <ProofSection
+        ts={tsCode}
+        xml={xmlCode}
+        tsLines={proofSnippet.split('\n').length}
         xmlLines={total}
-        facts={heroFacts()}
       />
-      <BenefitsSection />
-      <CoverageSection />
-      <StartSection steps={steps} />
+      <PaymentsSection />
+      <CompareSection total={OPERATION_COUNT} />
+      <RuntimeOrbit />
       <ClosingSection />
     </>
   )

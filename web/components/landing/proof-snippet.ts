@@ -1,4 +1,4 @@
-export const heroSnippet = `import { createKassza } from 'kassza'
+export const proofSnippet = `import { createKassza } from 'kassza'
 
 const kassza = createKassza()
 
@@ -23,13 +23,3 @@ const szamla = await kassza.invoices.create({
 
 szamla.number
 szamla.pdf`
-
-export const installSnippet = 'npm i kassza'
-
-export const envSnippet = 'SZAMLAZZ_AGENT_KEY=a-te-agent-kulcsod'
-
-export const quickInvoiceSnippet = `await kassza.invoices.create({
-  orderNumber: 'REND-1002',
-  buyer,
-  items,
-})`

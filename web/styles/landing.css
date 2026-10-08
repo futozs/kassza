@@ -1,49 +1,202 @@
-.code-switch .codeblock {
-  margin: 0;
-  box-shadow: var(--shadow-lift);
+.ops-section {
+  position: relative;
+  color: white;
 }
 
-.code-switch pre {
-  font-size: 0.8rem;
+.ops-kicker {
+  font-size: clamp(1.05rem, 0.4vw + 0.95rem, 1.25rem);
+  font-weight: 500;
+  color: oklch(100% 0 0 / 0.6);
 }
 
-.code-switch .codeblock .line {
-  min-height: 1.6em;
+.ops-word {
+  display: block;
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 9.5vw, 8.5rem);
+  font-weight: 700;
+  font-variation-settings: "wdth" 85;
+  line-height: 0.98;
+  letter-spacing: -0.018em;
+  color: white;
+  will-change: opacity, transform;
 }
 
-.start-steps .codeblock {
-  margin: 0;
+.ops-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.9rem;
+  padding: 0 1.4rem;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+  color: white;
+  box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.22);
+  transition:
+    background-color var(--dur-short) ease-out,
+    box-shadow var(--dur-short) ease-out;
 }
 
-.start-steps pre {
-  font-size: 0.78rem;
+.ops-link:hover {
+  background: oklch(100% 0 0 / 0.07);
+  box-shadow: inset 0 0 0 1px oklch(100% 0 0 / 0.4);
 }
 
-.motion-bar {
-  transform-origin: left center;
+.orbit {
+  position: relative;
+  width: min(44rem, 100%);
+  aspect-ratio: 1;
 }
 
-@keyframes bar-grow {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
+.orbit-ring {
+  position: absolute;
+  inset: 0;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  [data-motion="armed"] .motion-bar {
-    transform: scaleX(0);
-  }
+.orbit-track {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px dashed var(--rule-strong);
+}
 
-  [data-motion="play"] .motion-bar {
-    animation: bar-grow 900ms var(--ease-out) calc(var(--step, 0) * 90ms) both;
-  }
+.orbit-item {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 2.6rem;
+  padding: 0 1.05rem 0 0.9rem;
+  border-radius: var(--radius-pill);
+  background: var(--paper-raised);
+  box-shadow:
+    0 0 0 1px var(--rule),
+    var(--shadow-lift);
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+  translate: -50% -50%;
+}
+
+.orbit-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: 50%;
+  background: var(--amber);
+}
+
+.orbit-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.orbit-zero {
+  font-family: var(--font-display);
+  font-size: clamp(6rem, 18vw, 11rem);
+  font-weight: 700;
+  line-height: 0.8;
+  letter-spacing: -0.03em;
+  color: var(--accent);
+}
+
+.orbit-title {
+  margin-top: 0.5rem;
+  font-family: var(--font-display);
+  font-size: clamp(1.6rem, 3vw + 0.8rem, 2.6rem);
+  font-weight: 700;
+  font-variation-settings: "wdth" 85;
+  line-height: 1;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+}
+
+.orbit-sub {
+  margin-top: 0.85rem;
+  max-width: 13rem;
+  font-size: 0.98rem;
+  line-height: 1.45;
+  color: var(--muted);
+}
+
+.orbit-list {
+  display: none;
 }
 
 @media (max-width: 39.99rem) {
-  .code-switch pre {
-    font-size: 0.7rem;
+  .orbit {
+    width: min(21rem, 100%);
   }
+
+  .orbit-ring--outer {
+    display: none;
+  }
+
+  .orbit-list {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .orbit-item {
+    height: 2.1rem;
+    padding: 0 0.75rem 0 0.65rem;
+    font-size: 0.75rem;
+  }
+
+  .orbit-list .orbit-item {
+    position: static;
+    translate: none;
+  }
+
+  .orbit-sub {
+    display: none;
+  }
+}
+
+.closing-logo {
+  filter: none;
+}
+
+.closing-title {
+  font-family: var(--font-display);
+  font-size: clamp(3rem, 8vw, 7rem);
+  font-weight: 700;
+  font-variation-settings: "wdth" 85;
+  line-height: 0.95;
+  letter-spacing: -0.015em;
+  color: white;
+}
+
+.install-dark {
+  height: 4rem;
+  max-width: 30rem;
+  padding-left: 1.4rem;
+  border-color: oklch(100% 0 0 / 0.14);
+  border-radius: var(--radius-pill);
+  background: oklch(100% 0 0 / 0.06);
+}
+
+.install-dark code {
+  font-size: 1.15rem;
+  color: white;
+}
+
+.install-dark button {
+  height: 3rem;
+  border-color: oklch(100% 0 0 / 0.16);
+  border-radius: var(--radius-pill);
+  background: oklch(100% 0 0 / 0.08);
+  color: oklch(100% 0 0 / 0.85);
+}
+
+.install-dark button:hover {
+  border-color: oklch(100% 0 0 / 0.3);
+  color: white;
 }
