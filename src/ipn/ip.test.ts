@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import { SzamlazzError } from '../core/errors'
 import * as ipn from './index'
-import { isSzamlazzIp, SZAMLAZZ_OUTBOUND_IPS } from './ip'
+import { checkSzamlazzIp, isSzamlazzIp, SZAMLAZZ_OUTBOUND_IPS } from './ip'
 
 describe('SZAMLAZZ_OUTBOUND_IPS', () => {
   test('a docs szerinti, 2025. augusztus 1-től érvényes címeket tartalmazza', () => {
@@ -93,11 +93,44 @@ describe('ipn barrel', () => {
       'IPN_FIELDS',
       'MAX_IPN_BODY_BYTES',
       'SZAMLAZZ_OUTBOUND_IPS',
+      'checkSzamlazzIp',
       'ipnOkResponse',
       'isSzamlazzIp',
       'parseIpnAmount',
       'parseIpnNotification',
       'readIpnNotification',
     ])
+  })
+})
+
+describe('checkSzamlazzIp', () => {
+  test('elfogadáskor a normalizált kliens címet adja vissza', () => {
+    expect(checkSzamlazzIp('10.0.0.1, ::ffff:3.73.214.98')).toEqual({
+      allowed: true,
+      client: '3.73.214.98',
+    })
+  })
+
+  test('megmondja, miért utasította el', () => {
+    expect(checkSzamlazzIp(null)).toMatchObject({ allowed: false, reason: 'missing_header' })
+    expect(checkSzamlazzIp('   ')).toMatchObject({ allowed: false, reason: 'missing_header' })
+    expect(checkSzamlazzIp('3.73.214.98', { trustedProxies: 1 })).toMatchObject({
+      allowed: false,
+      reason: 'no_client_entry',
+    })
+    const rejected = checkSzamlazzIp('52.1.2.3:443')
+    expect(rejected).toMatchObject({ allowed: false, reason: 'not_allowed', client: '52.1.2.3' })
+    expect(rejected.allowed === false && rejected.message).toContain('allowedIps')
+  })
+
+  test('az allowedIps felülírja a beépített listát', () => {
+    expect(checkSzamlazzIp('52.1.2.3', { allowedIps: ['52.1.2.3'] })).toEqual({
+      allowed: true,
+      client: '52.1.2.3',
+    })
+  })
+
+  test('az index is exportálja', () => {
+    expect(ipn.checkSzamlazzIp).toBe(checkSzamlazzIp)
   })
 })

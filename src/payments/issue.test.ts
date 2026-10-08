@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 import { SzamlazzError } from '../core/errors'
 import type { InvoiceBuyer } from '../invoices/create-types'
 import { createMockKassza } from '../testing'
@@ -89,6 +89,30 @@ describe('buyerFromCustomer', () => {
         address: { country: 'at', zip: '1010', city: 'Wien', line1: 'Ring 1' },
       })?.country,
     ).toBe('Ausztria')
+  })
+
+  test('ha a futtatókörnyezetben nincs magyar régiónév-adat, az országkódot hagyja', async () => {
+    const original = Intl.DisplayNames
+    vi.resetModules()
+    Object.defineProperty(Intl, 'DisplayNames', {
+      configurable: true,
+      value: class {
+        constructor() {
+          throw new RangeError('Incorrect locale information provided')
+        }
+      },
+    })
+    try {
+      const fresh = await import('./issue')
+      expect(
+        fresh.buyerFromCustomer({
+          name: 'Max Muster',
+          address: { country: 'at', zip: '1010', city: 'Wien', line1: 'Ring 1' },
+        })?.country,
+      ).toBe('at')
+    } finally {
+      Object.defineProperty(Intl, 'DisplayNames', { configurable: true, value: original })
+    }
   })
 
   test('a nem kétbetűs országot változatlanul hagyja', () => {

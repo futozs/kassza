@@ -18,6 +18,7 @@ npm run ci
 
 - `npm test` runs Vitest.
 - `npm run xsd:fetch` downloads the official XSDs into `.xsd-cache/`. The contract tests need these and `xmllint`.
+- `npm run stats` prints npm downloads (with a bot and mirror warning), GitHub dependents, deps.dev dependents and stars. The package sends no telemetry and must never get any by default: real usage is measured only through these public signals and the voluntary "Ki használja?" list (`used-by` issue template).
 - `npm run readme` regenerates the README images in `readme/assets/` and then `README.md` (see [README](#readme)).
 - `npm run e2e` runs every Számla Agent operation (all but `connectPrincipal`) against the real Számlázz.hu **test account**. It needs `SZAMLAZZ_TEST_AGENT_KEY` (see `.env.example`), and it is not part of `npm run ci`. See [E2E](#e2e).
 - `npm run ci` runs lint, typecheck, the README sync check, coverage (at least 80%), build, publint and attw.

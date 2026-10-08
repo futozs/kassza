@@ -322,6 +322,32 @@ describe('stripePaymentEvent', () => {
     ).toBe('partially-refunded')
   })
 
+  test('a visszatérítés deltáját az esemény azonosítójával, tételesen adja', () => {
+    const charge = {
+      id: 'ch_1',
+      object: 'charge',
+      payment_intent: 'pi_1',
+      amount: 302_300,
+      currency: 'huf',
+      amount_refunded: 202_300,
+    }
+    expect(
+      stripePaymentEvent(
+        parsed('charge.refunded', charge, {
+          previous_attributes: { amount_refunded: 100_000 },
+        }),
+      )?.refunds,
+    ).toEqual([
+      {
+        id: 'evt_1',
+        amount: { value: 1023, currency: 'HUF' },
+        refundedBefore: 1000,
+        createdAt: new Date(NOW_SECONDS * 1000).toISOString(),
+      },
+    ])
+    expect(stripePaymentEvent(parsed('charge.refunded', charge))?.refunds).toBeUndefined()
+  })
+
   test('payment_intent nélküli terhelésnél a terhelés azonosítóját használja', () => {
     expect(
       stripePaymentEvent(

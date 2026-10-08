@@ -1,7 +1,8 @@
 import type { RequestOptions } from './context'
 import { SzamlazzError, type SzamlazzErrorCategory } from './errors'
+import type { OnceLockOptions } from './once-guard'
 
-export interface CreateOnceOptions extends RequestOptions {
+export interface CreateOnceOptions extends RequestOptions, OnceLockOptions {
   readonly lookupFirst?: boolean | undefined
   readonly matchOrderNumber?: boolean | undefined
   readonly recoveryDelayMs?: number | undefined

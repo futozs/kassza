@@ -1,12 +1,13 @@
 import { AGENT_ACTIONS, type AgentAction, SZAMLAZZ_AGENT_URL } from './actions'
 import {
   type AttemptLedger,
+  type AttemptLedgerMode,
   attemptLedgerKey,
   attemptLimitError,
   countsAsFailedAttempt,
   createAttemptLedger,
 } from './attempt-ledger'
-import type { DocumentHook } from './document-events'
+import type { DocumentErrorMode, DocumentHook } from './document-events'
 import { SzamlazzError } from './errors'
 import { type AgentResponse, createAgentResponse } from './response'
 import {
@@ -16,12 +17,16 @@ import {
   SESSION_TTL_SECONDS,
   sessionKeyFor,
 } from './session'
+import type { KeyValueStore } from './store'
+import { emitWarning, type KasszaWarning, type WarningHook } from './warnings'
 import { el, type XmlNode } from './xml/serialize'
 
 export const MAX_ATTEMPTS_PER_REQUEST = 5
 export const DEFAULT_TIMEOUT_MS = 60_000
 const DEFAULT_SAFE_ATTEMPTS = 3
 const DEFAULT_RETRY_DELAY_MS = 1_000
+export const RETRY_JITTER = 0.2
+export const MAX_RETRY_AFTER_MS = 60_000
 
 export interface AgentAttachment {
   readonly filename: string
@@ -32,11 +37,14 @@ export interface AgentAttachment {
 export interface AgentRequestEvent {
   readonly action: AgentAction
   readonly attempt: number
+  readonly requestId: string
 }
 
 export interface AgentResponseEvent extends AgentRequestEvent {
   readonly status: number
   readonly durationMs: number
+  readonly responseBytes: number
+  readonly sessionReused: boolean
 }
 
 export interface AgentErrorEvent extends AgentRequestEvent {
@@ -44,11 +52,21 @@ export interface AgentErrorEvent extends AgentRequestEvent {
   readonly willRetry: boolean
 }
 
+export interface AgentCompleteEvent extends AgentRequestEvent {
+  readonly outcome: 'success' | 'error'
+  readonly durationMs: number
+  readonly error?: SzamlazzError | undefined
+  readonly willRetry: boolean
+}
+
 export interface SzamlazzHooks {
   readonly onRequest?: (event: AgentRequestEvent) => void
   readonly onResponse?: (event: AgentResponseEvent) => void
   readonly onError?: (event: AgentErrorEvent) => void
+  readonly onComplete?: (event: AgentCompleteEvent) => void
   readonly onDocument?: DocumentHook
+  readonly onDocumentError?: DocumentErrorMode
+  readonly onWarning?: (warning: KasszaWarning) => void
 }
 
 export interface SzamlazzOptions {
@@ -61,7 +79,8 @@ export interface SzamlazzOptions {
   readonly maxAttempts?: number
   readonly retryDelayMs?: number
   readonly cookieStore?: CookieStore | false
-  readonly attemptLedger?: CookieStore | undefined
+  readonly attemptLedger?: KeyValueStore | undefined
+  readonly attemptLedgerMode?: AttemptLedgerMode | undefined
   readonly maintenanceCooldownMs?: number | undefined
   readonly hooks?: SzamlazzHooks
 }
@@ -80,6 +99,7 @@ export interface AgentRequest {
 
 export interface AgentContext {
   readonly credentials: readonly XmlNode[]
+  readonly warn?: WarningHook | undefined
   execute<T>(request: AgentRequest, parse: (response: AgentResponse) => T | Promise<T>): Promise<T>
   resetSession(): Promise<void>
   resetAttempts(key: string): Promise<void>
@@ -156,22 +176,74 @@ function sleep(ms: number, signal: AbortSignal | undefined): Promise<void> {
   })
 }
 
-async function ignoreStoreFailure<T>(operation: () => T | Promise<T>): Promise<T | undefined> {
-  try {
-    return await operation()
-  } catch {
-    return undefined
+type HookName = 'onRequest' | 'onResponse' | 'onError' | 'onComplete'
+
+function hookWarning(name: HookName, action: AgentAction, error: unknown): KasszaWarning {
+  return {
+    kind: 'hook',
+    message: `A(z) ${name} hook hibát dobott, a kassza figyelmen kívül hagyta.`,
+    error,
+    action,
+    operation: name,
   }
 }
 
-function callHook<T>(hook: ((event: T) => void) | undefined, event: T): void {
+function callHook<T extends AgentRequestEvent>(
+  hooks: SzamlazzHooks,
+  name: HookName,
+  event: T,
+): void {
+  const hook = hooks[name] as ((event: T) => unknown) | undefined
   if (!hook) return
   try {
     const result: unknown = hook(event)
-    if (result instanceof Promise) result.catch(() => undefined)
-  } catch {
-    return
+    if (result instanceof Promise) {
+      result.catch((error: unknown) =>
+        emitWarning(hooks.onWarning, hookWarning(name, event.action, error)),
+      )
+    }
+  } catch (error) {
+    emitWarning(hooks.onWarning, hookWarning(name, event.action, error))
   }
+}
+
+function parseRetryAfter(value: string | null, now: number): number | undefined {
+  if (value === null) return undefined
+  const trimmed = value.trim()
+  if (/^\d+$/.test(trimmed)) return Number(trimmed) * 1000
+  const date = Date.parse(trimmed)
+  if (Number.isNaN(date)) return undefined
+  return Math.max(0, date - now)
+}
+
+export function retryDelay(
+  baseMs: number,
+  attempt: number,
+  random: number = Math.random(),
+): number {
+  const backoff = baseMs * 2 ** (attempt - 1)
+  return Math.round(backoff * (1 - RETRY_JITTER + 2 * RETRY_JITTER * random))
+}
+
+function resolveLedgerMode(value: AttemptLedgerMode | undefined): AttemptLedgerMode {
+  if (value === undefined || value === 'fail-open' || value === 'fail-closed') {
+    return value ?? 'fail-open'
+  }
+  throw configurationError(
+    `Az attemptLedgerMode értéke 'fail-open' vagy 'fail-closed' lehet, kapott: ${String(value)}`,
+  )
+}
+
+function storeUnavailableError(action: AgentAction, error: unknown): SzamlazzError {
+  return new SzamlazzError(
+    'A próbálkozás-napló tárolója nem érhető el, ezért a kassza nem küldte el a kérést.',
+    {
+      category: 'store_unavailable',
+      action,
+      cause: error,
+      hint: "Az attemptLedgerMode: 'fail-closed' beállítás miatt a kassza nem küld kérést, amíg a napló (például a Redis) nem elérhető. Állítsd helyre a tárolót, vagy válts 'fail-open' módra.",
+    },
+  )
 }
 
 function clampAttempts(value: number | undefined): number {
@@ -229,15 +301,40 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     return sessionKeyPromise
   }
   const hooks = options.hooks ?? {}
+  const warn: WarningHook = (warning) => emitWarning(hooks.onWarning, warning)
   const ledger: AttemptLedger | undefined = options.attemptLedger
     ? createAttemptLedger(options.attemptLedger)
     : undefined
+  const ledgerMode = resolveLedgerMode(options.attemptLedgerMode)
+
+  async function ignoreStoreFailure<T>(
+    operation: string,
+    action: AgentAction | undefined,
+    run: () => T | Promise<T>,
+  ): Promise<T | undefined> {
+    try {
+      return await run()
+    } catch (error) {
+      warn({
+        kind: 'session',
+        message: `A session cookie tároló "${operation}" művelete sikertelen, a kérés session nélkül folytatódik.`,
+        error,
+        action,
+        operation,
+      })
+      return undefined
+    }
+  }
   const cooldownMs = resolveCooldown(options.maintenanceCooldownMs)
   let blockedUntil = 0
 
-  async function send(request: AgentRequest): Promise<AgentResponse> {
+  async function send(
+    request: AgentRequest,
+  ): Promise<{ response: AgentResponse; sessionReused: boolean }> {
     const cookie = cookieStore
-      ? await ignoreStoreFailure(async () => cookieStore.get(await resolveSessionKey()))
+      ? await ignoreStoreFailure('get', request.action, async () =>
+          cookieStore.get(await resolveSessionKey()),
+        )
       : undefined
     request.signal?.throwIfAborted()
     const headers = new Headers({ Accept: 'application/xml, application/pdf, text/plain, */*' })
@@ -275,17 +372,22 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     if (cookieStore) {
       const merged = mergeSetCookies(cookie, response.headers)
       if (merged) {
-        await ignoreStoreFailure(async () =>
+        await ignoreStoreFailure('set', request.action, async () =>
           cookieStore.set(await resolveSessionKey(), merged, SESSION_TTL_SECONDS),
         )
       }
     }
-    return createAgentResponse(request.action, response.status, response.headers, body)
+    return {
+      response: createAgentResponse(request.action, response.status, response.headers, body),
+      sessionReused: Boolean(cookie),
+    }
   }
 
   async function resetSession(): Promise<void> {
     if (cookieStore) {
-      await ignoreStoreFailure(async () => cookieStore.delete(await resolveSessionKey()))
+      await ignoreStoreFailure('delete', undefined, async () =>
+        cookieStore.delete(await resolveSessionKey()),
+      )
     }
   }
 
@@ -305,6 +407,45 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
     })
   }
 
+  function ledgerWarning(operation: string, action: AgentAction, error: unknown): void {
+    warn({
+      kind: 'ledger',
+      message: `A próbálkozás-napló tárolójának "${operation}" művelete sikertelen. A kassza a folyamaton belüli számlálót használja, a folyamatok közötti védelem most nem él.`,
+      error,
+      action,
+      operation,
+    })
+  }
+
+  async function readFailures(action: AgentAction, key: string | undefined): Promise<number> {
+    if (!ledger || key === undefined) return 0
+    try {
+      return await ledger.failures(key)
+    } catch (error) {
+      if (ledgerMode === 'fail-closed') throw storeUnavailableError(action, error)
+      ledgerWarning('get', action, error)
+      return ledger.fallbackFailures(key)
+    }
+  }
+
+  async function recordFailure(action: AgentAction, key: string | undefined): Promise<void> {
+    if (!ledger || key === undefined) return
+    try {
+      await ledger.recordFailure(key)
+    } catch (error) {
+      ledgerWarning('increment', action, error)
+    }
+  }
+
+  async function clearFailures(action: AgentAction, key: string | undefined): Promise<void> {
+    if (!ledger || key === undefined) return
+    try {
+      await ledger.reset(key)
+    } catch (error) {
+      ledgerWarning('delete', action, error)
+    }
+  }
+
   function assertNoCooldown(action: AgentAction): void {
     const remainingMs = blockedUntil - Date.now()
     if (remainingMs > 0) throw maintenanceCooldownError(action, remainingMs)
@@ -316,49 +457,61 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
   ): Promise<T> {
     const maxAttempts = request.safeToRetry ? safeAttempts : 1
     const ledgerKey = await ledgerKeyFor(request)
+    const requestId = crypto.randomUUID()
     for (let attempt = 1; ; attempt++) {
       assertNoCooldown(request.action)
-      const failures =
-        ledger && ledgerKey !== undefined
-          ? ((await ignoreStoreFailure(() => ledger.failures(ledgerKey))) ?? 0)
-          : 0
+      const failures = await readFailures(request.action, ledgerKey)
       if (ledgerKey !== undefined && failures >= MAX_ATTEMPTS_PER_REQUEST) {
         throw attemptLimitError(request.action, ledgerKey, failures)
       }
       const startedAt = Date.now()
-      callHook(hooks.onRequest, { action: request.action, attempt })
+      let retryAfterMs: number | undefined
+      const base = { action: request.action, attempt, requestId }
+      callHook(hooks, 'onRequest', base)
       try {
-        const response = await send(request)
-        callHook(hooks.onResponse, {
-          action: request.action,
-          attempt,
+        const { response, sessionReused } = await send(request)
+        retryAfterMs = parseRetryAfter(response.headers.get('retry-after'), Date.now())
+        callHook(hooks, 'onResponse', {
+          ...base,
           status: response.status,
           durationMs: Date.now() - startedAt,
+          responseBytes: response.body.byteLength,
+          sessionReused,
         })
         const result = await parse(response)
-        if (ledger && ledgerKey !== undefined && failures > 0) {
-          await ignoreStoreFailure(() => ledger.reset(ledgerKey))
-        }
+        if (failures > 0) await clearFailures(request.action, ledgerKey)
+        callHook(hooks, 'onComplete', {
+          ...base,
+          outcome: 'success',
+          durationMs: Date.now() - startedAt,
+          willRetry: false,
+        })
         return result
       } catch (error) {
         if (!(error instanceof SzamlazzError)) throw error
-        if (ledger && ledgerKey !== undefined && countsAsFailedAttempt(error)) {
-          await ignoreStoreFailure(() => ledger.recordFailure(ledgerKey, failures))
-        }
+        if (countsAsFailedAttempt(error)) await recordFailure(request.action, ledgerKey)
         if (error.category === 'maintenance' && cooldownMs > 0) {
           blockedUntil = Date.now() + cooldownMs
         }
         const willRetry =
           error.retryable &&
           attempt < maxAttempts &&
-          !(error.category === 'maintenance' && cooldownMs > 0)
-        callHook(hooks.onError, { action: request.action, attempt, error, willRetry })
+          !(error.category === 'maintenance' && cooldownMs > 0) &&
+          (retryAfterMs === undefined || retryAfterMs <= MAX_RETRY_AFTER_MS)
+        callHook(hooks, 'onError', { ...base, error, willRetry })
+        callHook(hooks, 'onComplete', {
+          ...base,
+          outcome: 'error',
+          durationMs: Date.now() - startedAt,
+          error,
+          willRetry,
+        })
         if (error.category === 'auth') await resetSession()
         if (!willRetry) throw error
-        await sleep(retryDelayMs * 2 ** (attempt - 1), request.signal)
+        await sleep(Math.max(retryDelay(retryDelayMs, attempt), retryAfterMs ?? 0), request.signal)
       }
     }
   }
 
-  return { credentials, execute, resetSession, resetAttempts }
+  return { credentials, warn, execute, resetSession, resetAttempts }
 }

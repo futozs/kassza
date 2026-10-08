@@ -10,9 +10,10 @@ import type {
   PaymentEvent,
   PaymentEventKind,
   PaymentLineItem,
+  PaymentRefund,
   PaymentWebhookBaseOptions,
 } from './types'
-import { respondToWebhook, type WebhookHandler } from './webhook'
+import { deliverPayment, respondToWebhook, type WebhookHandler } from './webhook'
 
 export const REVOLUT_LIVE_API_URL = 'https://merchant.revolut.com'
 export const REVOLUT_SANDBOX_API_URL = 'https://sandbox-merchant.revolut.com'
@@ -309,6 +310,25 @@ function refundKind(refund: JsonRecord, original: JsonRecord): PaymentEventKind 
   return single ? 'refunded' : 'partially-refunded'
 }
 
+function revolutRefunds(refund: JsonRecord, original: JsonRecord): PaymentRefund[] | undefined {
+  const id = text(refund.id)
+  const amount = amountOf(refund, 'amount')
+  if (!id || !amount || amount.value <= 0) return undefined
+  const total = amountOf(original, 'refunded_amount')
+  const before =
+    total && total.currency === amount.currency
+      ? Math.round((total.value - amount.value) * 100) / 100
+      : undefined
+  return [
+    {
+      id,
+      amount,
+      refundedBefore: before !== undefined && before >= 0 ? before : undefined,
+      createdAt: text(refund.updated_at) ?? text(refund.created_at),
+    },
+  ]
+}
+
 function fromRefundOrder(
   event: RevolutEvent,
   refund: JsonRecord,
@@ -333,6 +353,7 @@ function fromRefundOrder(
     orderRef: orderRefOf(original, event),
     amount: amountOf(original, 'amount'),
     refundedAmount: amountOf(original, 'refunded_amount') ?? amountOf(refund, 'amount'),
+    refunds: revolutRefunds(refund, original),
     paidAt: text(refund.updated_at),
     customer: customerOf(original),
   }
@@ -422,7 +443,7 @@ export function revolutWebhook(options: RevolutWebhookOptions): WebhookHandler {
       const event = parseRevolutEvent(payload)
       const orders = await loadOrders(event, api)
       const payment = revolutPaymentEvent(event, { method: options.method, ...orders })
-      if (payment) await options.onPayment(payment)
+      if (payment) await deliverPayment(options, payment)
       return new Response(null, { status: 204 })
     })
 }

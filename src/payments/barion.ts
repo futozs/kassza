@@ -8,9 +8,10 @@ import type {
   PaymentEvent,
   PaymentEventKind,
   PaymentLineItem,
+  PaymentRefund,
   PaymentWebhookBaseOptions,
 } from './types'
-import { respondToWebhook, type WebhookHandler } from './webhook'
+import { deliverPayment, respondToWebhook, type WebhookHandler } from './webhook'
 
 export const BARION_LIVE_API_URL = 'https://api.barion.com'
 export const BARION_SANDBOX_API_URL = 'https://api.test.barion.com'
@@ -210,6 +211,37 @@ function kindOf(
   return 'other'
 }
 
+function refundsOf(
+  refunds: readonly JsonRecord[],
+  currency: string | undefined,
+): PaymentRefund[] | undefined {
+  if (!currency || refunds.length === 0) return undefined
+  const ordered = refunds
+    .map((refund) => ({
+      id: text(refund.TransactionId) ?? text(refund.POSTransactionId),
+      value: Math.abs(numeric(refund.Total) ?? 0),
+      createdAt: text(refund.TransactionTime),
+    }))
+    .filter((refund): refund is { id: string; value: number; createdAt: string | undefined } =>
+      Boolean(refund.id),
+    )
+    .sort(
+      (a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? '') || a.id.localeCompare(b.id),
+    )
+  if (ordered.length !== refunds.length) return undefined
+  let before = 0
+  return ordered.map((refund) => {
+    const entry: PaymentRefund = {
+      id: refund.id,
+      amount: { value: refund.value, currency: normalizeCurrency(currency) },
+      refundedBefore: before,
+      createdAt: refund.createdAt,
+    }
+    before = sum([before, refund.value])
+    return entry
+  })
+}
+
 export interface BarionPaymentOptions {
   readonly method?: string | undefined
 }
@@ -251,6 +283,7 @@ export function barionPaymentEvent(
       refunds.length > 0 && currency
         ? { value: refunded, currency: normalizeCurrency(currency) }
         : undefined,
+    refunds: refundsOf(refunds, currency),
     paidAt: text(state.CompletedAt),
     method: methodOf(state, options.method),
     customer: customerOf(sales.length > 0 ? sales : transactions),
@@ -292,7 +325,7 @@ export function barionWebhook(options: BarionWebhookOptions): WebhookHandler {
           `A Barion más fizetést adott vissza (${returnedId ?? '?'}) a kért ${paymentId} helyett.`,
         )
       }
-      await options.onPayment(barionPaymentEvent(state, { method: options.method }))
+      await deliverPayment(options, barionPaymentEvent(state, { method: options.method }))
       return plainResponse(200, 'OK')
     })
 }

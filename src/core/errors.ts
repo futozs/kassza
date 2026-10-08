@@ -10,6 +10,8 @@ export type SzamlazzErrorCategory =
   | 'maintenance'
   | 'rate_limit'
   | 'attempt_limit'
+  | 'in_progress'
+  | 'store_unavailable'
   | 'network'
   | 'timeout'
   | 'configuration'
@@ -344,6 +346,13 @@ export const AGENT_ERROR_CODES: Readonly<Record<number, AgentErrorCodeInfo>> = {
   },
 }
 
+export const KASSZA_ERROR_DOCS_URL = 'https://kasszajs.hu/docs/hibakodok'
+
+export function errorCodeDocsUrl(code: number | undefined): string | undefined {
+  if (code === undefined || AGENT_ERROR_CODES[code] === undefined) return undefined
+  return `${KASSZA_ERROR_DOCS_URL}/${code}`
+}
+
 const RETRYABLE_CATEGORIES: ReadonlySet<SzamlazzErrorCategory> = new Set([
   'maintenance',
   'network',
@@ -382,6 +391,10 @@ export class SzamlazzError extends Error {
     this.httpStatus = options.httpStatus
     this.rawResponse = options.rawResponse
     this.details = options.details
+  }
+
+  get docsUrl(): string | undefined {
+    return errorCodeDocsUrl(this.code)
   }
 
   get isDuplicate(): boolean {

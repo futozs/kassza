@@ -1,5 +1,12 @@
 import { describe, expect, test } from 'vitest'
-import { AGENT_ERROR_CODES, createAgentError, SzamlazzError, suggestedPrefix } from './errors'
+import {
+  AGENT_ERROR_CODES,
+  createAgentError,
+  errorCodeDocsUrl,
+  KASSZA_ERROR_DOCS_URL,
+  SzamlazzError,
+  suggestedPrefix,
+} from './errors'
 
 const DOCUMENTED_DELEGATION_AND_RECEIPT_CODES = [
   8, 17, 68, 101, 137, 167, 200, 309, 353, 354, 356, 357, 358, 359, 360, 362, 489, 491, 493, 494,
@@ -70,5 +77,24 @@ describe('suggestedPrefix', () => {
     ).toBeUndefined()
     expect(suggestedPrefix(new Error('használd ezt: ABC'))).toBeUndefined()
     expect(suggestedPrefix(undefined)).toBeUndefined()
+  })
+})
+
+describe('SzamlazzError.docsUrl', () => {
+  test('ismert hibakódnál a kassza hibakód-oldalára mutat', () => {
+    expect(createAgentError({ code: 259 }).docsUrl).toBe(`${KASSZA_ERROR_DOCS_URL}/259`)
+    expect(errorCodeDocsUrl(57)).toBe('https://kasszajs.hu/docs/hibakodok/57')
+  })
+
+  test('ismeretlen vagy hiányzó kódnál nincs link', () => {
+    expect(createAgentError({ code: 99_999 }).docsUrl).toBeUndefined()
+    expect(new SzamlazzError('x', { category: 'network' }).docsUrl).toBeUndefined()
+    expect(errorCodeDocsUrl(undefined)).toBeUndefined()
+  })
+
+  test('minden táblabeli kódhoz van link', () => {
+    for (const code of Object.keys(AGENT_ERROR_CODES).map(Number)) {
+      expect(errorCodeDocsUrl(code)).toBe(`${KASSZA_ERROR_DOCS_URL}/${code}`)
+    }
   })
 })

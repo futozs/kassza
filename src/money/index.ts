@@ -9,6 +9,13 @@ export {
   summarizeItems,
   type VatBreakdown,
 } from './items'
+export {
+  type AllocateRefundOptions,
+  allocateRefund,
+  type RefundAllocation,
+  type RefundableItem,
+  type RefundVat,
+} from './refund'
 export { addMoney, decimalPlaces, roundMoney } from './rounding'
 export {
   formatVatRate,

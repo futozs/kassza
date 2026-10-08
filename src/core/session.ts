@@ -1,32 +1,13 @@
-export type Awaitable<T> = T | Promise<T>
+import { type Awaitable, type KeyValueStore, memoryStore } from './store'
 
-export interface CookieStore {
-  get(key: string): Awaitable<string | undefined | null>
-  set(key: string, value: string, ttlSeconds: number): Awaitable<void>
-  delete(key: string): Awaitable<void>
-}
+export type { Awaitable }
+
+export type CookieStore = KeyValueStore
 
 export const SESSION_TTL_SECONDS: number = 85 * 60
 
 export function memoryCookieStore(): CookieStore {
-  const entries = new Map<string, { value: string; expiresAt: number }>()
-  return {
-    get(key) {
-      const entry = entries.get(key)
-      if (!entry) return undefined
-      if (entry.expiresAt <= Date.now()) {
-        entries.delete(key)
-        return undefined
-      }
-      return entry.value
-    },
-    set(key, value, ttlSeconds) {
-      entries.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 })
-    },
-    delete(key) {
-      entries.delete(key)
-    },
-  }
+  return memoryStore()
 }
 
 const SESSION_KEY_PREFIX = 'szamlazz:session:'

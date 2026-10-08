@@ -25,6 +25,7 @@ export function optionalEl(name: string, content: XmlContent): XmlNode | undefin
 function isAllowedXmlChar(codePoint: number): boolean {
   if (codePoint === 0x09 || codePoint === 0x0a || codePoint === 0x0d) return true
   if (codePoint < 0x20) return false
+  if (codePoint >= 0xd800 && codePoint <= 0xdfff) return false
   return codePoint !== 0xfffe && codePoint !== 0xffff
 }
 

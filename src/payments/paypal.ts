@@ -11,9 +11,10 @@ import type {
   PaymentEvent,
   PaymentEventKind,
   PaymentLineItem,
+  PaymentRefund,
   PaymentWebhookBaseOptions,
 } from './types'
-import { respondToWebhook, type WebhookHandler } from './webhook'
+import { deliverPayment, respondToWebhook, type WebhookHandler } from './webhook'
 
 export const PAYPAL_LIVE_API_URL = 'https://api-m.paypal.com'
 export const PAYPAL_SANDBOX_API_URL = 'https://api-m.sandbox.paypal.com'
@@ -403,6 +404,25 @@ function refundKind(refund: JsonRecord, capture: JsonRecord | undefined): Paymen
   return Math.abs(refunded - captured) <= AMOUNT_TOLERANCE ? 'refunded' : 'partially-refunded'
 }
 
+function payPalRefunds(refund: JsonRecord): PaymentRefund[] | undefined {
+  const id = text(refund.id)
+  const amount = moneyOf(refund.amount)
+  if (!id || !amount || amount.value <= 0 || text(refund.status) !== 'COMPLETED') return undefined
+  const total = moneyOf(path(refund, 'seller_payable_breakdown', 'total_refunded_amount'))
+  const before =
+    total && total.currency === amount.currency
+      ? roundMoney(total.value - amount.value, 2)
+      : undefined
+  return [
+    {
+      id,
+      amount,
+      refundedBefore: before !== undefined && before >= 0 ? before : undefined,
+      createdAt: text(refund.create_time),
+    },
+  ]
+}
+
 function fromRefund(event: PayPalEvent, options: PayPalPaymentOptions): PaymentEvent {
   const refund = event.resource
   const captureId = payPalCaptureIdOfRefund(refund)
@@ -426,6 +446,7 @@ function fromRefund(event: PayPalEvent, options: PayPalPaymentOptions): PaymentE
     refundedAmount:
       moneyOf(path(refund, 'seller_payable_breakdown', 'total_refunded_amount')) ??
       moneyOf(refund.amount),
+    refunds: payPalRefunds(refund),
     paidAt: text(refund.create_time) ?? event.createTime,
     method: options.method ?? PAYPAL_METHOD,
     raw: event.raw,
@@ -493,7 +514,7 @@ export function payPalWebhook(options: PayPalWebhookOptions): WebhookHandler {
       const event = parsePayPalEvent(payload)
       const extras = await loadExtras(event, api, options)
       const payment = payPalPaymentEvent(event, { method: options.method, ...extras })
-      if (payment) await options.onPayment(payment)
+      if (payment) await deliverPayment(options, payment)
       return plainResponse(200, 'OK')
     })
 }

@@ -217,6 +217,46 @@
         "default": "./dist/mcp/index.cjs"
       }
     },
+    "./stores": {
+      "import": {
+        "types": "./dist/stores/index.d.ts",
+        "default": "./dist/stores/index.js"
+      },
+      "require": {
+        "types": "./dist/stores/index.d.cts",
+        "default": "./dist/stores/index.cjs"
+      }
+    },
+    "./journal": {
+      "import": {
+        "types": "./dist/journal/index.d.ts",
+        "default": "./dist/journal/index.js"
+      },
+      "require": {
+        "types": "./dist/journal/index.d.cts",
+        "default": "./dist/journal/index.cjs"
+      }
+    },
+    "./node": {
+      "import": {
+        "types": "./dist/node/index.d.ts",
+        "default": "./dist/node/index.js"
+      },
+      "require": {
+        "types": "./dist/node/index.d.cts",
+        "default": "./dist/node/index.cjs"
+      }
+    },
+    "./batch": {
+      "import": {
+        "types": "./dist/batch/index.d.ts",
+        "default": "./dist/batch/index.js"
+      },
+      "require": {
+        "types": "./dist/batch/index.d.cts",
+        "default": "./dist/batch/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "bugs": {
@@ -267,6 +307,7 @@
     "readme:check": "node readme/build.mjs --check",
     "ci": "npm run lint && npm run typecheck && npm run readme:check && npm run test:coverage && npm run build && npm run check:package",
     "xsd:fetch": "node scripts/fetch-xsd.mjs",
+    "stats": "node scripts/stats.mjs",
     "prepublishOnly": "npm run ci",
     "release": "node scripts/release.mjs",
     "release:dry": "node scripts/release.mjs --dry-run",
@@ -330,6 +371,18 @@
       ],
       "mcp": [
         "./dist/mcp/index.d.ts"
+      ],
+      "stores": [
+        "./dist/stores/index.d.ts"
+      ],
+      "journal": [
+        "./dist/journal/index.d.ts"
+      ],
+      "node": [
+        "./dist/node/index.d.ts"
+      ],
+      "batch": [
+        "./dist/batch/index.d.ts"
       ]
     }
   }

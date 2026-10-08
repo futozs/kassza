@@ -1,4 +1,11 @@
-export { isSzamlazzIp, SZAMLAZZ_OUTBOUND_IPS, type SzamlazzIpOptions } from './ip'
+export {
+  checkSzamlazzIp,
+  isSzamlazzIp,
+  SZAMLAZZ_OUTBOUND_IPS,
+  type SzamlazzIpCheck,
+  type SzamlazzIpOptions,
+  type SzamlazzIpRejection,
+} from './ip'
 export {
   IPN_FIELDS,
   type IpnInput,

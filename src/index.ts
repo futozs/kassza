@@ -21,6 +21,7 @@ export {
 export { bytesToBase64 } from './core/binary'
 export type {
   AgentAttachment,
+  AgentCompleteEvent,
   AgentErrorEvent,
   AgentRequestEvent,
   AgentResponseEvent,
@@ -47,7 +48,9 @@ export type {
 export {
   AGENT_ERROR_CODES,
   type AgentErrorCodeInfo,
+  errorCodeDocsUrl,
   isSzamlazzError,
+  KASSZA_ERROR_DOCS_URL,
   SzamlazzError,
   type SzamlazzErrorCategory,
   suggestedPrefix,
@@ -126,6 +129,16 @@ export {
   paymentOrderNumber,
   type SkippedPayment,
 } from './payments/issue'
+export {
+  correctionExternalId,
+  type IssuedCorrection,
+  type IssuedRefundCorrection,
+  type IssuedRefundProposal,
+  type PartialRefundMode,
+  type RefundItemsContext,
+  type RefundItemsResolver,
+  type RefundProposalLine,
+} from './payments/partial-refund'
 export type {
   PaymentAddress,
   PaymentAmount,
@@ -134,6 +147,7 @@ export type {
   PaymentEventKind,
   PaymentLineItem,
   PaymentProvider,
+  PaymentRefund,
 } from './payments/types'
 export {
   type ConvertedReceipt,

@@ -241,6 +241,41 @@ describe('barionPaymentEvent', () => {
     ).toBe('partially-refunded')
   })
 
+  test('a visszatérítéseket időrendben, a korábbi összeggel tételesen átadja', () => {
+    const state = paymentState({
+      Transactions: [
+        shopTransaction(),
+        refund(2023, { TransactionTime: '2026-10-04T10:00:00Z' }),
+        refund(1000, { TransactionTime: '2026-10-03T10:00:00Z' }),
+      ],
+    })
+    expect(barionPaymentEvent(state).refunds).toEqual([
+      {
+        id: 'tr-refund-1000',
+        amount: { value: 1000, currency: 'HUF' },
+        refundedBefore: 0,
+        createdAt: '2026-10-03T10:00:00Z',
+      },
+      {
+        id: 'tr-refund-2023',
+        amount: { value: 2023, currency: 'HUF' },
+        refundedBefore: 1000,
+        createdAt: '2026-10-04T10:00:00Z',
+      },
+    ])
+  })
+
+  test('azonosító nélküli visszatérítésnél nem ad tételes listát', () => {
+    const state = paymentState({
+      Transactions: [
+        shopTransaction(),
+        refund(1000, { TransactionId: undefined, POSTransactionId: undefined }),
+      ],
+    })
+    expect(barionPaymentEvent(state).refunds).toBeUndefined()
+    expect(barionPaymentEvent(paymentState()).refunds).toBeUndefined()
+  })
+
   test('a nem sikeres visszatérítést nem veszi figyelembe', () => {
     const state = paymentState({
       Transactions: [shopTransaction(), refund(3023, { Status: 'Rejected' })],

@@ -1,6 +1,12 @@
 import type { CookieStore } from '../core/session'
 
-export type CookieStoreOperation = 'get' | 'set' | 'delete'
+export type CookieStoreOperation =
+  | 'get'
+  | 'set'
+  | 'delete'
+  | 'setIfAbsent'
+  | 'increment'
+  | 'deleteIfEquals'
 
 export interface CookieStoreErrorEvent {
   readonly operation: CookieStoreOperation
@@ -14,11 +20,20 @@ export interface ResilientCookieStoreOptions {
 }
 
 function warnCookieStoreError(event: CookieStoreErrorEvent): void {
+  const continuation = ATOMIC_OPERATIONS.has(event.operation)
+    ? 'a hibát a kassza kapja meg és kezeli.'
+    : 'a kérés session nélkül folytatódik.'
   console.warn(
-    `[szamlazz] A session cookie store "${event.operation}" művelete sikertelen, a kérés session nélkül folytatódik.`,
+    `[szamlazz] A tároló "${event.operation}" művelete sikertelen, ${continuation}`,
     event.error,
   )
 }
+
+const ATOMIC_OPERATIONS: ReadonlySet<CookieStoreOperation> = new Set([
+  'setIfAbsent',
+  'increment',
+  'deleteIfEquals',
+])
 
 function withTimeout<T>(
   promise: Promise<T>,
@@ -69,6 +84,23 @@ export function resilientCookieStore(
     }
   }
 
+  async function strict<T>(
+    operation: CookieStoreOperation,
+    key: string,
+    call: () => T | Promise<T>,
+  ): Promise<T> {
+    try {
+      return await withTimeout(Promise.resolve().then(call), options.timeoutMs, operation)
+    } catch (error) {
+      report(operation, key, error)
+      throw error
+    }
+  }
+
+  const setIfAbsent = store.setIfAbsent?.bind(store)
+  const increment = store.increment?.bind(store)
+  const deleteIfEquals = store.deleteIfEquals?.bind(store)
+
   return {
     async get(key) {
       return (await run('get', key, () => store.get(key))) ?? undefined
@@ -79,5 +111,17 @@ export function resilientCookieStore(
     async delete(key) {
       await run('delete', key, () => store.delete(key))
     },
+    ...(setIfAbsent && {
+      setIfAbsent: (key: string, value: string, ttlSeconds: number) =>
+        strict('setIfAbsent', key, () => setIfAbsent(key, value, ttlSeconds)),
+    }),
+    ...(increment && {
+      increment: (key: string, ttlSeconds: number) =>
+        strict('increment', key, () => increment(key, ttlSeconds)),
+    }),
+    ...(deleteIfEquals && {
+      deleteIfEquals: (key: string, value: string) =>
+        strict('deleteIfEquals', key, () => deleteIfEquals(key, value)),
+    }),
   }
 }

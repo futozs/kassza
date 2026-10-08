@@ -6,6 +6,7 @@ import {
   resolveRecoveryDelay,
   unknownOutcomeError,
 } from '../core/once'
+import { guardOnce, type OnceGuard } from '../core/once-guard'
 import type { CreatedInvoice, CreateInvoiceInput, InvoiceType } from './create-types'
 import type { GetInvoiceOptions, InvoiceDetails, InvoiceDocumentType } from './get'
 import type { InvoiceReference } from './reference'
@@ -79,33 +80,55 @@ function existingResult(
   return { number: details.header.number, created, externalId, details }
 }
 
+export function invoiceOnceGuardKey(
+  type: InvoiceType,
+  orderNumber: string,
+  externalId: string,
+  options: CreateOnceOptions,
+): string {
+  if (options.matchOrderNumber === false) return `invoice:externalId:${externalId}`
+  return `invoice:order:${type}:${orderNumber}`
+}
+
 export async function createInvoiceOnce(
   api: InvoiceOnceApi,
   input: CreateInvoiceInput,
   options: CreateOnceOptions = {},
+  guard?: OnceGuard,
 ): Promise<InvoiceOnceResult> {
   const orderNumber = requireOrderNumber(input)
   const type: InvoiceType = input.type ?? 'invoice'
   const externalId = input.externalId?.trim() || invoiceOnceExternalId(type, orderNumber)
   const delayMs = resolveRecoveryDelay(options.recoveryDelayMs)
+  const normalized = { ...input, orderNumber, externalId }
 
-  if (options.lookupFirst !== false) {
-    const existing = await lookup(api, externalId, orderNumber, type, options)
-    if (existing) return existingResult(existing, externalId, false)
+  const run = async (recheck: boolean): Promise<InvoiceOnceResult> => {
+    if (recheck || options.lookupFirst !== false) {
+      const existing = await lookup(api, externalId, orderNumber, type, options)
+      if (existing) return existingResult(existing, externalId, false)
+    }
+
+    try {
+      const invoice = await api.create(normalized, options)
+      return { number: invoice.number, created: true, externalId, invoice }
+    } catch (error) {
+      if (!isUncertainOutcome(error)) throw error
+      const recovered = await recoverAfterFailure(
+        () => lookup(api, externalId, orderNumber, type, options),
+        delayMs,
+        options.signal,
+      )
+      if (recovered) return existingResult(recovered, externalId, error.category !== 'duplicate')
+      if (error.category === 'duplicate') throw error
+      throw unknownOutcomeError(error, `${orderNumber} rendelés`)
+    }
   }
 
-  try {
-    const invoice = await api.create({ ...input, orderNumber, externalId }, options)
-    return { number: invoice.number, created: true, externalId, invoice }
-  } catch (error) {
-    if (!isUncertainOutcome(error)) throw error
-    const recovered = await recoverAfterFailure(
-      () => lookup(api, externalId, orderNumber, type, options),
-      delayMs,
-      options.signal,
-    )
-    if (recovered) return existingResult(recovered, externalId, error.category !== 'duplicate')
-    if (error.category === 'duplicate') throw error
-    throw unknownOutcomeError(error, `${orderNumber} rendelés`)
-  }
+  return guardOnce(
+    guard,
+    invoiceOnceGuardKey(type, orderNumber, externalId, options),
+    options,
+    run,
+    (result) => ({ ...result, created: false }),
+  )
 }

@@ -39,14 +39,58 @@ function clientAddress(header: string, trustedProxies: number): string | undefin
   return entries[entries.length - 1 - trustedProxies]
 }
 
+export type SzamlazzIpRejection = 'missing_header' | 'no_client_entry' | 'not_allowed'
+
+export type SzamlazzIpCheck =
+  | { readonly allowed: true; readonly client: string }
+  | {
+      readonly allowed: false
+      readonly reason: SzamlazzIpRejection
+      readonly client?: string | undefined
+      readonly message: string
+    }
+
+function rejection(
+  reason: SzamlazzIpRejection,
+  message: string,
+  client?: string | undefined,
+): SzamlazzIpCheck {
+  return client === undefined
+    ? { allowed: false, reason, message }
+    : { allowed: false, reason, client, message }
+}
+
+export function checkSzamlazzIp(
+  ip: string | null | undefined,
+  options: SzamlazzIpOptions = {},
+): SzamlazzIpCheck {
+  const trustedProxies = resolveTrustedProxies(options.trustedProxies)
+  if (typeof ip !== 'string' || ip.trim() === '') {
+    return rejection(
+      'missing_header',
+      'Nincs forrás IP-cím: a proxy nem adta át az x-forwarded-for fejlécet.',
+    )
+  }
+  const client = clientAddress(ip, trustedProxies)
+  if (client === undefined) {
+    return rejection(
+      'no_client_entry',
+      `Az x-forwarded-for fejlécben kevesebb cím van, mint a trustedProxies (${trustedProxies}) + 1.`,
+    )
+  }
+  const normalized = normalizeIp(client)
+  const allowed = new Set((options.allowedIps ?? SZAMLAZZ_OUTBOUND_IPS).map(normalizeIp))
+  if (allowed.has(normalized)) return { allowed: true, client: normalized }
+  return rejection(
+    'not_allowed',
+    `A(z) ${normalized} cím nem szerepel a Számlázz.hu kimenő IP-címei között. Ha a Számlázz.hu új címet kapott, add meg az allowedIps opcióban, és jelezd a kassza hibajegyében.`,
+    normalized,
+  )
+}
+
 export function isSzamlazzIp(
   ip: string | null | undefined,
   options: SzamlazzIpOptions = {},
 ): boolean {
-  const trustedProxies = resolveTrustedProxies(options.trustedProxies)
-  if (typeof ip !== 'string') return false
-  const client = clientAddress(ip, trustedProxies)
-  if (client === undefined) return false
-  const allowed = new Set((options.allowedIps ?? SZAMLAZZ_OUTBOUND_IPS).map(normalizeIp))
-  return allowed.has(normalizeIp(client))
+  return checkSzamlazzIp(ip, options).allowed
 }

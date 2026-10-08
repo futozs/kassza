@@ -4,9 +4,16 @@ import {
   type RequestOptions,
   type SzamlazzOptions,
 } from './core/context'
-import { type DocumentHook, emitDocumentEvent } from './core/document-events'
+import {
+  type DocumentEvent,
+  type DocumentEventOptions,
+  type DocumentHook,
+  emitDocumentEvent,
+} from './core/document-events'
 import { isSzamlazzError, type SzamlazzError } from './core/errors'
 import type { CreateOnceOptions } from './core/once'
+import { guardOnce, type OnceGuard } from './core/once-guard'
+import type { KeyValueStore } from './core/store'
 import { createInvoice, previewInvoice } from './invoices/create'
 import { createInvoiceOnce, type InvoiceOnceResult } from './invoices/create-once'
 import type {
@@ -23,6 +30,11 @@ import {
   type RegisterPaymentInput,
   registerPayment,
 } from './invoices/payment'
+import {
+  type RegisteredPaymentOnce,
+  type RegisterPaymentOnceInput,
+  registerPaymentOnce,
+} from './invoices/payment-once'
 import { getInvoicePdf, type InvoicePdf } from './invoices/pdf'
 import { deleteProforma, type ProformaReference } from './invoices/proforma'
 import type { InvoiceReference } from './invoices/reference'
@@ -47,6 +59,7 @@ import type {
   ReverseReceiptInput,
   SendReceiptInput,
 } from './receipts/types'
+import { cachedTaxpayerQuery, type TaxpayerCacheOptions } from './taxpayer/cache'
 import { queryTaxpayer, type TaxpayerInfo } from './taxpayer/query-taxpayer'
 
 export interface KasszaDefaults {
@@ -56,6 +69,8 @@ export interface KasszaDefaults {
 
 export interface KasszaOptions extends SzamlazzOptions {
   readonly defaults?: KasszaDefaults
+  readonly createOnceLock?: KeyValueStore | undefined
+  readonly taxpayerCache?: TaxpayerCacheOptions | undefined
 }
 
 export interface InvoicesApi {
@@ -64,6 +79,10 @@ export interface InvoicesApi {
   preview(input: CreateInvoiceInput, options?: RequestOptions): Promise<InvoicePreview>
   reverse(input: ReverseInvoiceInput, options?: RequestOptions): Promise<ReversedInvoice>
   registerPayment(input: RegisterPaymentInput, options?: RequestOptions): Promise<RegisteredPayment>
+  registerPaymentOnce(
+    input: RegisterPaymentOnceInput,
+    options?: CreateOnceOptions,
+  ): Promise<RegisteredPaymentOnce>
   clearPayments(input: ClearPaymentsInput, options?: RequestOptions): Promise<RegisteredPayment>
   getPdf(reference: InvoiceReference, options?: RequestOptions): Promise<InvoicePdf>
   get(
@@ -136,15 +155,27 @@ function receiptNumberOf(input: ReverseReceiptInput | string): string {
   return typeof input === 'string' ? input : input.receiptNumber
 }
 
+interface DocumentEmitter {
+  emit(event: DocumentEvent): Promise<void>
+}
+
+function createDocumentEmitter(
+  hook: DocumentHook | undefined,
+  options: DocumentEventOptions,
+): DocumentEmitter {
+  return { emit: (event) => emitDocumentEvent(hook, event, options) }
+}
+
 function createInvoicesApi(
   ctx: AgentContext,
   defaults: InvoiceDefaults,
-  onDocument: DocumentHook | undefined,
+  events: DocumentEmitter,
+  guard: OnceGuard,
 ): InvoicesApi {
   const api: InvoicesApi = {
     async create(input, options) {
       const document = await createInvoice(ctx, defaults, input, options)
-      await emitDocumentEvent(onDocument, {
+      await events.emit({
         kind: 'invoice',
         action: 'created',
         number: document.number,
@@ -153,11 +184,11 @@ function createInvoicesApi(
       })
       return document
     },
-    createOnce: (input, options) => createInvoiceOnce(api, input, options),
+    createOnce: (input, options) => createInvoiceOnce(api, input, options, guard),
     preview: (input, options) => previewInvoice(ctx, defaults, input, options),
     async reverse(input, options) {
       const document = await reverseInvoice(ctx, input, options)
-      await emitDocumentEvent(onDocument, {
+      await events.emit({
         kind: 'invoice',
         action: 'reversed',
         number: document.number,
@@ -168,7 +199,7 @@ function createInvoicesApi(
     },
     async registerPayment(input, options) {
       const document = await registerPayment(ctx, input, options)
-      await emitDocumentEvent(onDocument, {
+      await events.emit({
         kind: 'invoice',
         action: 'payment',
         number: document.invoiceNumber,
@@ -176,9 +207,10 @@ function createInvoicesApi(
       })
       return document
     },
+    registerPaymentOnce: (input, options) => registerPaymentOnce(api, input, options, guard),
     async clearPayments(input, options) {
       const document = await clearPayments(ctx, input, options)
-      await emitDocumentEvent(onDocument, {
+      await events.emit({
         kind: 'invoice',
         action: 'payment',
         number: document.invoiceNumber,
@@ -194,16 +226,21 @@ function createInvoicesApi(
   return api
 }
 
+function convertedJoin(result: ConvertedReceipt): ConvertedReceipt {
+  return { receipt: result.receipt, invoice: { ...result.invoice, created: false } }
+}
+
 function createReceiptsApi(
   ctx: AgentContext,
   defaults: ReceiptDefaults,
   invoices: InvoicesApi,
-  onDocument: DocumentHook | undefined,
+  events: DocumentEmitter,
+  guard: OnceGuard,
 ): ReceiptsApi {
   const api: ReceiptsApi = {
     async create(input, options) {
       const document = await createReceipt(ctx, defaults, input, options)
-      await emitDocumentEvent(onDocument, {
+      await events.emit({
         kind: 'receipt',
         action: 'created',
         number: document.number,
@@ -211,10 +248,10 @@ function createReceiptsApi(
       })
       return document
     },
-    createOnce: (input, options) => createReceiptOnce(api, input, options),
+    createOnce: (input, options) => createReceiptOnce(api, input, options, guard),
     async reverse(input, options) {
       const document = await reverseReceipt(ctx, input, options)
-      await emitDocumentEvent(onDocument, {
+      await events.emit({
         kind: 'receipt',
         action: 'reversed',
         number: document.number,
@@ -226,23 +263,40 @@ function createReceiptsApi(
     get: (input, options) => getReceipt(ctx, input, options),
     find: (input, options) => nullIfNotFound(getReceipt(ctx, input, options)),
     send: (input, options) => sendReceipt(ctx, input, options),
-    convertToInvoice: (input, options) =>
-      convertReceiptToInvoice({ receipts: api, invoices }, input, options),
+    convertToInvoice: (input, options = {}) =>
+      guardOnce(
+        guard,
+        `convert:${input.receiptNumber?.trim() ?? ''}`,
+        { ...options, lock: false },
+        () => convertReceiptToInvoice({ receipts: api, invoices }, input, options),
+        convertedJoin,
+      ),
   }
   return api
 }
 
+export function onceScopeOf(ctx: AgentContext): string {
+  return ctx.credentials.map((node) => `${node.name}=${String(node.content)}`).join('\n')
+}
+
 export function createKassza(options: KasszaOptions = {}): Kassza {
   const ctx = createAgentContext(options)
-  const onDocument = options.hooks?.onDocument
-  const invoices = createInvoicesApi(ctx, options.defaults?.invoice ?? {}, onDocument)
-  const receipts = createReceiptsApi(ctx, options.defaults?.receipt ?? {}, invoices, onDocument)
+  const events = createDocumentEmitter(options.hooks?.onDocument, {
+    mode: options.hooks?.onDocumentError,
+    onWarning: options.hooks?.onWarning,
+  })
+  const guard: OnceGuard = { scope: onceScopeOf(ctx), lock: options.createOnceLock, warn: ctx.warn }
+  const directQuery = (taxNumber: string, requestOptions?: RequestOptions) =>
+    queryTaxpayer(ctx, taxNumber, requestOptions)
+  const taxpayerQuery = options.taxpayerCache
+    ? cachedTaxpayerQuery(directQuery, options.taxpayerCache, ctx.warn)
+    : directQuery
+  const invoices = createInvoicesApi(ctx, options.defaults?.invoice ?? {}, events, guard)
+  const receipts = createReceiptsApi(ctx, options.defaults?.receipt ?? {}, invoices, events, guard)
   return {
     invoices,
     receipts,
-    taxpayer: {
-      query: (taxNumber, requestOptions) => queryTaxpayer(ctx, taxNumber, requestOptions),
-    },
+    taxpayer: { query: taxpayerQuery },
     async verifyCredentials(requestOptions) {
       try {
         await getInvoicePdf(ctx, CREDENTIAL_PROBE_INVOICE_NUMBER, requestOptions)

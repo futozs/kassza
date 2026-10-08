@@ -10,6 +10,13 @@ import { isHuf, isVatRate, type VatRate } from '../money/vat'
 import { conversionExternalId } from '../receipts/convert'
 import { calculateReceiptItems } from '../receipts/create'
 import type { CreateReceiptInput, Receipt } from '../receipts/types'
+import {
+  type IssuedCorrection,
+  type IssuedRefundProposal,
+  issueForPartialRefund,
+  type PartialRefundMode,
+  type RefundItemsResolver,
+} from './partial-refund'
 import type { PaymentCustomer, PaymentEvent, PaymentLineItem } from './types'
 
 export interface PaymentDocumentItem {
@@ -38,6 +45,8 @@ export interface IssueForPaymentOptions {
   readonly exchangeRate?: number | undefined
   readonly exchangeBank?: string | undefined
   readonly allowAmountMismatch?: boolean | undefined
+  readonly partialRefund?: PartialRefundMode | undefined
+  readonly refundItems?: RefundItemsResolver | undefined
   readonly receipt?:
     | Partial<
         Omit<
@@ -99,7 +108,13 @@ export interface SkippedPayment {
   readonly reason: string
 }
 
-export type IssuedDocument = IssuedReceipt | IssuedInvoice | IssuedReversal | SkippedPayment
+export type IssuedDocument =
+  | IssuedReceipt
+  | IssuedInvoice
+  | IssuedReversal
+  | IssuedCorrection
+  | IssuedRefundProposal
+  | SkippedPayment
 
 export interface PaymentDocumentsApi {
   readonly invoices: Pick<InvoicesApi, 'createOnce' | 'find' | 'reverse'>
@@ -112,9 +127,6 @@ const DEFAULT_CURRENCY = 'HUF'
 const DEFAULT_EXCHANGE_BANK = 'MNB'
 const INVOICE_REVERSAL_SUFFIX = '/SS'
 const RECEIPT_REVERSAL_SUFFIX = '/SN'
-const PARTIAL_REFUND_REASON =
-  'Részleges visszatérítés: a kassza ezt nem sztornózza automatikusan. Számlánál helyesbítő számlát, nyugtánál a könyvelőddel egyeztetett módon új bizonylatot kell kiállítani.'
-
 function validation(message: string, hint?: string): SzamlazzError {
   return new SzamlazzError(message, { category: 'validation', hint })
 }
@@ -127,14 +139,29 @@ export function paymentOrderNumber(payment: PaymentEvent): string {
   return `${payment.provider.toUpperCase()}-${payment.id}`
 }
 
-const countryNames = new Intl.DisplayNames(['hu'], { type: 'region' })
+let countryNames: Intl.DisplayNames | null | undefined
+
+function regionName(code: string): string | undefined {
+  if (countryNames === undefined) {
+    try {
+      countryNames = new Intl.DisplayNames(['hu'], { type: 'region' })
+    } catch {
+      countryNames = null
+    }
+  }
+  try {
+    return countryNames?.of(code)
+  } catch {
+    return undefined
+  }
+}
 
 function countryName(code: string | undefined): string | undefined {
   const value = code?.trim()
   if (!value) return undefined
   if (/^[A-Za-z]{2}$/.test(value)) {
     if (value.toUpperCase() === 'HU') return undefined
-    return countryNames.of(value.toUpperCase()) ?? value
+    return regionName(value.toUpperCase()) ?? value
   }
   return value
 }
@@ -523,7 +550,9 @@ export async function issueForPayment(
   resolveRecoveryDelay(options.recoveryDelayMs)
   const orderNumber = options.orderNumber?.trim() || paymentOrderNumber(payment)
   if (payment.kind === 'refunded') return reverseForRefund(api, payment, orderNumber, options)
-  if (payment.kind === 'partially-refunded') return skipped(orderNumber, PARTIAL_REFUND_REASON)
+  if (payment.kind === 'partially-refunded') {
+    return issueForPartialRefund(api, payment, orderNumber, options)
+  }
   if (payment.kind !== 'paid') {
     return skipped(
       orderNumber,

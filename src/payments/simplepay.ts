@@ -10,9 +10,10 @@ import type {
   PaymentCustomer,
   PaymentEvent,
   PaymentEventKind,
+  PaymentRefund,
   PaymentWebhookBaseOptions,
 } from './types'
-import { respondToWebhook, type WebhookHandler } from './webhook'
+import { deliverPayment, respondToWebhook, type WebhookHandler } from './webhook'
 
 export const SIMPLEPAY_LIVE_API_URL = 'https://secure.simplepay.hu/payment/v2'
 export const SIMPLEPAY_SANDBOX_API_URL = 'https://sandbox.simplepay.hu/payment/v2'
@@ -315,11 +316,15 @@ function methodOf(ipnMethod: string | undefined, configured: string | undefined)
   return ipnMethod?.toUpperCase() === 'WIRE' ? SIMPLEPAY_WIRE_METHOD : SIMPLEPAY_CARD_METHOD
 }
 
-function refundKind(transaction: SimplePayTransaction | undefined): PaymentEventKind {
-  if (!transaction || transaction.total === undefined) return 'partially-refunded'
-  const finished = transaction.refunds.filter(
+function finishedRefunds(transaction: SimplePayTransaction): SimplePayRefund[] {
+  return transaction.refunds.filter(
     (refund) => refund.status === undefined || refund.status === 'FINISHED',
   )
+}
+
+function refundKind(transaction: SimplePayTransaction | undefined): PaymentEventKind {
+  if (!transaction || transaction.total === undefined) return 'partially-refunded'
+  const finished = finishedRefunds(transaction)
   const refunded = finished.reduce((sum, refund) => sum + refund.total, 0)
   const single = finished.length === 1
   const complete = Math.abs(refunded - transaction.total) <= AMOUNT_TOLERANCE
@@ -348,6 +353,40 @@ function refundedAmountOf(
   return { value, currency: transaction.currency }
 }
 
+function refundsOf(transaction: SimplePayTransaction | undefined): PaymentRefund[] | undefined {
+  if (!transaction?.currency) return undefined
+  const currency = transaction.currency
+  const finished = finishedRefunds(transaction)
+  if (finished.length === 0 || finished.some((refund) => !refund.transactionId)) return undefined
+  const ordered = [...finished].sort(
+    (a, b) =>
+      (a.date ?? '').localeCompare(b.date ?? '') ||
+      (a.transactionId ?? '').localeCompare(b.transactionId ?? ''),
+  )
+  let before = 0
+  return ordered.map((refund) => {
+    const entry: PaymentRefund = {
+      id: refund.transactionId ?? '',
+      amount: { value: refund.total, currency },
+      refundedBefore: before,
+      createdAt: refund.date,
+    }
+    before = Math.round((before + refund.total) * 100) / 100
+    return entry
+  })
+}
+
+function eventIdOf(
+  ipn: SimplePayIpn,
+  transaction: SimplePayTransaction | undefined,
+): string | undefined {
+  if (ipn.status !== 'REFUND') return `${ipn.transactionId}:${ipn.status}`
+  if (!transaction) return undefined
+  const finished = finishedRefunds(transaction)
+  const refunded = finished.reduce((sum, refund) => sum + refund.total, 0)
+  return `${ipn.transactionId}:${ipn.status}:${finished.length}:${Math.round(refunded * 100)}`
+}
+
 export function simplePayPaymentEvent(
   ipn: SimplePayIpn,
   options: SimplePayPaymentOptions = {},
@@ -357,11 +396,12 @@ export function simplePayPaymentEvent(
     provider: 'simplepay',
     kind: kindOf(ipn.status, transaction),
     id: ipn.transactionId,
-    eventId: `${ipn.transactionId}:${ipn.status}`,
+    eventId: eventIdOf(ipn, transaction),
     eventType: ipn.status,
     orderRef: ipn.orderRef,
     amount: amountOf(transaction),
     refundedAmount: ipn.status === 'REFUND' ? refundedAmountOf(transaction) : undefined,
+    refunds: ipn.status === 'REFUND' ? refundsOf(transaction) : undefined,
     paidAt: ipn.finishDate ?? ipn.paymentDate,
     method: methodOf(ipn.method, options.method),
     customer: transaction?.customer,
@@ -448,7 +488,8 @@ export function simplePayWebhook(options: SimplePayWebhookOptions): WebhookHandl
         options.fetchDetails !== false && needsDetails(ipn.status)
           ? await requireTransaction(ipn, merchant, options)
           : undefined
-      await options.onPayment(
+      await deliverPayment(
+        options,
         simplePayPaymentEvent(ipn, { method: merchant.method ?? options.method, transaction }),
       )
       const response = await simplePayIpnResponse(

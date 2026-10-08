@@ -59,8 +59,8 @@ describe('createAttemptLedger', () => {
     const ledger = createAttemptLedger(store)
 
     expect(await ledger.failures('k')).toBe(0)
-    expect(await ledger.recordFailure('k', 0)).toBe(1)
-    expect(await ledger.recordFailure('k', 1)).toBe(2)
+    await ledger.recordFailure('k')
+    await ledger.recordFailure('k')
     expect(await ledger.failures('k')).toBe(2)
     expect(store.ttls).toEqual([ATTEMPT_LEDGER_TTL_SECONDS, ATTEMPT_LEDGER_TTL_SECONDS])
 

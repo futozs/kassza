@@ -280,7 +280,11 @@ describe('createAgentContext', () => {
       ctx.execute({ action: 'createInvoice', xml: XML }, throwIfAnyError),
     ).rejects.toThrow()
 
-    expect(onRequest).toHaveBeenCalledWith({ action: 'createInvoice', attempt: 1 })
+    expect(onRequest).toHaveBeenCalledWith({
+      action: 'createInvoice',
+      attempt: 1,
+      requestId: expect.stringMatching(/^[0-9a-f-]{36}$/),
+    })
     expect(onResponse).toHaveBeenCalledWith(
       expect.objectContaining({ action: 'createInvoice', status: 200 }),
     )

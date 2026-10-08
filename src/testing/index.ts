@@ -1,8 +1,16 @@
 import type { InvoicesApi, Kassza, KasszaDefaults, ReceiptsApi } from '../client'
 import { toAgentDate } from '../core/dates'
-import { type DocumentHook, emitDocumentEvent } from '../core/document-events'
+import {
+  type DocumentErrorMode,
+  type DocumentEvent,
+  type DocumentHook,
+  emitDocumentEvent,
+} from '../core/document-events'
 import { SzamlazzError } from '../core/errors'
+import type { OnceGuard } from '../core/once-guard'
+import type { KasszaWarning } from '../core/warnings'
 import { createInvoiceOnce } from '../invoices/create-once'
+import { registerPaymentOnce } from '../invoices/payment-once'
 import { resolveInvoice } from '../invoices/create-resolve'
 import type { CreatedInvoice, CreateInvoiceInput, InvoiceType } from '../invoices/create-types'
 import type { InvoiceDetails, InvoiceDetailsPayment } from '../invoices/get'
@@ -75,7 +83,13 @@ export interface MockKasszaOptions {
   readonly taxpayers?: Readonly<Record<string, TaxpayerInfo>>
   readonly credentialsValid?: boolean
   readonly now?: () => Date
-  readonly hooks?: { readonly onDocument?: DocumentHook | undefined } | undefined
+  readonly hooks?:
+    | {
+        readonly onDocument?: DocumentHook | undefined
+        readonly onDocumentError?: DocumentErrorMode | undefined
+        readonly onWarning?: ((warning: KasszaWarning) => void) | undefined
+      }
+    | undefined
 }
 
 export interface MockFailureOptions {
@@ -131,11 +145,20 @@ function normalizePayments(input: RegisterPaymentInput, today: string): PaymentE
   ]
 }
 
+let mockScopes = 0
+
 export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
   const now = options.now ?? (() => new Date())
   const calls: MockCall[] = []
   const failures = new Map<string, PendingFailure>()
-  const onDocument = options.hooks?.onDocument
+  const hooks = options.hooks
+  const emit = (event: DocumentEvent): Promise<void> =>
+    emitDocumentEvent(hooks?.onDocument, event, {
+      mode: hooks?.onDocumentError,
+      onWarning: hooks?.onWarning,
+    })
+  mockScopes += 1
+  const guard: OnceGuard = { scope: `mock:${mockScopes}` }
   const invoices = new Map<string, MockInvoiceRecord>()
   const receipts = new Map<string, MockReceiptRecord>()
   const sequences = new Map<string, number>()
@@ -379,7 +402,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
   const invoicesApi: InvoicesApi = {
     async create(input) {
       const document = await run('invoices.create', [input], () => createInvoiceRecord(input))
-      await emitDocumentEvent(onDocument, {
+      await emit({
         kind: 'invoice',
         action: 'created',
         number: document.number,
@@ -390,7 +413,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
     },
     createOnce: (input, requestOptions) =>
       run('invoices.createOnce', [input], () =>
-        createInvoiceOnce(invoicesApi, input, { recoveryDelayMs: 0, ...requestOptions }),
+        createInvoiceOnce(invoicesApi, input, { recoveryDelayMs: 0, ...requestOptions }, guard),
       ),
     preview: (input) =>
       run('invoices.preview', [input], () => {
@@ -452,7 +475,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
           ...(downloadPdf ? { pdf: MOCK_PDF } : {}),
         }
       })
-      await emitDocumentEvent(onDocument, {
+      await emit({
         kind: 'invoice',
         action: 'reversed',
         number: document.number,
@@ -480,7 +503,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
           outstanding: Math.max(0, found.details.totals.grossAmount - paid),
         }
       })
-      await emitDocumentEvent(onDocument, {
+      await emit({
         kind: 'invoice',
         action: 'payment',
         number: document.invoiceNumber,
@@ -488,6 +511,15 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
       })
       return document
     },
+    registerPaymentOnce: (input, requestOptions) =>
+      run('invoices.registerPaymentOnce', [input], () =>
+        registerPaymentOnce(
+          invoicesApi,
+          input,
+          { recoveryDelayMs: 0, ...requestOptions },
+          guard,
+        ),
+      ),
     async clearPayments(input) {
       const document = await run('invoices.clearPayments', [input], () => {
         const found = findInvoice(typeof input === 'string' ? input : input.invoiceNumber)
@@ -499,7 +531,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
           outstanding: found.details.totals.grossAmount,
         }
       })
-      await emitDocumentEvent(onDocument, {
+      await emit({
         kind: 'invoice',
         action: 'payment',
         number: document.invoiceNumber,
@@ -540,7 +572,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
       const document = await run('receipts.create', [input], () =>
         createReceiptRecord(input, input.callId),
       )
-      await emitDocumentEvent(onDocument, {
+      await emit({
         kind: 'receipt',
         action: 'created',
         number: document.number,
@@ -550,7 +582,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
     },
     createOnce: (input, requestOptions) =>
       run('receipts.createOnce', [input], () =>
-        createReceiptOnce(receiptsApi, input, { recoveryDelayMs: 0, ...requestOptions }),
+        createReceiptOnce(receiptsApi, input, { recoveryDelayMs: 0, ...requestOptions }, guard),
       ),
     async reverse(input) {
       const receiptNumber = typeof input === 'string' ? input : input.receiptNumber
@@ -585,7 +617,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
         receipts.set(reversal.number, { receipt: reversal, sentTo: [] })
         return { ...reversal, pdf: MOCK_PDF }
       })
-      await emitDocumentEvent(onDocument, {
+      await emit({
         kind: 'receipt',
         action: 'reversed',
         number: document.number,

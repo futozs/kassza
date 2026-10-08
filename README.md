@@ -1158,6 +1158,14 @@ A weboldal is AI-barát: az [llms.txt](https://kasszajs.hu/llms.txt) a dokument�
   <a href="https://kasszajs.hu/docs/kiegeszitok/ai-asszisztensek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/button-docs-light.svg" alt="Dokumentáció: AI asszisztensek" height="44"></picture></a>
 </p>
 
+## Ki használja?
+
+A kassza nem küld semmilyen használati adatot, ezért csak az derül ki, ki használja, aki maga jelzi. Ha éles vagy kísérleti projektben használod, [írd meg egy issue-ban](https://github.com/futozs/kassza/issues/new?template=used-by.yml), és felkerülsz ide.
+
+| Projekt | Mire használja |
+| --- | --- |
+| _Légy te az első._ | |
+
 ---
 
 <p align="center">

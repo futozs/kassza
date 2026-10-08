@@ -8,9 +8,10 @@ import type {
   PaymentEvent,
   PaymentEventKind,
   PaymentLineItem,
+  PaymentRefund,
   PaymentWebhookBaseOptions,
 } from './types'
-import { respondToWebhook, type WebhookHandler } from './webhook'
+import { deliverPayment, respondToWebhook, type WebhookHandler } from './webhook'
 
 export const STRIPE_DEFAULT_TOLERANCE_SECONDS = 300
 export const STRIPE_API_URL = 'https://api.stripe.com'
@@ -222,6 +223,27 @@ function refundKind(event: StripeEvent): PaymentEventKind {
   return fullyRefunded && previouslyRefunded === 0 ? 'refunded' : 'partially-refunded'
 }
 
+function refundsOf(event: StripeEvent): PaymentRefund[] | undefined {
+  const charge = event.object
+  const currency = text(charge.currency)
+  const refunded = numeric(charge.amount_refunded)
+  const previous = numeric(event.previousAttributes?.amount_refunded)
+  if (!currency || refunded === undefined || previous === undefined || refunded <= previous) {
+    return undefined
+  }
+  return [
+    {
+      id: event.id,
+      amount: {
+        value: fromMinorUnits(refunded - previous, currency, 'stripe'),
+        currency: normalizeCurrency(currency),
+      },
+      refundedBefore: fromMinorUnits(previous, currency, 'stripe'),
+      createdAt: paidAtOf(event),
+    },
+  ]
+}
+
 function fromRefundedCharge(event: StripeEvent, options: StripePaymentOptions): PaymentEvent {
   const charge = event.object
   return {
@@ -233,6 +255,7 @@ function fromRefundedCharge(event: StripeEvent, options: StripePaymentOptions): 
     orderRef: orderRefOf(charge),
     amount: amountOf(charge, 'amount'),
     refundedAmount: amountOf(charge, 'amount_refunded'),
+    refunds: refundsOf(event),
     paidAt: paidAtOf(event),
     method: options.method ?? STRIPE_DEFAULT_METHOD,
     customer: customerOf(record(charge.billing_details)),
@@ -441,7 +464,7 @@ export function stripeWebhook(options: StripeWebhookOptions): WebhookHandler {
       )
       const event = parseStripeEvent(payload)
       const payment = stripePaymentEvent(event, { method: options.method })
-      if (payment) await options.onPayment(await enrich(payment, event, options))
+      if (payment) await deliverPayment(options, payment, (value) => enrich(value, event, options))
       return plainResponse(200, 'OK')
     })
 }

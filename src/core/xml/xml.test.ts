@@ -33,6 +33,19 @@ describe('escapeXml', () => {
   test('az ékezetes és emoji karaktereket változatlanul hagyja', () => {
     expect(escapeXml('Árvíztűrő tükörfúrógép 🧾')).toBe('Árvíztűrő tükörfúrógép 🧾')
   })
+
+  test('a magányos helyettesítő karaktert (félbevágott emoji) kiszűri, az érvényes párt megtartja', () => {
+    const emoji = '🧾'
+    const highOnly = `Kiss${emoji.charAt(0)} Bt.`
+    const lowOnly = `Kiss${emoji.charAt(1)} Bt.`
+    const reversed = `Kiss${emoji.charAt(1)}${emoji.charAt(0)} Bt.`
+
+    expect(escapeXml(highOnly)).toBe('Kiss Bt.')
+    expect(escapeXml(lowOnly)).toBe('Kiss Bt.')
+    expect(escapeXml(reversed)).toBe('Kiss Bt.')
+    expect(escapeXml(`Kiss${emoji} Bt.`)).toBe(`Kiss${emoji} Bt.`)
+    expect(new TextEncoder().encode(escapeXml(highOnly))).not.toContain(0xef)
+  })
 })
 
 describe('formatXmlNumber', () => {

@@ -340,6 +340,35 @@ describe('revolutPaymentEvent', () => {
     ).toMatchObject({ kind: 'partially-refunded', refundedAmount: { value: 2023 } })
   })
 
+  test('a visszatérítési rendelést tételes visszatérítésként adja, a korábbi összeggel', () => {
+    const event = parseRevolutEvent(completedEvent(REFUND_ID))
+    expect(
+      revolutPaymentEvent(event, {
+        order: refundOrder(100_000),
+        originalOrder: saleOrder({ refunded_amount: 250_000 }),
+      })?.refunds,
+    ).toEqual([
+      {
+        id: REFUND_ID,
+        amount: { value: 1000, currency: 'HUF' },
+        refundedBefore: 1500,
+        createdAt: '2026-10-03T08:00:00Z',
+      },
+    ])
+    expect(
+      revolutPaymentEvent(event, {
+        order: refundOrder(100_000),
+        originalOrder: saleOrder({ refunded_amount: undefined }),
+      })?.refunds?.[0]?.refundedBefore,
+    ).toBeUndefined()
+    expect(
+      revolutPaymentEvent(event, {
+        order: refundOrder(100_000),
+        originalOrder: saleOrder({ refunded_amount: 50_000 }),
+      })?.refunds?.[0]?.refundedBefore,
+    ).toBeUndefined()
+  })
+
   test('az eredeti rendelés nélkül vagy befejezetlen visszatérítésnél hibát dob', () => {
     const event = parseRevolutEvent(completedEvent(REFUND_ID))
     expect(() => revolutPaymentEvent(event, { order: refundOrder(302_300) })).toThrow(

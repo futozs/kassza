@@ -1,6 +1,6 @@
 import type { AgentAction } from './actions'
 import { SzamlazzError, type SzamlazzErrorCategory } from './errors'
-import type { CookieStore } from './session'
+import type { KeyValueStore } from './store'
 
 export const ATTEMPT_LEDGER_TTL_SECONDS = 86_400
 export const ATTEMPT_LEDGER_KEY_PREFIX = 'szamlazz:attempts:'
@@ -47,23 +47,81 @@ function parseCount(value: string | undefined | null): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : 0
 }
 
+export type AttemptLedgerMode = 'fail-open' | 'fail-closed'
+
+export const LOCAL_ATTEMPT_LIMIT = 1000
+
 export interface AttemptLedger {
   failures(key: string): Promise<number>
-  recordFailure(key: string, previous: number): Promise<number>
+  fallbackFailures(key: string): number
+  recordFailure(key: string): Promise<void>
   reset(key: string): Promise<void>
 }
 
-export function createAttemptLedger(store: CookieStore): AttemptLedger {
+interface LocalCount {
+  readonly count: number
+  readonly expiresAt: number
+}
+
+function createLocalCounter(): {
+  get(key: string): number
+  bump(key: string): void
+  clear(key: string): void
+} {
+  const counts = new Map<string, LocalCount>()
+  const get = (key: string): number => {
+    const entry = counts.get(key)
+    if (!entry) return 0
+    if (entry.expiresAt <= Date.now()) {
+      counts.delete(key)
+      return 0
+    }
+    return entry.count
+  }
+  return {
+    get,
+    bump(key) {
+      const count = get(key) + 1
+      counts.delete(key)
+      counts.set(key, { count, expiresAt: Date.now() + ATTEMPT_LEDGER_TTL_SECONDS * 1000 })
+      if (counts.size > LOCAL_ATTEMPT_LIMIT) {
+        const oldest = counts.keys().next().value
+        if (oldest !== undefined) counts.delete(oldest)
+      }
+    },
+    clear(key) {
+      counts.delete(key)
+    },
+  }
+}
+
+export function createAttemptLedger(store: KeyValueStore): AttemptLedger {
+  const local = createLocalCounter()
+  const unpersisted = createLocalCounter()
   return {
     async failures(key) {
-      return parseCount(await store.get(key))
+      return parseCount(await store.get(key)) + unpersisted.get(key)
     },
-    async recordFailure(key, previous) {
-      const next = previous + 1
-      await store.set(key, String(next), ATTEMPT_LEDGER_TTL_SECONDS)
-      return next
+    fallbackFailures(key) {
+      return local.get(key)
+    },
+    async recordFailure(key) {
+      local.bump(key)
+      try {
+        if (store.increment) {
+          await store.increment(key, ATTEMPT_LEDGER_TTL_SECONDS)
+          return
+        }
+        const current = parseCount(await store.get(key))
+        await store.set(key, String(current + 1), ATTEMPT_LEDGER_TTL_SECONDS)
+      } catch (error) {
+        unpersisted.bump(key)
+        throw error
+      }
     },
     async reset(key) {
+      local.clear(key)
+      unpersisted.clear(key)
       await store.delete(key)
     },
   }

@@ -1069,6 +1069,14 @@ A weboldal is AI-barát: az [llms.txt]({{llms}}) a dokumentáció tartalomjegyz�
 
 {{links:kiegeszitok/ai-asszisztensek}}
 
+## Ki használja?
+
+A kassza nem küld semmilyen használati adatot, ezért csak az derül ki, ki használja, aki maga jelzi. Ha éles vagy kísérleti projektben használod, [írd meg egy issue-ban]({{repo}}/issues/new?template=used-by.yml), és felkerülsz ide.
+
+| Projekt | Mire használja |
+| --- | --- |
+| _Légy te az első._ | |
+
 ---
 
 <p align="center">

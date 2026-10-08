@@ -477,6 +477,31 @@ describe('payPalPaymentEvent', () => {
     expect(payPalPaymentEvent(pending, { capture: captureResource() })?.kind).toBe('other')
   })
 
+  test('a visszatérítést tételesen adja, a korábbi összeget az összesítettből számolja', () => {
+    const event = parsePayPalEvent(
+      eventPayload(
+        'PAYMENT.CAPTURE.REFUNDED',
+        refundResource('1000', {
+          seller_payable_breakdown: {
+            total_refunded_amount: { currency_code: 'HUF', value: '2500' },
+          },
+        }),
+      ),
+    )
+    expect(payPalPaymentEvent(event, { capture: captureResource() })?.refunds).toEqual([
+      {
+        id: '1JU08902781691411',
+        amount: { value: 1000, currency: 'HUF' },
+        refundedBefore: 1500,
+        createdAt: '2026-10-03T08:00:00Z',
+      },
+    ])
+    const pending = parsePayPalEvent(
+      eventPayload('PAYMENT.CAPTURE.REFUNDED', refundResource('1000', { status: 'PENDING' })),
+    )
+    expect(payPalPaymentEvent(pending)?.refunds).toBeUndefined()
+  })
+
   test('a visszatérítés összegét használja, ha nincs összesített visszatérített összeg', () => {
     const event = parsePayPalEvent(
       eventPayload(

@@ -338,6 +338,47 @@ describe('simplePayPaymentEvent', () => {
     ).toBe('partially-refunded')
   })
 
+  test('a befejezett visszatérítéseket tételesen adja, az eventId visszatérítésenként egyedi', () => {
+    const refundIpn = parseSimplePayIpn(IPN.replace('"FINISHED"', '"REFUND"'))
+    const first = transaction({
+      refunds: [{ transactionId: '501', total: 1000, status: 'FINISHED', date: '2026-10-03' }],
+    })
+    const second = transaction({
+      refunds: [
+        { transactionId: '502', total: 540, status: 'FINISHED', date: '2026-10-04' },
+        { transactionId: '501', total: 1000, status: 'FINISHED', date: '2026-10-03' },
+        { transactionId: '503', total: 100, status: 'PENDING', date: '2026-10-05' },
+      ],
+    })
+
+    const firstEvent = simplePayPaymentEvent(refundIpn, { transaction: first })
+    const secondEvent = simplePayPaymentEvent(refundIpn, { transaction: second })
+
+    expect(secondEvent.refunds).toEqual([
+      {
+        id: '501',
+        amount: { value: 1000, currency: 'HUF' },
+        refundedBefore: 0,
+        createdAt: '2026-10-03',
+      },
+      {
+        id: '502',
+        amount: { value: 540, currency: 'HUF' },
+        refundedBefore: 1000,
+        createdAt: '2026-10-04',
+      },
+    ])
+    expect(firstEvent.eventId).not.toBe(secondEvent.eventId)
+    expect(simplePayPaymentEvent(refundIpn).eventId).toBeUndefined()
+    expect(simplePayPaymentEvent(refundIpn).refunds).toBeUndefined()
+    expect(simplePayPaymentEvent(ipn).eventId).toBe(`${ipn.transactionId}:FINISHED`)
+    expect(
+      simplePayPaymentEvent(refundIpn, {
+        transaction: transaction({ refunds: [{ total: 1000, status: 'FINISHED' }] }),
+      }).refunds,
+    ).toBeUndefined()
+  })
+
   test('a sikertelen és a köztes státuszokat felismeri', () => {
     for (const status of ['NOTAUTHORIZED', 'FRAUD', 'TIMEOUT', 'CANCELLED', 'REVERSED']) {
       const failed = parseSimplePayIpn(IPN.replace('"FINISHED"', `"${status}"`))

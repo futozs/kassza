@@ -25,6 +25,16 @@ export {
   paymentOrderNumber,
   type SkippedPayment,
 } from './issue'
+export {
+  correctionExternalId,
+  type IssuedCorrection,
+  type IssuedRefundCorrection,
+  type IssuedRefundProposal,
+  type PartialRefundMode,
+  type RefundItemsContext,
+  type RefundItemsResolver,
+  type RefundProposalLine,
+} from './partial-refund'
 export type {
   PaymentAddress,
   PaymentAmount,
@@ -34,6 +44,14 @@ export type {
   PaymentHandler,
   PaymentLineItem,
   PaymentProvider,
+  PaymentRefund,
   PaymentWebhookBaseOptions,
 } from './types'
-export { respondToWebhook, type WebhookHandler } from './webhook'
+export {
+  DEFAULT_DEDUPE_TTL_SECONDS,
+  deliverPayment,
+  respondToWebhook,
+  WEBHOOK_DEDUPE_KEY_PREFIX,
+  type WebhookHandler,
+  webhookDedupeKey,
+} from './webhook'
