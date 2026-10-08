@@ -18,6 +18,8 @@ npm test
 npm run ci
 ```
 
+Az `npm run e2e` az összes Számla Agent műveletet az élő Számlázz.hu tesztfiókon próbálja ki. Ehhez kell a `SZAMLAZZ_TEST_AGENT_KEY` (lásd `.env.example`), és nem része az `npm run ci`-nek. Kulcs nélkül hibával áll le, így nem lehet véletlenül zöldnek hinni.
+
 Az `npm run ci` lefuttatja a lintet, a típusellenőrzést, a README-szinkront, a lefedettséget (legalább 80%), a buildet, a `publint`-et és az `attw`-t. Pull request csak zöld `npm run ci` mellett kerül be.
 
 ## Szabályok
@@ -25,7 +27,7 @@ Az `npm run ci` lefuttatja a lintet, a típusellenőrzést, a README-szinkront, 
 - Kód közé nem kerül komment (se `//`, se JSDoc).
 - Az azonosítók angolul, a hibaüzenetek és a tesztnevek magyarul vannak.
 - Nulla futásidejű függőség. A `src/` futtatókörnyezet-független marad: nincs `Buffer`, és `node:` import csak az `src/storage/fs.ts`-ben lehet.
-- Minden új modulhoz tartozik teszt. A tesztek soha nem hívják a valódi Számlázz.hu API-t.
+- Minden új modulhoz tartozik teszt. A tesztek nem hívják a valódi Számlázz.hu API-t. Az egyetlen kivétel a `tests/e2e/live.test.ts`, amit csak az `npm run e2e` futtat egy Számlázz.hu tesztfiók Agent kulcsával.
 - Üzleti hibára soha nincs automatikus újrapróbálás.
 - Nyilvános API-változásnál frissítsd a `readme/template.md`-t (utána `npm run readme`), az `agents/api.md`-t és az `agents/recipes.md`-t. A `README.md` generált fájl, kézzel ne szerkeszd.
 
