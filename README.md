@@ -1,4 +1,3 @@
-<!-- Ezt a fájlt a readme/build.mjs generálja a readme/template.md alapján. Ne szerkeszd kézzel: írd át a sablont, és futtasd az npm run readme parancsot. -->
 
 <p align="center">
   <a href="https://kasszajs.hu"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/hero-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/hero-light.svg" alt="kassza: Számlázz.hu, TypeScriptben. Telepítés: npm i kassza" width="100%"></picture></a>
