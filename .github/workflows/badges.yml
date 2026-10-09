@@ -1,0 +1,49 @@
+name: Lefedettségi jelvények
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['web/**', '.github/workflows/web.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: badges
+  cancel-in-progress: true
+
+jobs:
+  badges:
+    if: github.repository == 'futozs/kassza'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+          cache: npm
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends libxml2-utils
+      - run: npm ci
+      - run: npm run xsd:fetch
+      - name: Tesztek lefedettséggel
+        env:
+          KASSZA_REQUIRE_XSD: '1'
+        run: npm run test:coverage
+      - name: Jelvények elkészítése
+        run: node scripts/coverage-badges.mjs coverage/coverage-summary.json "$RUNNER_TEMP/badges"
+      - name: Közzététel a badges ágon
+        working-directory: ${{ runner.temp }}/badges
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          git init -q -b badges
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add .
+          git commit -q -m 'chore: lefedettségi jelvények frissítése'
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${REPOSITORY}.git" badges

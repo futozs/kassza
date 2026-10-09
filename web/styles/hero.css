@@ -24,12 +24,12 @@
 
 .hero-line-inner {
   display: block;
-  animation: hero-line 1200ms var(--hero-ease) calc(120ms + var(--i, 0) * 110ms) both;
+  animation: hero-line 800ms var(--hero-ease) calc(40ms + var(--i, 0) * 80ms) both;
 }
 
 @keyframes hero-line {
   from {
-    transform: translate3d(0, 105%, 0) rotate(2deg);
+    transform: translate3d(0, calc(100% + 0.6em), 0) rotate(1.5deg);
   }
   to {
     transform: none;
@@ -37,7 +37,7 @@
 }
 
 .hero-fade {
-  animation: hero-fade 1000ms var(--hero-ease) calc(200ms + var(--i, 0) * 110ms) both;
+  animation: hero-fade 650ms var(--hero-ease) calc(100ms + var(--i, 0) * 80ms) both;
 }
 
 @keyframes hero-fade {
@@ -182,7 +182,7 @@
     0 30px 60px -28px oklch(from var(--shadow-color) l c h / 0.55),
     0 12px 24px -16px oklch(from var(--shadow-color) l c h / 0.35);
   color: var(--hs-ink);
-  animation: hs-enter 1000ms var(--hero-ease) both;
+  animation: hs-enter 420ms var(--hero-ease) both;
 }
 
 .hs-code::after {
@@ -199,7 +199,7 @@
 @keyframes hs-enter {
   from {
     opacity: 0;
-    transform: translate3d(0, 2rem, 0) scale(0.97);
+    transform: translate3d(0, 1.25rem, 0) scale(0.98);
   }
   to {
     opacity: 1;
@@ -291,7 +291,7 @@
 .hs-status-done {
   background: oklch(from var(--hs-ok) l c h / 0.14);
   color: var(--hs-ok);
-  animation: hs-pop 520ms var(--hero-spring) var(--t-print) both;
+  animation: hs-pop 360ms var(--hero-spring) var(--t-print) both;
 }
 
 .hs-spinner {
@@ -300,7 +300,7 @@
   border: 1.5px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
-  animation: hs-spin 700ms linear infinite;
+  animation: hs-spin 500ms linear infinite;
 }
 
 @keyframes hs-spin {
@@ -405,7 +405,7 @@
   z-index: 2;
   width: min(18.75rem, 88%);
   margin: -3.4rem 0 0 auto;
-  animation: hs-enter 1000ms var(--hero-ease) 180ms both;
+  animation: hs-enter 420ms var(--hero-ease) 60ms both;
 }
 
 .hs-printer {
@@ -430,7 +430,7 @@
   flex: none;
   border-radius: 50%;
   background: var(--led);
-  animation: hs-blink 260ms steps(2, jump-none) var(--t-send) 8;
+  animation: hs-blink 160ms steps(2, jump-none) var(--t-send) 6;
 }
 
 @keyframes hs-blink {
@@ -595,7 +595,7 @@
   color: var(--receipt-accent);
   background: oklch(from var(--receipt) l c h / 0.75);
   transform: rotate(-9deg);
-  animation: hs-stamp 560ms var(--hero-spring) calc(var(--t-done) + 80ms) both;
+  animation: hs-stamp 360ms var(--hero-spring) calc(var(--t-done) + 20ms) both;
 }
 
 @keyframes hs-stamp {
@@ -618,7 +618,7 @@
 
 .hs-perk {
   position: absolute;
-  animation: hs-perk-in 700ms var(--hero-spring) calc(var(--t-done) + 250ms + var(--k) * 140ms) both;
+  animation: hs-perk-in 450ms var(--hero-spring) calc(var(--t-done) + 60ms + var(--k) * 70ms) both;
 }
 
 .hs-perk--time {
@@ -667,7 +667,7 @@
   font-weight: 600;
   color: var(--ink);
   white-space: nowrap;
-  animation: hs-float 6s ease-in-out calc(var(--t-done) + 1200ms + var(--k) * 700ms) infinite
+  animation: hs-float 6s ease-in-out calc(var(--t-done) + 700ms + var(--k) * 500ms) infinite
     alternate;
 }
 

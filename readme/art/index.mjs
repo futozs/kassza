@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { loadSiteData } from '../site-data.mjs'
-import { buttonDocuments, navDocuments } from './designs/buttons.mjs'
+import { buttonDocuments } from './designs/buttons.mjs'
 import { heroDocument } from './designs/hero.mjs'
 import { wordmarkDocument } from './designs/lockup.mjs'
 import { matrixDocument } from './designs/matrix.mjs'
@@ -16,7 +16,6 @@ const CONFIG = new URL('../config.json', import.meta.url)
 
 const THEMED_DESIGNS = [
   (context) => [{ name: 'hero', svg: heroDocument(context) }],
-  navDocuments,
   buttonDocuments,
   (context) => [{ name: 'showcase', svg: showcaseDocument(context) }],
   (context) => [{ name: 'matrix', svg: matrixDocument(context) }],

@@ -8,7 +8,7 @@ import { EASE_OUT_EXPO } from './reveal'
 
 export const listVariants: Variants = {
   hidden: {},
-  show: { transition: { staggerChildren: 0.16, delayChildren: 0.25 } },
+  show: { transition: { staggerChildren: 0.09, delayChildren: 0.12 } },
 }
 
 export const itemVariants: Variants = {
@@ -17,7 +17,7 @@ export const itemVariants: Variants = {
     opacity: 1,
     y: 0,
     filter: 'blur(0px)',
-    transition: { duration: 0.7, ease: EASE_OUT_EXPO },
+    transition: { duration: 0.5, ease: EASE_OUT_EXPO },
   },
 }
 

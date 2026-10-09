@@ -44,9 +44,9 @@ const PERKS: readonly Perk[] = [
   { id: 'errors', icon: MessageSquareText, label: 'Magyar hibaüzenetek' },
 ]
 
-const VISIBLE_SHARE = 0.2
-const COUNT_DELAY_MS = 450
-const COUNT_MS = 950
+const VISIBLE_SHARE = 0.08
+const COUNT_DELAY_MS = 120
+const COUNT_MS = 450
 const PRINT_ANIMATION = 'hs-print'
 
 const huf = new Intl.NumberFormat('hu-HU', { maximumFractionDigits: 0, useGrouping: 'always' })

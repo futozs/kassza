@@ -2,8 +2,6 @@ name: E2E
 
 on:
   workflow_call:
-  schedule:
-    - cron: '17 5 * * 1'
   workflow_dispatch:
 
 concurrency:

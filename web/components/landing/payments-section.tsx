@@ -37,7 +37,7 @@ function Beam({ d, delay }: { d: string; delay: number }) {
     initial: reduce ? false : ({ pathLength: 0, opacity: 0 } as const),
     whileInView: { pathLength: 1, opacity: 1 },
     viewport: { once: true, amount: 0.4 },
-    transition: { duration: 1.2, delay, ease: EASE_OUT_EXPO },
+    transition: { duration: 0.8, delay, ease: EASE_OUT_EXPO },
   }
   return (
     <g>
@@ -92,30 +92,30 @@ export function PaymentsSection() {
               <Beam
                 key={provider}
                 d={inPath(rowY(index, PROVIDERS.length))}
-                delay={0.2 + index * 0.1}
+                delay={0.1 + index * 0.06}
               />
             ))}
             {OUTPUT_Y.map((y, index) => (
-              <Beam key={y} d={outPath(y)} delay={1 + index * 0.12} />
+              <Beam key={y} d={outPath(y)} delay={0.6 + index * 0.08} />
             ))}
           </svg>
           {PROVIDERS.map((provider, index) => (
-            <Node key={provider} x={LEFT_X} y={rowY(index, PROVIDERS.length)} delay={index * 0.08}>
+            <Node key={provider} x={LEFT_X} y={rowY(index, PROVIDERS.length)} delay={index * 0.05}>
               <span className="flow-pill flow-pill--in">{provider}</span>
             </Node>
           ))}
-          <Node x={HUB_X} y={HUB_Y} delay={0.85}>
+          <Node x={HUB_X} y={HUB_Y} delay={0.5}>
             <span className="flow-hub">
               <LogoMark className="size-14 drop-shadow-none sm:size-16" />
             </span>
           </Node>
-          <Node x={RIGHT_X} y={OUTPUT_Y[0]} delay={1.5}>
+          <Node x={RIGHT_X} y={OUTPUT_Y[0]} delay={0.95}>
             <span className="flow-pill flow-pill--out">
               <FileText className="size-4 text-accent" />
               Számla
             </span>
           </Node>
-          <Node x={RIGHT_X} y={OUTPUT_Y[1]} delay={1.62}>
+          <Node x={RIGHT_X} y={OUTPUT_Y[1]} delay={1.03}>
             <span className="flow-pill flow-pill--out">
               <Receipt className="size-4 text-accent" />
               Nyugta

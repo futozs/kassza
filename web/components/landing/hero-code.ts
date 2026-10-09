@@ -84,14 +84,15 @@ export const HERO_CODE: readonly (readonly CodeToken[])[] = [
   [['punc', '})']],
 ]
 
-export const TYPE_START_MS = 550
-const CHAR_MS = 9
-const LINE_MIN_MS = 120
-const LINE_GAP_MS = 45
-const BLANK_LINE_MS = 90
+export const TYPE_START_MS = 80
+const CHAR_MS = 3
+const LINE_MIN_MS = 60
+const LINE_GAP_MS = 15
+const BLANK_LINE_MS = 30
+const SEND_LEAD_MS = 100
 
-export const SEND_MS = 800
-export const PRINT_MS = 1400
+export const SEND_MS = 400
+export const PRINT_MS = 650
 
 function scheduleLines(lines: readonly (readonly CodeToken[])[]): readonly TimedLine[] {
   const timed: TimedLine[] = []
@@ -120,7 +121,7 @@ export const TIMED_CODE: readonly TimedLine[] = scheduleLines(HERO_CODE)
 const lastLine = TIMED_CODE.at(-1)
 
 export const SEND_AT_MS: number = lastLine
-  ? lastLine.delay + lastLine.duration + 250
+  ? lastLine.delay + lastLine.duration + SEND_LEAD_MS
   : TYPE_START_MS
 export const PRINT_AT_MS: number = SEND_AT_MS + SEND_MS
 export const DONE_AT_MS: number = PRINT_AT_MS + PRINT_MS

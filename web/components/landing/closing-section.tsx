@@ -7,27 +7,27 @@ import { LogoMark } from '@/components/site/logo'
 import { site } from '@/lib/site'
 import { InstallCommand } from './install-command'
 import { LandingContainer } from './landing-container'
+import { EASE_OUT_EXPO, REVEAL_SECONDS } from './reveal'
 import { Wave } from './wave'
 
 const INSTALL_COMMAND = 'npm i kassza'
-const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const
 
 function useReveal(delay: number) {
   const reduce = useReducedMotion()
   if (reduce) return {}
   return {
-    initial: { opacity: 0, y: 32 },
+    initial: { opacity: 0, y: 24 },
     whileInView: { opacity: 1, y: 0 },
     viewport: { once: true, amount: 0.4 },
-    transition: { duration: 1, delay, ease: EASE_OUT_EXPO },
+    transition: { duration: REVEAL_SECONDS, delay, ease: EASE_OUT_EXPO },
   }
 }
 
 export function ClosingSection() {
   const logo = useReveal(0)
-  const title = useReveal(0.08)
-  const install = useReveal(0.16)
-  const actions = useReveal(0.24)
+  const title = useReveal(0.06)
+  const install = useReveal(0.12)
+  const actions = useReveal(0.18)
 
   return (
     <section aria-labelledby="kezdd-el">

@@ -12,8 +12,6 @@
   {{badges}}
 </p>
 
-{{nav}}
-
 ```bash
 npm i kassza
 ```

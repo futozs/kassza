@@ -46,7 +46,7 @@ function Bar({ row, total, index }: { row: PackageCoverage; total: number; index
           initial={reduce ? false : { scaleX: 0 }}
           whileInView={{ scaleX: 1 }}
           viewport={{ once: true, amount: 0.8 }}
-          transition={{ duration: 1.3, delay: 0.15 + index * 0.1, ease: EASE_OUT_EXPO }}
+          transition={{ duration: 0.8, delay: 0.1 + index * 0.06, ease: EASE_OUT_EXPO }}
         />
       </div>
     </li>

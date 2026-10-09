@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, test } from 'vitest'
 import { createTestContext, type MockResponse, TEST_AGENT_KEY } from '../../tests/helpers'
+import { canValidateXsd, XSD_ROOT } from '../../tests/xsd'
 import { SzamlazzError } from '../core/errors'
 import { el } from '../core/xml/serialize'
 import {
@@ -23,6 +24,9 @@ const DOCS_XSD_PAGE = join(
 )
 
 function extractDocsXsd(): string | undefined {
+  if (canValidateXsd('taxpayer/xmltaxpayer.xsd')) {
+    return readFileSync(join(XSD_ROOT, 'taxpayer/xmltaxpayer.xsd'), 'utf8')
+  }
   if (!existsSync(DOCS_XSD_PAGE)) return undefined
   const page = readFileSync(DOCS_XSD_PAGE, 'utf8')
   const start = page.lastIndexOf('<?xml', page.indexOf('<schema'))

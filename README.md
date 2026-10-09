@@ -15,14 +15,16 @@
   <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/dm/kassza?label=let%C3%B6lt%C3%A9s&style=flat-square&labelColor=28313d&color=c2501a" alt="havi letöltés"></a>
   <a href="https://github.com/futozs/kassza/blob/main/package.json"><img src="https://img.shields.io/badge/f%C3%BCgg%C5%91s%C3%A9g-0-c2501a?style=flat-square&labelColor=28313d" alt="0 futásidejű függőség"></a>
   <a href="https://github.com/futozs/kassza/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/kassza?label=licenc&style=flat-square&labelColor=28313d&color=c2501a" alt="MIT licenc"></a>
-</p>
-
-<p align="center">
-  <a href="https://kasszajs.hu"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-web-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-web-light.svg" alt="Weboldal: kasszajs.hu" width="428"></picture></a>
-  <a href="https://kasszajs.hu/docs"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-docs-light.svg" alt="Dokumentáció: 188 oldal, magyarul" width="428"></picture></a>
   <br>
-  <a href="https://kasszajs.hu/sandbox"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-sandbox-light.svg" alt="Sandbox: 28 futtatható példa" width="428"></picture></a>
-  <a href="https://kasszajs.hu/docs/receptek"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-recipes-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/nav-recipes-light.svg" alt="Receptek: 11 kész integráció" width="428"></picture></a>
+  <a href="https://github.com/futozs/kassza/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/futozs/kassza/ci.yml?branch=main&label=CI&style=flat-square&labelColor=28313d" alt="CI állapota"></a>
+  <a href="https://github.com/futozs/kassza/actions/workflows/full-check.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/futozs/kassza/full-check.yml?branch=main&label=heti%20teljes%20teszt&style=flat-square&labelColor=28313d" alt="Heti teljes ellenőrzés: CI, XSD, változásfigyelő, élő e2e"></a>
+  <a href="https://github.com/futozs/kassza/actions/workflows/release.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/futozs/kassza/release.yml?branch=main&label=kiad%C3%A1s&style=flat-square&labelColor=28313d" alt="Kiadás állapota"></a>
+  <a href="https://scorecard.dev/viewer/?uri=github.com/futozs/kassza"><img src="https://img.shields.io/ossf-scorecard/github.com/futozs/kassza?label=OpenSSF%20Scorecard&style=flat-square&labelColor=28313d" alt="OpenSSF Scorecard pontszám"></a>
+  <br>
+  <a href="https://github.com/futozs/kassza/actions/workflows/badges.yml"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffutozs%2Fkassza%2Fbadges%2Fcoverage-lines.json&style=flat-square&labelColor=28313d" alt="Sor-lefedettség"></a>
+  <a href="https://github.com/futozs/kassza/actions/workflows/badges.yml"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffutozs%2Fkassza%2Fbadges%2Fcoverage-branches.json&style=flat-square&labelColor=28313d" alt="Ág-lefedettség"></a>
+  <a href="https://github.com/futozs/kassza/actions/workflows/badges.yml"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffutozs%2Fkassza%2Fbadges%2Fcoverage-functions.json&style=flat-square&labelColor=28313d" alt="Függvény-lefedettség"></a>
+  <a href="https://github.com/futozs/kassza/actions/workflows/badges.yml"><img src="https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Ffutozs%2Fkassza%2Fbadges%2Fcoverage-statements.json&style=flat-square&labelColor=28313d" alt="Utasítás-lefedettség"></a>
 </p>
 
 ```bash

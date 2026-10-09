@@ -14,7 +14,7 @@ import {
   TimezoneVisual,
 } from './feature-visuals'
 import { LandingContainer } from './landing-container'
-import { EASE_OUT_EXPO } from './reveal'
+import { EASE_OUT_EXPO, REVEAL_SECONDS } from './reveal'
 import { SectionTitle } from './section-title'
 
 function Tile({
@@ -42,11 +42,11 @@ function Tile({
       whileInView="show"
       viewport={{ once: true, amount: 0.15 }}
       variants={{
-        hidden: { opacity: 0, y: 40 },
+        hidden: { opacity: 0, y: 32 },
         show: {
           opacity: 1,
           y: 0,
-          transition: { duration: 1, delay: (index % 2) * 0.08, ease: EASE_OUT_EXPO },
+          transition: { duration: REVEAL_SECONDS, delay: (index % 2) * 0.05, ease: EASE_OUT_EXPO },
         },
       }}
     >

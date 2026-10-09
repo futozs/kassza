@@ -105,10 +105,65 @@ function createRenderer({ config, pkg, site, assetNames }) {
     return `<a href="${href}">${picture(name, alt, size)}</a>`
   }
 
+  function badgeRow(items) {
+    return items
+      .map(([href, src, alt]) => `<a href="${href}"><img src="${src}" alt="${alt}"></a>`)
+      .join('\n  ')
+  }
+
+  function workflowBadge(file, label, alt) {
+    return [
+      `${urls.repo}/actions/workflows/${file}?query=branch%3A${config.branch}`,
+      shieldsUrl(`github/actions/workflow/status/${config.repo}/${file}`, {
+        branch: config.branch,
+        label,
+        style: 'flat-square',
+        labelColor: '28313d',
+      }),
+      alt,
+    ]
+  }
+
+  function coverageBadge(file, alt) {
+    return [
+      `${urls.repo}/actions/workflows/badges.yml`,
+      shieldsUrl('endpoint', {
+        url: `https://raw.githubusercontent.com/${config.repo}/badges/${file}`,
+        style: 'flat-square',
+        labelColor: '28313d',
+      }),
+      alt,
+    ]
+  }
+
   function badges() {
     const color = config.badgeColor
     const style = { style: 'flat-square', labelColor: '28313d', color }
-    const items = [
+    const status = [
+      workflowBadge('ci.yml', 'CI', 'CI állapota'),
+      workflowBadge(
+        'full-check.yml',
+        'heti teljes teszt',
+        'Heti teljes ellenőrzés: CI, XSD, változásfigyelő, élő e2e',
+      ),
+      workflowBadge('release.yml', 'kiadás', 'Kiadás állapota'),
+      [
+        `https://scorecard.dev/viewer/?uri=github.com/${config.repo}`,
+        shieldsUrl(`ossf-scorecard/github.com/${config.repo}`, {
+          label: 'OpenSSF Scorecard',
+          style: 'flat-square',
+          labelColor: '28313d',
+        }),
+        'OpenSSF Scorecard pontszám',
+      ],
+    ]
+    const coverage = [
+      coverageBadge('coverage-lines.json', 'Sor-lefedettség'),
+      coverageBadge('coverage-branches.json', 'Ág-lefedettség'),
+      coverageBadge('coverage-functions.json', 'Függvény-lefedettség'),
+      coverageBadge('coverage-statements.json', 'Utasítás-lefedettség'),
+    ]
+    const project = [
       [urls.npm, shieldsUrl(`npm/v/${pkg.name}`, { label: 'npm', ...style }), 'npm verzió'],
       [
         urls.npm,
@@ -122,27 +177,7 @@ function createRenderer({ config, pkg, site, assetNames }) {
       ],
       [urls.license, shieldsUrl(`npm/l/${pkg.name}`, { label: 'licenc', ...style }), 'MIT licenc'],
     ]
-    return items
-      .map(([href, src, alt]) => `<a href="${href}"><img src="${src}" alt="${alt}"></a>`)
-      .join('\n  ')
-  }
-
-  function nav() {
-    const cards = [
-      [urls.web, 'nav-web', `Weboldal: ${urls.host}`],
-      [urls.docs, 'nav-docs', `Dokumentáció: ${site.pages.size} oldal, magyarul`],
-      [urls.sandbox, 'nav-sandbox', `Sandbox: ${site.examples.length} futtatható példa`],
-      [urls.recipes, 'nav-recipes', `Receptek: ${site.recipes.length} kész integráció`],
-    ].map(([href, name, alt]) => linkedPicture(href, name, alt, '428'))
-    return [
-      '<p align="center">',
-      `  ${cards[0]}`,
-      `  ${cards[1]}`,
-      '  <br>',
-      `  ${cards[2]}`,
-      `  ${cards[3]}`,
-      '</p>',
-    ].join('\n')
+    return [badgeRow(project), badgeRow(status), badgeRow(coverage)].join('\n  <br>\n  ')
   }
 
   function links(docsPath, sandboxSlug, recipeSlug) {
@@ -242,7 +277,6 @@ function createRenderer({ config, pkg, site, assetNames }) {
     recipe: (slug) => recipeLink(slug),
     picture: (name, alt = '', size = '100%') => picture(name, alt, size),
     badges: () => badges(),
-    nav: () => nav(),
     links: (docsPath, sandboxSlug, recipeSlug) => links(docsPath, sandboxSlug, recipeSlug),
     more: (docsPath, sandboxSlug) => more(docsPath, sandboxSlug),
     'recipe-list': () => recipeList(),

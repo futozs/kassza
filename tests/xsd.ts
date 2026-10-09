@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 
-const XSD_ROOT = join(import.meta.dirname, '..', '.xsd-cache')
+export const XSD_ROOT: string = join(import.meta.dirname, '..', '.xsd-cache')
 
 export type SchemaPath =
   | 'agent/xmlszamla.xsd'
@@ -28,6 +28,7 @@ export type SchemaPath =
   | 'agent/xmlszamlavalasz.xsd'
   | 'nyugtavalasz/xmlnyugtavalasz.xsd'
   | 'nyugtasend/xmlnyugtasendvalasz.xsd'
+  | 'taxpayer/xmltaxpayer.xsd'
 
 function hasXmllint(): boolean {
   try {
@@ -41,7 +42,13 @@ function hasXmllint(): boolean {
 const xmllintAvailable = hasXmllint()
 
 export function canValidateXsd(schema: SchemaPath): boolean {
-  return xmllintAvailable && existsSync(join(XSD_ROOT, schema))
+  const available = xmllintAvailable && existsSync(join(XSD_ROOT, schema))
+  if (!available && process.env.KASSZA_REQUIRE_XSD === '1') {
+    throw new Error(
+      `Szigorú mód (KASSZA_REQUIRE_XSD=1): a(z) ${schema} séma vagy az xmllint hiányzik, az XSD-teszt nem maradhat ki. Futtasd: npm run xsd:fetch`,
+    )
+  }
+  return available
 }
 
 export function validateAgainstXsd(xml: string, schema: SchemaPath): string[] {

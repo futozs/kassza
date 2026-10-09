@@ -4,12 +4,13 @@ import { motion, useReducedMotion } from 'motion/react'
 import type { ReactNode } from 'react'
 
 export const EASE_OUT_EXPO = [0.16, 1, 0.3, 1] as const
+export const REVEAL_SECONDS = 0.6
 
 export function Reveal({
   children,
   className,
   delay = 0,
-  y = 28,
+  y = 24,
 }: {
   children: ReactNode
   className?: string
@@ -24,7 +25,7 @@ export function Reveal({
       initial={{ opacity: 0, y }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, amount: 0.12 }}
-      transition={{ duration: 1, delay, ease: EASE_OUT_EXPO }}
+      transition={{ duration: REVEAL_SECONDS, delay, ease: EASE_OUT_EXPO }}
     >
       {children}
     </motion.div>

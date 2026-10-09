@@ -319,6 +319,7 @@
     "smoke": "node scripts/smoke.mjs",
     "dev": "tsdown --watch",
     "typecheck": "tsc --noEmit && tsc --noEmit -p tsconfig.examples.json",
+    "prepare": "node scripts/install-hooks.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",

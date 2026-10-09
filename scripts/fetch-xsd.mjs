@@ -42,6 +42,12 @@ const DOCUMENTED_SCHEMAS = [
     marker: 'targetNamespace="http://www.szamlazz.hu/xmlnyugtaarchiv"',
   },
   {
+    path: 'taxpayer/xmltaxpayer.xsd',
+    urls: [],
+    page: 'https://docs.szamlazz.hu/hu/agent/querying_taxpayer/xml',
+    marker: 'targetNamespace="http://www.szamlazz.hu/xmltaxpayer"',
+  },
+  {
     path: 'nyugta/nyugtavalasz.xsd',
     urls: [`${BASE_URL}nyugta/nyugtavalasz.xsd`],
     page: 'https://docs.szamlazz.hu/hu/penzugyi-adatkapcsolat/nyugtak',
