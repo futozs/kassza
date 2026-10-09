@@ -16,6 +16,8 @@ const CATEGORY_TONES: Readonly<Record<SzamlazzErrorCategory, string>> = {
   timeout: 'border-note-border bg-note-bg text-note-ink',
   rate_limit: 'border-warning-border bg-warning-bg text-warning-ink',
   attempt_limit: 'border-danger-border bg-danger-bg text-danger-ink',
+  in_progress: 'border-warning-border bg-warning-bg text-warning-ink',
+  store_unavailable: 'border-danger-border bg-danger-bg text-danger-ink',
   configuration: 'border-danger-border bg-danger-bg text-danger-ink',
   unexpected_response: 'border-danger-border bg-danger-bg text-danger-ink',
   unknown: 'border-note-border bg-note-bg text-note-ink',
