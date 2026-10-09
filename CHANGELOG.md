@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.15.0 (2026-10-09)
+
+### Újdonságok
+
+- **web:** deploy csak a main ágon engedélyezve a vercel.json fájlban (e272f85)
+
 ## 0.14.0 (2026-10-09)
 
 ### Mi változott
