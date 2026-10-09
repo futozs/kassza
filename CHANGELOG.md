@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.16.0 (2026-10-09)
+
+### Újdonságok
+
+- **web:** ignoreCommand hozzáadása a vercel.json fájlhoz (ff5c03a)
+
 ## 0.15.0 (2026-10-09)
 
 ### Újdonságok
