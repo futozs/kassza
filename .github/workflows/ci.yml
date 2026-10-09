@@ -64,7 +64,7 @@ jobs:
         run: deno run --allow-read scripts/smoke.mjs
       - name: Cloudflare workerd (Miniflare)
         run: |
-          npm install --no-save --no-audit --no-fund miniflare@4
+          npm install --no-save --no-audit --no-fund miniflare@4.20260730.0
           node scripts/smoke-workerd.mjs
 
   commitlint:

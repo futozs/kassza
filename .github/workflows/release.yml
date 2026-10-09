@@ -17,8 +17,7 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: write
-  id-token: write
+  contents: read
 
 jobs:
   full-check:
@@ -39,6 +38,9 @@ jobs:
       !contains(github.event.head_commit.message, '[skip release]')
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
     steps:
       - name: Repó kiolvasása
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -54,7 +56,7 @@ jobs:
           cache: npm
 
       - name: npm frissítése (Trusted Publishing >=11.5.1-et igényel)
-        run: npm install -g npm@11
+        run: npm install -g npm@11.21.0
 
       - name: Git szerző beállítása
         run: |
