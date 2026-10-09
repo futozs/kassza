@@ -52,26 +52,59 @@ function resolveDecimals(value: number | undefined): number {
   return value
 }
 
-function proportional(weights: readonly bigint[], amount: bigint): bigint[] {
+function outranks(
+  weights: readonly bigint[],
+  first: number,
+  firstUnit: bigint,
+  second: number,
+  secondUnit: bigint,
+): boolean {
+  const left = (weights[first] ?? 0n) * (2n * secondUnit + 1n)
+  const right = (weights[second] ?? 0n) * (2n * firstUnit + 1n)
+  if (left !== right) return left > right
+  return first < second
+}
+
+function bestOpen(weights: readonly bigint[], shares: readonly bigint[]): number {
+  let best = -1
+  for (let index = 0; index < weights.length; index++) {
+    const share = shares[index] ?? 0n
+    if (share >= (weights[index] ?? 0n)) continue
+    if (best === -1 || outranks(weights, index, share, best, shares[best] ?? 0n)) best = index
+  }
+  return best
+}
+
+function worstTaken(weights: readonly bigint[], shares: readonly bigint[]): number {
+  let worst = -1
+  for (let index = 0; index < weights.length; index++) {
+    const share = shares[index] ?? 0n
+    if (share === 0n) continue
+    if (worst === -1 || outranks(weights, worst, (shares[worst] ?? 0n) - 1n, index, share - 1n)) {
+      worst = index
+    }
+  }
+  return worst
+}
+
+function apportion(weights: readonly bigint[], amount: bigint): bigint[] {
   const total = weights.reduce((sum, weight) => sum + weight, 0n)
-  if (total === 0n || amount === 0n) return weights.map(() => 0n)
+  if (amount === 0n || total === 0n) return weights.map(() => 0n)
+  if (amount === total) return [...weights]
   const shares = weights.map((weight) => (amount * weight) / total)
-  const remainders = weights.map((weight, index) => ({
-    index,
-    weight,
-    remainder: (amount * weight) % total,
-  }))
   let left = amount - shares.reduce((sum, share) => sum + share, 0n)
-  remainders.sort((a, b) => {
-    if (a.remainder !== b.remainder) return a.remainder > b.remainder ? -1 : 1
-    if (a.weight !== b.weight) return a.weight > b.weight ? -1 : 1
-    return a.index - b.index
-  })
-  for (const entry of remainders) {
-    if (left === 0n) break
-    if (entry.remainder === 0n) continue
-    shares[entry.index] = (shares[entry.index] ?? 0n) + 1n
+  while (left > 0n) {
+    const best = bestOpen(weights, shares)
+    shares[best] = (shares[best] ?? 0n) + 1n
     left -= 1n
+  }
+  for (;;) {
+    const best = bestOpen(weights, shares)
+    const worst = worstTaken(weights, shares)
+    if (best === -1 || worst === -1 || best === worst) break
+    if (!outranks(weights, best, shares[best] ?? 0n, worst, (shares[worst] ?? 0n) - 1n)) break
+    shares[best] = (shares[best] ?? 0n) + 1n
+    shares[worst] = (shares[worst] ?? 0n) - 1n
   }
   return shares
 }
@@ -98,9 +131,9 @@ export function allocateRefund<V extends RefundVat = VatRate>(
       `A visszatérítések összege (${fromMinor(before + refund, decimals)}) nagyobb, mint az eredeti bizonylat bruttó összege (${fromMinor(total, decimals)}).`,
     )
   }
-  const earlier = proportional(gross, before)
-  const remaining = gross.map((value, index) => value - (earlier[index] ?? 0n))
-  const shares = proportional(remaining, refund)
+  const earlier = apportion(gross, before)
+  const cumulative = apportion(gross, before + refund)
+  const shares = cumulative.map((value, index) => value - (earlier[index] ?? 0n))
   return items.flatMap((item, index) => {
     const share = shares[index] ?? 0n
     if (share === 0n) return []

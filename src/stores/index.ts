@@ -44,6 +44,12 @@ export {
   storeCapabilities,
 } from '../core/store'
 export {
+  type DiagnoseStoreOptions,
+  diagnoseStore,
+  type StoreDiagnosis,
+  type StoreSuitability,
+} from './diagnose'
+export {
   DURABLE_OBJECT_STORE_URL,
   type DurableObjectStorageLike,
   type DurableObjectStoreEntry,

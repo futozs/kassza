@@ -1,0 +1,89 @@
+---
+title: Tárolók
+description: A kassza/stores alkönyvtár közös kulcs-érték tárolói (Redis, Upstash, Cloudflare KV, Durable Object), az atomikus műveletek, és hogy melyik tároló mire alkalmas.
+---
+
+Több kassza funkció közös tárolót használ: a munkamenet (`cookieStore`), a próbálkozás-napló (`attemptLedger`), a `createOnce` zárja (`createOnceLock`), a webhookok ismétlés-szűrője (`dedupe`), az adószám-gyorsítótár és a [bizonylatnapló](/docs/kiegeszitok/bizonylatnaplo). Mindegyik ugyanazt a `KeyValueStore` felületet várja, amelyet a `kassza/stores` adapterei adnak.
+
+```ts
+import { Redis } from '@upstash/redis'
+import { createKassza } from 'kassza'
+import { upstashRedisStore } from 'kassza/stores'
+
+const store = upstashRedisStore(Redis.fromEnv())
+
+export const kassza = createKassza({
+  cookieStore: store,
+  attemptLedger: store,
+  createOnceLock: store,
+})
+```
+
+| Adapter | Kliens | Atomikus műveletek |
+| --- | --- | --- |
+| `memoryStore()` | – (egy folyamaton belül) | igen |
+| `upstashRedisStore(redis)` | `@upstash/redis` | igen (EVAL) |
+| `ioredisStore(redis)` | `ioredis` | igen (EVAL) |
+| `nodeRedisStore(client)` | `redis` (node-redis) | igen (EVAL) |
+| `durableObjectStore(stub)` | Cloudflare Durable Object | igen |
+| `cloudflareKvStore(namespace)` | Cloudflare KV | **nem** |
+| `customStore(store)` | saját `get` / `set` / `delete` | ha a sajátod tud |
+
+A régi nevek (`upstashRedisCookieStore` és társai) és a `kassza/cookie-stores` útvonal változatlanul működnek.
+
+## Atomikus műveletek
+
+A `get`, `set` és `delete` mellett a felület három nem kötelező, atomikus műveletet ismer:
+
+| Művelet | Mire kell |
+| --- | --- |
+| `setIfAbsent(key, value, ttl)` | A `createOnce` elosztott zárja. Nélküle a zár nem működik. |
+| `increment(key, ttl)` | A próbálkozás-napló pontos számlálása, és a bizonylatnapló. |
+| `deleteIfEquals(key, value)` | A zár biztonságos felszabadítása (csak a saját zárát törli). |
+
+A Redis alapú adapterek ezeket Lua szkripttel valósítják meg, ha a kliens tud `eval`-t. A Cloudflare KV erre nem alkalmas, mert nincs benne atomikus írás: zárhoz és naplóhoz Workers alatt a Durable Object tárolót használd.
+
+## Durable Object tároló (Cloudflare Workers)
+
+```ts title="src/kassza-store.ts"
+import { DurableObject } from 'cloudflare:workers'
+import { handleDurableObjectStoreRequest } from 'kassza/stores'
+
+export class KasszaStore extends DurableObject {
+  fetch(request: Request): Promise<Response> {
+    return handleDurableObjectStoreRequest(this.ctx.storage, request)
+  }
+}
+```
+
+```ts title="src/index.ts"
+import { createKassza } from 'kassza'
+import { durableObjectStore } from 'kassza/stores'
+
+export { KasszaStore } from './kassza-store'
+
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const store = durableObjectStore(env.KASSZA_STORE.get(env.KASSZA_STORE.idFromName('kassza')))
+    const kassza = createKassza({ agentKey: env.SZAMLAZZ_AGENT_KEY, cookieStore: store, createOnceLock: store })
+    return new Response('ok')
+  },
+}
+```
+
+A Durable Object egyszerre egy kérést dolgoz fel, ezért a műveletei atomikusak. A lejárt kulcsokat olvasáskor törli.
+
+## Hibatűrés
+
+Az adapterek alapból hibatűrők: ha a `get`, `set` vagy `delete` nem sikerül, a kérés munkamenet nélkül folytatódik, és az `onError` (vagy a konzol) kap jelzést. Az atomikus műveletek hibáját viszont továbbadják, mert ezekről a kassza dönt (például a zárnál `store_unavailable` hibát dob). Ha minden hibát a kasszára bíznál, hozd létre az adaptert `resilient: false` beállítással.
+
+## Melyik tároló mire jó?
+
+```ts
+import { diagnoseStore } from 'kassza/stores'
+
+const eredmeny = await diagnoseStore(store)
+console.log(eredmeny.suitableFor, eredmeny.problems)
+```
+
+A `diagnoseStore()` egy ideiglenes kulccsal kipróbálja az írást, olvasást, törlést és az atomikus műveleteket, majd megmondja, hogy a tároló alkalmas-e munkamenetre, próbálkozás-naplóra, zárra, bizonylatnaplóra és ismétlés-szűrőre. A kulcsot a végén törli.

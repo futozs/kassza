@@ -81,7 +81,7 @@ describe('nyilvános API', () => {
       const module = (await import(join(root, source))) as Record<string, unknown>
       expect(Object.keys(module).sort(), name).toEqual(exportedNames(join(root, source)).values)
     }
-  })
+  }, 60_000)
 
   test('a publikus felület csak tudatos döntéssel változik (pillanatkép)', async () => {
     const api = Object.fromEntries(

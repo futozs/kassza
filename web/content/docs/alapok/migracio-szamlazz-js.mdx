@@ -1,0 +1,85 @@
+---
+title: Áttérés a szamlazz.js-ről
+description: Lépésről lépésre áttérés a szamlazz.js csomagról a kasszára - megfeleltetési táblázat, viselkedésbeli különbségek és őszinte összehasonlítás.
+---
+
+A [szamlazz.js](https://www.npmjs.com/package/szamlazz.js) a magyar Node.js közösség régóta használt Számlázz.hu kliense. Ha működik nálad, nem kötelező váltani. Ez az oldal annak szól, aki szeretné kihasználni a kassza többletét (pontosan egyszer kiállítás, nyugták, fizetési szolgáltatók, NAV-összesítő, tesztelés), és tudni akarja, mennyi munka az áttérés.
+
+Az összevetés a szamlazz.js 9.2.0 nyilvános README-je alapján készült. Ha valamelyik állítás elavult, jelezd egy [hibajegyben](https://github.com/futozs/kassza/issues).
+
+## Megfeleltetés
+
+| szamlazz.js | kassza |
+| --- | --- |
+| `new Client({ authToken })` | `createKassza({ agentKey })`, vagy a `SZAMLAZZ_AGENT_KEY` környezeti változó |
+| `new Client({ user, password })` | `createKassza({ username, password })` (a kulcs ajánlott) |
+| `requestInvoiceDownload: true` | `downloadPdf` (alapból `true`) számlánként vagy a `defaults.invoice`-ban |
+| `eInvoice: true` | `eInvoice: true` számlánként vagy a `defaults.invoice`-ban |
+| `timeout: 1000` | `timeoutMs: 1000` (alapból 60 000) |
+| `new Seller({ bank: { name, accountNumber }, email: { replyToAddress, subject, message } })` | `seller: { bank, bankAccount, emailReplyTo, emailSubject, emailText }` |
+| `new Buyer({ name, zip, city, address, taxNumber, postAddress })` | `buyer: { name, zip, city, address, taxNumber, postal }` |
+| `new Item({ label, quantity, unit, vat, netUnitPrice })` | `{ name, quantity, unit, vat, netUnitPrice }` |
+| `new Invoice({ ... })` + `client.issueInvoice(invoice)` | `kassza.invoices.create({ ... })`, vagy inkább `invoices.createOnce({ orderNumber, ... })` |
+| `prepaymentInvoice: true` | `type: 'advance'` |
+| `adjustmentInvoiceNumber: 'X'` | `type: 'corrective', correctedInvoiceNumber: 'X'` |
+| `PaymentMethods.BankTransfer`, `Currencies.Ft`, `Languages.Hungarian` | sima szövegek: `paymentMethod: 'átutalás'`, `currency: 'HUF'`, `language: 'hu'` |
+| `client.getInvoiceData({ invoiceId, pdf })` | `kassza.invoices.get(invoiceId, { includePdf })`, vagy `find()`, ha a hiányzó számla nem hiba |
+| `client.getInvoiceData({ orderNumber })` | `kassza.invoices.get({ orderNumber })` |
+| `client.reverseInvoice({ invoiceId, eInvoice, requestInvoiceDownload })` | `kassza.invoices.reverse({ invoiceNumber, eInvoice, downloadPdf })` |
+| válasz: `invoiceId`, `netTotal` (szöveg), `grossTotal` (szöveg), `customerAccountUrl`, `pdf` (Buffer) | válasz: `number`, `netTotal` (szám), `grossTotal` (szám), `buyerAccountUrl`, `pdf` (`Uint8Array`) |
+
+## Előtte és utána
+
+```ts title="szamlazz.js"
+const client = new Client({ authToken: process.env.SZAMLAZZ_AGENT_KEY, requestInvoiceDownload: true })
+
+const invoice = new Invoice({
+  paymentMethod: PaymentMethods.BankTransfer,
+  currency: Currencies.Ft,
+  language: Languages.Hungarian,
+  seller: new Seller({}),
+  buyer: new Buyer({ name: 'Vevő Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' }),
+  items: [new Item({ label: 'Előfizetés', quantity: 1, unit: 'db', vat: 27, grossUnitPrice: 12700 })],
+})
+
+const { invoiceId, pdf } = await client.issueInvoice(invoice)
+```
+
+```ts title="kassza"
+import { createKassza } from 'kassza'
+
+const kassza = createKassza()
+
+const { number, created } = await kassza.invoices.createOnce({
+  orderNumber: 'WEB-1042',
+  paymentMethod: 'átutalás',
+  buyer: { name: 'Vevő Kft.', zip: '1111', city: 'Budapest', address: 'Fő utca 1.' },
+  items: [{ name: 'Előfizetés', quantity: 1, unit: 'db', vat: 27, grossUnitPrice: 12_700 }],
+})
+```
+
+## Amire figyelj
+
+1. **Adj meg rendelésszámot, és használd a `createOnce()`-t.** A kassza ezzel keresi meg a számlát, mielőtt kiállítaná, és bizonytalan hiba (időtúllépés, hálózat) után is. Így egy újraküldött webhook nem állít ki második számlát. Lásd [Pontosan egyszer](/docs/alapok/pontosan-egyszer).
+2. **A kassza a számlát soha nem küldi újra magától.** Lekérdezéseket igen, legfeljebb ötször, mert a Számlázz.hu kitiltja, aki ciklusban próbálkozik. Ha eddig saját újrapróbáló ciklusod volt a kiállítás körül, töröld.
+3. **Az összegeket a kassza számolja.** Add meg a `netUnitPrice`-t (cégnek) vagy a `grossUnitPrice`-t (magánszemélynek) és az áfakulcsot, a kassza a Számlázz.hu kerekítési szabályai szerint számol. Kézzel számolt nettó, áfa és bruttó ne menjen ki.
+4. **A dátumok Budapest szerint számítanak.** Ha nem adsz meg dátumot, a kassza a budapesti mai napot használja, így éjfél után sem kerül a számla előző napra.
+5. **A hibák típusosak.** A `SzamlazzError` `category` mezője megmondja, mi a teendő (`validation`, `duplicate`, `partial_success`, `network` …), és a `docsUrl` a hibakód [saját oldalára](/docs/hibakodok) mutat.
+6. **Az összegek számok, a PDF `Uint8Array`.** Node.js alatt fájlba írás előtt nem kell átalakítani: a `fs.writeFile` elfogadja.
+
+## Őszinte összehasonlítás
+
+| Szempont | szamlazz.js | kassza |
+| --- | --- | --- |
+| Érettség, ismertség | Évek óta használt, ismert, nagy közösség | Fiatal, kevés nyilvános felhasználó |
+| Futásidejű függőségek | 6 (például `axios`, `xml2js`, `tough-cookie`) | 0 |
+| Futtatókörnyezet | Node.js | Node.js, Bun, Deno, Cloudflare Workers, edge (a CI mind a négyet futtatja) |
+| Számla, sztornó, lekérdezés | Igen | Igen |
+| Nyugta, díjbekérő, befizetés, adószám-lekérdezés | A README nem írja | Igen |
+| Pontosan egyszer kiállítás, több folyamat között is | A README nem írja | `createOnce`, `createOnceLock` |
+| Fizetési szolgáltatók (Stripe, SimplePay, Barion, Revolut, PayPal) | Nincs | Webhook-kezelők és `issueForPayment` |
+| NAV nyugta napi összesítő | Nincs | `kassza/reports`, `kassza/nav`, `kassza/journal` |
+| Tesztelés hálózat nélkül | A README nem írja | Mock kliens és hamis Számla Agent |
+| Magyar hibaüzenetek, hibakód-tábla | A README nem írja | Igen, kódonként saját oldallal |
+
+Ha csak számlát állítasz ki egy Node.js szerverről, és a szamlazz.js megbízhatóan működik nálad, a váltás haszna kisebb. Ha webhookból, serverless környezetből vagy nyugtával dolgozol, a kassza pont ezeket a helyzeteket kezeli.

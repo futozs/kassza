@@ -9,6 +9,11 @@
     "serverless-es-edge",
     "ai-asszisztensek",
     "parancssor",
-    "mcp-szerver"
+    "mcp-szerver",
+    "tarolok",
+    "bizonylatnaplo",
+    "node-express",
+    "tomeges-szamlazas",
+    "megfigyelhetoseg"
   ]
 }

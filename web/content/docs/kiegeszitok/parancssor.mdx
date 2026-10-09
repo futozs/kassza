@@ -39,6 +39,16 @@ npx kassza doctor
 
 Hiba esetén 1-es kilépési kóddal áll le, így CI-ban vagy telepítési szkriptben is használható. A `--json` kapcsoló gépi feldolgozásra alkalmas kimenetet ad.
 
+### Bővített ellenőrzés
+
+| Kapcsoló | Mit csinál |
+| --- | --- |
+| `--capabilities` | Előnézettel megnézi, engedélyezett-e az e-számla (bizonylat nem készül). A nyugta-előtagot csak valódi kiállítás ellenőrizheti, ezt jelzi. |
+| `--check-update` | Lekérdezi az npm-ről a legfrissebb kassza verziót (hálózati hívás, ezért csak kérésre). |
+| `--report` | Titokmentes Markdown jelentést ír hibajegyhez vagy a Számlázz.hu ügyfélszolgálatnak: verziók és az ellenőrzések eredménye, Agent kulcs és bizonylatadat nélkül. |
+
+Ha egy bizonylatból kiderül, hogy éles fiókhoz tartozik a kulcs, és közben `NODE_ENV=test` vagy `development`, a doctor figyelmeztet: a tesztjeid valódi bizonylatot állíthatnak ki.
+
 ## verify
 
 ```bash

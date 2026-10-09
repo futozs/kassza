@@ -2,7 +2,8 @@ import type { IncomingMessage, ServerResponse } from 'node:http'
 
 export type WebRequestHandler = (request: Request) => Response | Promise<Response>
 
-export interface NodeRequestLike extends AsyncIterable<Uint8Array | string> {
+export interface NodeRequestLike {
+  [Symbol.asyncIterator]?(): AsyncIterator<Uint8Array | string>
   readonly method?: string | undefined
   readonly url?: string | undefined
   readonly headers: IncomingMessage['headers']
@@ -52,7 +53,11 @@ function requestUrl(request: NodeRequestLike, trustProxy: boolean): string {
     ? firstHeader(request.headers['x-forwarded-host'])?.split(',')[0]?.trim()
     : undefined
   const protocol = forwardedProto || (request.socket?.encrypted ? 'https' : 'http')
-  const host = forwardedHost || firstHeader(request.headers.host) || 'localhost'
+  const host =
+    forwardedHost ||
+    firstHeader(request.headers.host) ||
+    firstHeader(request.headers[':authority']) ||
+    'localhost'
   const path = request.originalUrl ?? request.url ?? '/'
   return `${protocol}://${host}${path.startsWith('/') ? path : `/${path}`}`
 }
@@ -60,7 +65,7 @@ function requestUrl(request: NodeRequestLike, trustProxy: boolean): string {
 function requestHeaders(request: NodeRequestLike): Headers {
   const headers = new Headers()
   for (const [name, value] of Object.entries(request.headers)) {
-    if (value === undefined) continue
+    if (value === undefined || name.startsWith(':')) continue
     if (typeof value === 'string') headers.append(name, value)
     else for (const item of value) headers.append(name, item)
   }
@@ -91,12 +96,19 @@ function bytesOf(value: unknown): Uint8Array | string | undefined {
   return undefined
 }
 
+function isUnparsedPlaceholder(request: NodeRequestLike): boolean {
+  const { body } = request
+  if (request.readableEnded || typeof body !== 'object' || body === null) return false
+  const prototype = Object.getPrototypeOf(body)
+  return (prototype === Object.prototype || prototype === null) && Object.keys(body).length === 0
+}
+
 function requestBody(request: NodeRequestLike): BodyInit | ReadableStream<Uint8Array> | undefined {
   const method = (request.method ?? 'GET').toUpperCase()
   if (method === 'GET' || method === 'HEAD') return undefined
   const raw = bytesOf(request.rawBody)
   if (raw !== undefined) return raw as BodyInit
-  if (request.body !== undefined && request.body !== null) {
+  if (request.body !== undefined && request.body !== null && !isUnparsedPlaceholder(request)) {
     const body = bytesOf(request.body)
     if (body !== undefined) return body as BodyInit
     throw new NodeBodyError(
@@ -108,7 +120,8 @@ function requestBody(request: NodeRequestLike): BodyInit | ReadableStream<Uint8A
       'A kérés törzsét egy middleware már elolvasta, és nem adta tovább. A webhook útvonalra ne tegyél törzsolvasó middleware-t, vagy használd az express.raw({ type: "*/*" }) middleware-t.',
     )
   }
-  return streamOf(request)
+  if (typeof request[Symbol.asyncIterator] !== 'function') return undefined
+  return streamOf(request as AsyncIterable<Uint8Array | string>)
 }
 
 export function toWebRequest(

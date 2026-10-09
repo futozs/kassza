@@ -10,11 +10,11 @@ import { SzamlazzError } from '../core/errors'
 import type { OnceGuard } from '../core/once-guard'
 import type { KasszaWarning } from '../core/warnings'
 import { createInvoiceOnce } from '../invoices/create-once'
-import { registerPaymentOnce } from '../invoices/payment-once'
 import { resolveInvoice } from '../invoices/create-resolve'
 import type { CreatedInvoice, CreateInvoiceInput, InvoiceType } from '../invoices/create-types'
 import type { InvoiceDetails, InvoiceDetailsPayment } from '../invoices/get'
 import type { PaymentEntry, RegisterPaymentInput } from '../invoices/payment'
+import { registerPaymentOnce } from '../invoices/payment-once'
 import type { InvoiceReference } from '../invoices/reference'
 import { summarizeItems } from '../money/items'
 import { issueForPayment } from '../payments/issue'
@@ -513,12 +513,7 @@ export function createMockKassza(options: MockKasszaOptions = {}): MockKassza {
     },
     registerPaymentOnce: (input, requestOptions) =>
       run('invoices.registerPaymentOnce', [input], () =>
-        registerPaymentOnce(
-          invoicesApi,
-          input,
-          { recoveryDelayMs: 0, ...requestOptions },
-          guard,
-        ),
+        registerPaymentOnce(invoicesApi, input, { recoveryDelayMs: 0, ...requestOptions }, guard),
       ),
     async clearPayments(input) {
       const document = await run('invoices.clearPayments', [input], () => {

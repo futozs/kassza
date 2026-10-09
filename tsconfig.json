@@ -15,7 +15,12 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "noEmit": true,
-    "types": ["node"]
+    "types": ["node"],
+    "paths": {
+      "kassza": ["./src/index.ts"],
+      "kassza/*": ["./src/*"]
+    },
+    "allowImportingTsExtensions": true
   },
   "include": ["src", "tests"]
 }

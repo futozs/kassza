@@ -1,0 +1,85 @@
+---
+title: Node.js, Express, NestJS
+description: A kassza webhook-kezelőinek (fizetések, IPN, adatkapcsolat) bekötése Express, NestJS és Fastify alá a kassza/node adapterrel, a nyers törzs megőrzésével.
+---
+
+A kassza webhook-kezelői Web-szabványos `(Request) => Promise<Response>` függvények. Next.js, Hono, Cloudflare Workers, Bun és Deno alatt ezek közvetlenül használhatók. Express, NestJS és Fastify alatt a `kassza/node` adapter köti be őket.
+
+```ts title="server.ts"
+import express from 'express'
+import { toNodeHandler } from 'kassza/node'
+import { stripeWebhook } from 'kassza/payments/stripe'
+
+const app = express()
+
+app.post(
+  '/webhooks/stripe',
+  toNodeHandler(
+    stripeWebhook({
+      secret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+      onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+    }),
+  ),
+)
+
+app.use(express.json())
+```
+
+<Callout type="warning" title="A nyers törzs kell az aláíráshoz">
+  A fizetési szolgáltatók a törzs bájtjait írják alá. Ha az `express.json()` előbb feldolgozza a
+  törzset, az aláírás nem ellenőrizhető. Tedd a webhook útvonalat az `express.json()` elé (mint
+  fent), vagy használd rajta az `express.raw({ type: '*/*' })` middleware-t. Ha a törzset egy
+  middleware már feldolgozta, a `toNodeHandler` érthető hibával (`NodeBodyError`) jelez.
+</Callout>
+
+A `toNodeHandler` a kérést folyamként adja tovább, így a kezelők saját méretkorlátja (például 1 MB a fizetési webhookoknál) a beolvasás közben érvényesül. A query string is átmegy, ami a Barion callbackhez kell.
+
+| Opció | Jelentés |
+| --- | --- |
+| `trustProxy` | `true` esetén az `x-forwarded-proto` és `x-forwarded-host` fejlécből állítja össze az URL-t. Csak akkor kapcsold be, ha a proxyd írja ezeket. |
+| `onError` | A váratlan hibák naplózása (alapból a konzol). Express `next` esetén a hiba oda megy. |
+
+## NestJS
+
+```ts title="main.ts"
+const app = await NestFactory.create(AppModule, { rawBody: true })
+```
+
+```ts title="webhook.controller.ts"
+import { Controller, Post, Req, Res } from '@nestjs/common'
+import type { Request, Response } from 'express'
+import { toNodeHandler } from 'kassza/node'
+import { stripeWebhook } from 'kassza/payments/stripe'
+
+const handler = toNodeHandler(stripeWebhook({ secret: process.env.STRIPE_WEBHOOK_SECRET ?? '', onPayment }))
+
+@Controller('webhooks')
+export class WebhookController {
+  @Post('stripe')
+  stripe(@Req() request: Request, @Res() response: Response): Promise<void> {
+    return handler(request, response)
+  }
+}
+```
+
+A `rawBody: true` miatt a NestJS a `request.rawBody`-ban megőrzi a nyers törzset, és a `toNodeHandler` azt használja.
+
+## Fastify
+
+```ts
+import { toWebRequest } from 'kassza/node'
+import { stripeWebhook } from 'kassza/payments/stripe'
+
+const webhook = stripeWebhook({ secret: process.env.STRIPE_WEBHOOK_SECRET ?? '', onPayment })
+
+fastify.addContentTypeParser('*', { parseAs: 'buffer' }, (_request, body, done) => done(null, body))
+
+fastify.post('/webhooks/stripe', async (request, reply) => {
+  const response = await webhook(
+    toWebRequest({ method: request.method, url: request.url, headers: request.headers, body: request.body }),
+  )
+  reply.status(response.status).send(Buffer.from(await response.arrayBuffer()))
+})
+```
+
+Fastify alatt a `toWebRequest()` és a Web-szabványos kezelő közvetlen hívása a legegyszerűbb: a nyers `Buffer` törzset adod át, a választ pedig a `reply`-ra írod.

@@ -1,0 +1,65 @@
+---
+title: Megfigyelhetőség
+description: Strukturált napló, OpenTelemetry-kompatibilis tracing és Prometheus metrikák a kassza/observe modullal - függőség nélkül, titokmentesen, és semmit nem küld haza.
+---
+
+A kassza nem küld semmilyen használati adatot. A saját rendszeredben viszont látnod kell, mi történik: hány kérés ment ki, mennyi ideig tartott, mi bukott el, és mikor esett ki egy tároló. Erre való a `kassza/observe`.
+
+```ts
+import { createKassza } from 'kassza'
+import { combineHooks, createMetricsRegistry, observe } from 'kassza/observe'
+import { trace } from '@opentelemetry/api'
+
+export const metrics = createMetricsRegistry()
+
+export const kassza = createKassza({
+  hooks: combineHooks(
+    observe({ logger, tracer: trace.getTracer('kassza'), metrics }),
+    { onDocument: (event) => journal.record(event), onDocumentError: 'throw' },
+  ),
+})
+```
+
+## Napló
+
+Minden próbálkozásról egy strukturált sor készül (`event: 'kassza.request'`, művelet, próbálkozás, időtartam, kimenet, hibakategória és -kód), a figyelmeztetésekről (`kassza.warning`) és az elkészült bizonylatokról (`kassza.document`). A `logger` lehet `console`, pino, vagy bármi, aminek `info(adat, üzenet)` és `warn(adat, üzenet)` metódusa van.
+
+A napló titokmentes: az Agent kulcs, a vevő neve, címe, adószáma és e-mailje sosem kerül bele. A rendelésszám helyett egy kulcsolt hash (`orderRef: 'hmac:…'`) jelenik meg, amely a naplóban korrelálható, de nem visszafejthető. Ha több folyamat naplóját is össze akarod kötni, add meg ugyanazt az `orderRefSalt` titkot; ha a nyílt rendelésszám kell, `redact: false`.
+
+## Tracing
+
+A `tracer` bármi lehet, aminek `startSpan(név, { attributes })` metódusa van, így az OpenTelemetry `Tracer` közvetlenül megfelel (a kassza nem importálja az OpenTelemetry-t). Minden próbálkozás egy span: `kassza.action`, `kassza.attempt`, `kassza.request_id`, `http.status_code`, `kassza.error.category`, `kassza.error.code`.
+
+## Metrikák
+
+A `createMetricsRegistry()` függőség nélküli regiszter, amely Prometheus szövegformátumban is kiírja magát:
+
+```ts
+export function GET(): Response {
+  return new Response(metrics.renderPrometheus(), { headers: { 'content-type': 'text/plain; version=0.0.4' } })
+}
+```
+
+| Metrika | Jelentés |
+| --- | --- |
+| `kassza_requests_total{action,outcome}` | Próbálkozások kimenet (siker vagy hibakategória) szerint. |
+| `kassza_request_duration_ms{action}` | Időtartam hisztogram. |
+| `kassza_retries_total{action}` | Automatikus újrapróbálások. |
+| `kassza_maintenance_total` | Karbantartás miatti hibák. |
+| `kassza_unexpected_response_total{action}` | Ismeretlen formátumú Számlázz.hu válaszok. |
+| `kassza_store_errors_total{store}` | Tároló-hibák (munkamenet, napló, zár, ismétlés-szűrő, gyorsítótár). |
+| `kassza_warnings_total{kind}` | Figyelmeztetések. |
+| `kassza_documents_total{kind,action}` | Elkészült bizonylatok. |
+
+Saját metrikarendszerhez (StatsD, OpenTelemetry Metrics) elég egy `{ counter, histogram }` objektumot átadni.
+
+## Riasztási minták
+
+| Feltétel | Mit jelent |
+| --- | --- |
+| `kassza_store_errors_total` nő | Egy tároló kiesett; a kitiltás elleni védelem vagy a zár részben nem él. |
+| `kassza_maintenance_total` percekig nő | A Számlázz.hu karbantart; válts tartalék folyamatra. |
+| `kassza_unexpected_response_total > 0` | A Számlázz.hu megváltoztatott valamit; nézd meg a hibát és jelezd a kassza hibajegyében. |
+| `kassza_requests_total{outcome="auth"}` nő | Az Agent kulcs érvénytelen lett. |
+
+A `combineHooks()` több hook-készletet fűz össze: mindegyik lefut, és ha valamelyik hibát dob, a hiba a végén jelentkezik.

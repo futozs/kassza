@@ -1,0 +1,46 @@
+---
+title: "3-as hibakód: Sikertelen bejelentkezés."
+description: "A Számlázz.hu Számla Agent 3-as hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** Sikertelen bejelentkezés.
+
+| | |
+| --- | --- |
+| Kategória | `auth` (Hitelesítés) |
+| Újrapróbálható | Nem. Előbb javítsd a hitelesítést. |
+| A kassza hibája | `SzamlazzError`, `code: 3` |
+
+## Mikor jön elő
+
+A Számlázz.hu nem fogadta el a bejelentkezést, vagy egy böngészős munkamenet zavarja az Agentet.
+
+## Tipp
+
+Ellenőrizd az Agent kulcsot. Csak kisbetűs kulcsot fogad el a rendszer.
+
+## Mi a teendő
+
+Ellenőrizd az Agent kulcsot (csak kisbetűs lehet), és a `kassza doctor` paranccsal a teljes környezetet. Ugyanazt a kérést ne küldd újra, amíg a kulcs hibás.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 3) {
+    console.error(error.message, error.hint, error.docsUrl)
+    return jelezdEmbernek(error)
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[135](/docs/hibakodok/135), [164](/docs/hibakodok/164)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

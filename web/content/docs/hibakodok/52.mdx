@@ -1,0 +1,46 @@
+---
+title: "52-es hibakód: Az áfakulcs nem értelmezhető."
+description: "A Számlázz.hu Számla Agent 52-es hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** Az áfakulcs nem értelmezhető.
+
+| | |
+| --- | --- |
+| Kategória | `validation` (Hibás adat) |
+| Újrapróbálható | Nem. Változatlanul újraküldve ugyanígy elbukik, és a próbálkozások a kitiltási korlátba számítanak. |
+| A kassza hibája | `SzamlazzError`, `code: 52` |
+
+## Mikor jön elő
+
+A kérés valamelyik adata nem felel meg a Számlázz.hu szabályainak.
+
+## Tipp
+
+Használd a VatRate típusban felsorolt áfakulcsok egyikét.
+
+## Mi a teendő
+
+Javítsd az adatot a hibaüzenet és a tipp alapján. A kassza a legtöbb ilyen hibát már a kérés elküldése előtt, magyar üzenettel jelzi.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 52) {
+    console.error(error.message, error.hint, error.docsUrl)
+    return jelezdEmbernek(error)
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[53](/docs/hibakodok/53), [57](/docs/hibakodok/57), [68](/docs/hibakodok/68), [101](/docs/hibakodok/101), [200](/docs/hibakodok/200), [202](/docs/hibakodok/202), [259](/docs/hibakodok/259), [260](/docs/hibakodok/260)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

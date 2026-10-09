@@ -38,3 +38,26 @@ console.log(befizetes.outstanding)
   küldöd el, a számlán kétszer szerepel a befizetés. Ezért a kassza ezt a hívást nem próbálja újra
   magától, lásd [Újrapróbálás](/docs/befizetes-rogzitese/keres#újrapróbálás).
 </Callout>
+
+## Befizetés pontosan egyszer
+
+Ha ugyanazt a befizetést több helyről is rögzítheted (banki értesítés, webhook, kézi egyeztetés), vagy egy hívás időtúllépéssel végződött, használd a `registerPaymentOnce()` metódust egy stabil kulccsal, például a banki tranzakció azonosítójával:
+
+```ts
+const eredmeny = await kassza.invoices.registerPaymentOnce({
+  invoiceNumber: 'WEB-2026-128',
+  key: 'BANK-20261008-4411',
+  amount: 19_470,
+  method: 'átutalás',
+})
+
+console.log(eredmeny.created)
+```
+
+A kassza a befizetés leírásába egy rövid jelölőt tesz (`[kassza:BANK-20261008-4411]`), és rögzítés előtt megnézi, van-e már ilyen jelölésű befizetés a számlán. Ha van, nem rögzít újra (`created: false`). Időtúllépés után ugyanígy visszakeres. A kulcs legfeljebb 48 karakter lehet, betűkből, számokból és `_ . : -` jelekből.
+
+<Callout type="warning" title="Ha a jelölő nem olvasható vissza">
+  A rögzítés után a kassza ellenőrzi, hogy a jelölő látszik-e a számla lekérdezésében. Ha nem, nem
+  hallgat el: `unexpected_response` hibát dob `registered: 'true'` jelöléssel. Ilyenkor a befizetés
+  már rögzült, ne hívd újra, és jelezd a kassza hibajegyében.
+</Callout>

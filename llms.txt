@@ -1,14 +1,15 @@
 # kassza
 
-> Zero-dependency TypeScript client for the Számlázz.hu Számla Agent API (Hungarian invoicing): invoices, proformas, receipts, reversals, payments, PDFs, NAV taxpayer lookup, IPN webhooks. Also: exactly-once documents from Stripe, SimplePay, Barion, Revolut and PayPal payments, NAV daily receipt reports, delegated invoicing, the Számlázz.hu data link, a fake Számla Agent for tests, a CLI and an MCP server. Unofficial.
+> Zero-dependency TypeScript client for the Számlázz.hu Számla Agent API (Hungarian invoicing): invoices, proformas, receipts, reversals, payments, PDFs, NAV taxpayer lookup, IPN webhooks. Also: exactly-once documents from Stripe, SimplePay, Barion, Revolut and PayPal payments, NAV daily receipt reports, delegated invoicing, the Számlázz.hu data link, a fake Számla Agent for tests, a CLI and an MCP server. Also: cross-process exactly-once locks, a receipt journal for NAV reports, partial refunds as corrective invoices, bulk/recurring invoicing, Express adapter, observability without telemetry. Unofficial.
 
 ## Docs for coding agents
 
 - [Start here](agents/README.md): overview, the five rules, vocabulary
 - [Pitfalls](agents/pitfalls.md): hard rules, legal rules for receipts, error categories
 - [API reference](agents/api.md): every method, input and output, all subpath modules
-- [Recipes](agents/recipes.md): webhooks, exactly-once invoicing, receipts, IPN, storage, serverless, tests, payment providers, NAV reports, delegated invoicing, data link, MCP
+- [Recipes](agents/recipes.md): webhooks, exactly-once invoicing, receipts, IPN, storage, serverless, tests, payment providers, NAV reports, delegated invoicing, data link, MCP, receipt journal, monthly invoicing, observability
 - [Claude Code skill](agents/skills/kassza/SKILL.md)
+- [Migration skill from szamlazz.js](agents/skills/migrate-from-szamlazz-js/SKILL.md)
 
 ## Human docs
 

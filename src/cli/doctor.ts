@@ -1,4 +1,6 @@
 import { createKassza, type Kassza } from '../client'
+import { isSzamlazzError } from '../core/errors'
+import { KASSZA_VERSION } from '../core/version'
 import { AGENT_KEY_ENV, type CliIo } from './io'
 
 export type DoctorStatus = 'ok' | 'warn' | 'fail' | 'skip'
@@ -12,7 +14,12 @@ export interface DoctorCheck {
 export interface DoctorOptions {
   readonly invoiceNumber?: string | undefined
   readonly receiptNumber?: string | undefined
+  readonly capabilities?: boolean | undefined
+  readonly checkUpdate?: boolean | undefined
 }
+
+export const NPM_LATEST_URL = 'https://registry.npmjs.org/kassza/latest'
+export const USED_BY_URL = 'https://github.com/futozs/kassza/issues/new?template=used-by.yml'
 
 interface ResponseSample {
   readonly date: string | undefined
@@ -193,6 +200,88 @@ async function accountCheck(kassza: Kassza, options: DoctorOptions): Promise<Doc
   )
 }
 
+const PROBE_BUYER = {
+  name: 'Kassza doctor próba',
+  zip: '1111',
+  city: 'Budapest',
+  address: 'Próba utca 1.',
+} as const
+
+async function eInvoiceCheck(kassza: Kassza): Promise<DoctorCheck> {
+  try {
+    await kassza.invoices.preview({
+      buyer: PROBE_BUYER,
+      items: [{ name: 'Próba', netUnitPrice: 1, vat: 27 }],
+      eInvoice: true,
+    })
+    return check(
+      'e-invoice',
+      'ok',
+      'E-számla: engedélyezve (előnézettel ellenőrizve, bizonylat nem készült).',
+    )
+  } catch (error) {
+    if (isSzamlazzError(error) && (error.code === 54 || error.code === 55 || error.code === 49)) {
+      return check('e-invoice', 'warn', `E-számla: nem használható (${error.message}).`)
+    }
+    const message = error instanceof Error ? error.message : String(error)
+    return check('e-invoice', 'warn', `E-számla: az előnézet nem sikerült. ${message}`)
+  }
+}
+
+function receiptCapabilityCheck(): DoctorCheck {
+  return check(
+    'receipt',
+    'skip',
+    'Nyugta: a nyugtaelőtagot és a jogosultságot csak valódi kiállítás ellenőrzi (524, 8). Próbáld tesztfiókon.',
+  )
+}
+
+function environmentCheck(
+  account: DoctorCheck,
+  nodeEnv: string | undefined,
+): DoctorCheck | undefined {
+  if (account.status !== 'ok' || !account.message.includes('éles fiók')) return undefined
+  if (nodeEnv === 'test' || nodeEnv === 'development') {
+    return check(
+      'environment',
+      'warn',
+      `Környezet: NODE_ENV=${nodeEnv}, de az Agent kulcs éles fiókhoz tartozik. A tesztek valódi bizonylatot állíthatnak ki.`,
+    )
+  }
+  return undefined
+}
+
+function compareVersions(a: string, b: string): number {
+  const parse = (value: string): number[] =>
+    value
+      .replace(/^v/, '')
+      .split(/[.-]/)
+      .slice(0, 3)
+      .map((part) => Number.parseInt(part, 10) || 0)
+  const left = parse(a)
+  const right = parse(b)
+  for (let index = 0; index < 3; index++) {
+    const difference = (left[index] ?? 0) - (right[index] ?? 0)
+    if (difference !== 0) return difference
+  }
+  return 0
+}
+
+async function updateCheck(fetchImpl: typeof globalThis.fetch): Promise<DoctorCheck> {
+  try {
+    const response = await fetchImpl(NPM_LATEST_URL, { headers: { accept: 'application/json' } })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    const latest = String(((await response.json()) as { version?: unknown }).version ?? '')
+    if (!/^\d+\.\d+\.\d+/.test(latest)) throw new Error('nincs verziószám a válaszban')
+    return compareVersions(latest, KASSZA_VERSION) > 0
+      ? check('update', 'warn', `Frissítés: elérhető a kassza ${latest} (most: ${KASSZA_VERSION}).`)
+      : check('update', 'ok', `Frissítés: a kassza ${KASSZA_VERSION} a legfrissebb.`)
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    return check('update', 'skip', `Frissítés: az npm nem volt elérhető (${message}).`)
+  }
+}
+
 function accountOf(test: boolean | undefined): DoctorCheck {
   if (test === true) return check('account', 'ok', 'Fiók típusa: tesztfiók.')
   if (test === false) {
@@ -219,7 +308,14 @@ export async function runDoctor(io: CliIo, options: DoctorOptions = {}): Promise
     auth.status === 'ok'
       ? await accountCheck(kassza, options)
       : check('account', 'skip', 'Fiók típusa: sikertelen hitelesítés miatt kimaradt.')
-  return [...checks, auth, clockCheck(samples), sessionCheck(samples), account]
+  const extra: DoctorCheck[] = []
+  const environment = environmentCheck(account, io.env.NODE_ENV)
+  if (environment) extra.push(environment)
+  if (options.capabilities === true && auth.status === 'ok') {
+    extra.push(await eInvoiceCheck(kassza), receiptCapabilityCheck())
+  }
+  if (options.checkUpdate === true) extra.push(await updateCheck(io.fetch ?? globalThis.fetch))
+  return [...checks, auth, clockCheck(samples), sessionCheck(samples), account, ...extra]
 }
 
 const SYMBOLS: Readonly<Record<DoctorStatus, string>> = {
@@ -229,13 +325,45 @@ const SYMBOLS: Readonly<Record<DoctorStatus, string>> = {
   skip: '-',
 }
 
-export function formatDoctor(checks: readonly DoctorCheck[]): string {
+function summary(checks: readonly DoctorCheck[]): string {
   const failures = checks.filter((entry) => entry.status === 'fail').length
   const warnings = checks.filter((entry) => entry.status === 'warn').length
+  return `Összegzés: ${failures} hiba, ${warnings} figyelmeztetés.`
+}
+
+export function formatDoctor(checks: readonly DoctorCheck[]): string {
+  const healthy = !checks.some((entry) => entry.status === 'fail')
   return [
     ...checks.map((entry) => `${SYMBOLS[entry.status]} ${entry.message}`),
     '',
-    `Összegzés: ${failures} hiba, ${warnings} figyelmeztetés.`,
+    summary(checks),
+    ...(healthy ? ['', `Használod a kasszát? Két perc, és sokat segít: ${USED_BY_URL}`] : []),
+    '',
+  ].join('\n')
+}
+
+export interface DoctorReportMeta {
+  readonly nodeVersion: string
+  readonly platform?: string | undefined
+}
+
+export function formatDoctorReport(checks: readonly DoctorCheck[], meta: DoctorReportMeta): string {
+  return [
+    '## kassza doctor jelentés',
+    '',
+    `- kassza: ${KASSZA_VERSION}`,
+    `- Node.js: ${meta.nodeVersion}`,
+    ...(meta.platform ? [`- platform: ${meta.platform}`] : []),
+    '',
+    '| Ellenőrzés | Állapot | Eredmény |',
+    '| --- | --- | --- |',
+    ...checks.map(
+      (entry) => `| ${entry.id} | ${entry.status} | ${entry.message.replace(/\|/g, '\\|')} |`,
+    ),
+    '',
+    summary(checks),
+    '',
+    'A jelentés nem tartalmaz Agent kulcsot, vevői adatot vagy bizonylattartalmat. Átadás előtt nézd át.',
     '',
   ].join('\n')
 }

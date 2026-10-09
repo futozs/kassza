@@ -14,6 +14,11 @@ It also links delegated (principal) accounts through the Agent (`connectPrincipa
 - `kassza/data-link`: a receiver for the Számlázz.hu financial data link (pushed invoices, bank transactions and receipts).
 - `kassza/testing`: a mock client and a fake Számla Agent `fetch` for integration tests.
 - `kassza/mcp` and the `kassza` CLI (`npx kassza doctor`, `npx kassza mcp`).
+- `kassza/stores`: shared stores (Redis, Upstash, Cloudflare KV, Durable Object) for the session, the attempt ledger, the `createOnce` lock and webhook deduplication.
+- `kassza/journal`: a document journal for the NAV daily summary, with pending entries and reconciliation.
+- `kassza/batch`: rate-limited, restartable bulk and recurring invoicing, plus billing periods.
+- `kassza/node`: Express, NestJS and `node:http` adapter for the webhook handlers.
+- `kassza/observe`: structured logs, tracing and Prometheus metrics, with no telemetry.
 
 It runs on Node 22+, Bun, Deno, Cloudflare Workers and Vercel Edge.
 
@@ -23,7 +28,7 @@ It runs on Node 22+, Bun, Deno, Cloudflare Workers and Vercel Edge.
 2. [api.md](./api.md): every method, input and output.
 3. [recipes.md](./recipes.md): webhooks, exactly-once invoicing, receipts, IPN, PDF storage, serverless, tests, payment providers, NAV reports, delegated invoicing, data link.
 
-A ready-made Claude Code skill is in [skills/kassza/SKILL.md](./skills/kassza/SKILL.md). Copy the `skills/kassza` folder into `.claude/skills/` in the user's project.
+A ready-made Claude Code skill is in [skills/kassza/SKILL.md](./skills/kassza/SKILL.md). To move a codebase off `szamlazz.js`, use [skills/migrate-from-szamlazz-js/SKILL.md](./skills/migrate-from-szamlazz-js/SKILL.md). Copy the `skills/kassza` folder into `.claude/skills/` in the user's project.
 
 ## The five things to get right
 

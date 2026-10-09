@@ -160,11 +160,29 @@ Ugyanaz az értesítés többször is megérkezhet, ezért a feldolgozásnak ism
 - A rendelést a `invoiceNumber` vagy az `orderNumber` alapján keresd, ne az értesítés beérkezési sorrendje alapján.
 - Ha a számlára a saját kódod is rögzít befizetést a `registerPayment()` metódussal, az is a kiállító oldali változás, ezért értesítést válthat ki. Az IPN kezelőből ne rögzíts újra befizetést ugyanarra a számlára.
 
+## Az IPN jelzés, nem bizonyíték
+
+Az IPN-t érdemes jelzésként kezelni: a tényleges állapotot (kifizetett összeg, hátralék) a [Számla adatainak lekérése](/docs/szamla-adatai) művelettel kérdezd le, mielőtt fontos döntést hozol. Így ha egy értesítés elveszik, vagy a forrás-IP ellenőrzése egy új Számlázz.hu címet tévesen elutasít, a rendelés állapota a következő lekérdezéskor akkor is helyreáll.
+
 ## Küldő IP-címek
 
 A Számlázz.hu az értesítéseket 2025. augusztus 1. óta az alábbi címekről küldi. A korábbi címeket (`18.153.1.171`, `3.73.114.72`, `52.59.28.5`) már nem használja, ha még szerepelnek a tűzfalszabályaid között, cseréld le őket.
 
 <OutboundIpTable />
+
+Ha a lista elavul (a Számlázz.hu új kimenő címet kap), az `isSzamlazzIp()` minden valódi értesítést elutasítana, csendben. A `checkSzamlazzIp()` ugyanezt vizsgálja, de megmondja az okot (`missing_header`, `no_client_entry`, `not_allowed`) és a vizsgált címet, így az elutasítás naplózható:
+
+```ts
+import { checkSzamlazzIp } from 'kassza/ipn'
+
+const forras = checkSzamlazzIp(request.headers.get('x-forwarded-for'))
+if (!forras.allowed) {
+  console.warn('IPN elutasítva', forras.reason, forras.client)
+  return new Response('Forbidden', { status: 403 })
+}
+```
+
+Új címet az `allowedIps` opcióval adhatsz meg, amíg a kassza listája frissül. A kassza változásfigyelője hetente összeveti a listát a Számlázz.hu dokumentációjával.
 
 Az `isSzamlazzIp()` a vizsgálat előtt egységes alakra hozza a címet: vesszővel elválasztott listából a jobb szélső elemet veszi (a `trustedProxies` számú megbízható proxy címét átugorva), levágja a szóközöket és a portot, és kezeli a `[...]:port` alakot és az IPv4-et IPv6-ba ágyazó `::ffff:` előtagot.
 

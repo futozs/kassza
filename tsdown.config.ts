@@ -25,6 +25,7 @@ export default defineConfig({
     'journal/index': 'src/journal/index.ts',
     'node/index': 'src/node/index.ts',
     'batch/index': 'src/batch/index.ts',
+    'observe/index': 'src/observe/index.ts',
     cli: 'src/cli/bin.ts',
   },
   format: ['esm', 'cjs'],

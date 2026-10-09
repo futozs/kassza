@@ -11,3 +11,4 @@ coverage/
 .research/
 .xsd-cache/
 .roadmap/
+probe-limits.result.json

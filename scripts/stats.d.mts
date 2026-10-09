@@ -24,7 +24,17 @@ export interface Stats {
     readonly npmPackagesDepsDev: number | null
     readonly npmDirectDepsDev: number | null
   }
+  readonly codeSearch?: readonly { readonly query: string; readonly total: number | null }[] | null
 }
+
+export interface CleanedEstimate {
+  readonly estimate: number
+  readonly baseline: number
+  readonly cleaned: boolean
+}
+
+export const CODE_SEARCH_QUERIES: readonly string[]
+export function cleanedEstimate(versions: VersionAnalysis | null): CleanedEstimate | null
 
 export function parseDependentsCount(html: string): number | null
 export function sumDownloads(

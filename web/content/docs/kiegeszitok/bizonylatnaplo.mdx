@@ -1,0 +1,85 @@
+---
+title: Bizonylatnapló
+description: A kassza/journal megbízható bizonylatnaplója a NAV napi nyugta-összesítőhöz és a napi záráshoz, befejezetlen tételek kezelésével és az adatkapcsolat archívumával való egyeztetéssel.
+---
+
+A Számla Agent nem tud nyugtákat dátum szerint listázni, ezért a [NAV napi összesítő](/docs/nav-nyugta/napi-osszesito) és a napi zárás a **saját nyilvántartásodból** számol. A `kassza/journal` ezt a nyilvántartást adja: minden elkészült bizonylatot rögzít, és jelzi, ha egy kiállítás kimenetele bizonytalan maradt.
+
+```ts title="lib/kassza.ts"
+import { Redis } from '@upstash/redis'
+import { createKassza } from 'kassza'
+import { createJournal, kvJournal } from 'kassza/journal'
+import { upstashRedisStore } from 'kassza/stores'
+
+const store = upstashRedisStore(Redis.fromEnv())
+export const journal = createJournal(kvJournal(store))
+
+export const kassza = createKassza({
+  createOnceLock: store,
+  hooks: {
+    onDocument: (event) => journal.record(event),
+    onDocumentError: 'throw',
+  },
+})
+```
+
+Az `onDocumentError: 'throw'` miatt ha a naplóba írás nem sikerül, a hívás `DocumentHookError`-t dob (benne a már elkészült bizonylattal), így a kimaradt bejegyzés nem marad észrevétlen.
+
+## NAV napi összesítő a naplóból
+
+```ts
+import { navDailyReports } from 'kassza/reports'
+
+const nyugtak = await journal.receipts({ from: '2026-10-01', to: '2026-10-31' })
+const jelentesek = navDailyReports(nyugtak)
+```
+
+A `receipts()` a teszt nyugtákat alapból kihagyja (`includeTest: true` esetén benne vannak). Egy lekérdezés legfeljebb 366 napot fog át.
+
+## Befejezetlen tételek: írj előbb, aztán állíts ki
+
+Ha a folyamat a kiállítás közben leáll (serverless időkorlát, összeomlás), a napló nem tudja, hogy elkészült-e a bizonylat. A `trackReceipt()` és a `trackInvoice()` ezt kezeli: a kiállítás előtt befejezetlen tételt rögzít, utána lezárja.
+
+```ts
+const eredmeny = await journal.trackReceipt(rendeles.id, () =>
+  kassza.receipts.createOnce({ orderNumber: rendeles.id, items: rendeles.tetelek }),
+)
+```
+
+| Kimenet | A napló állapota |
+| --- | --- |
+| Sikeres kiállítás (vagy már létező bizonylat) | Rögzítve, a befejezetlen tétel törölve. |
+| Biztos hiba (például validáció) | Nincs bizonylat, a befejezetlen tétel törölve. |
+| Bizonytalan hiba (időtúllépés, hálózat) vagy összeomlás | A tétel befejezetlen marad. |
+| A bizonylat elkészült, de a naplóba írás elbukott | `JournalWriteError`, benne az eredménnyel; a tétel befejezetlen marad. |
+
+A befejezetlen tételeket a `settle()` zárja le: rendelésszám alapján megkeresi a bizonylatokat a Számlázz.hu-n, és amit megtalál, rögzíti.
+
+```ts
+const nyitott = await journal.pending()
+const rendezes = await journal.settle(kassza)
+console.log(rendezes.recorded.length, rendezes.notFound.length, rendezes.failed.length)
+```
+
+A meg nem talált tételek alapból befejezetlenek maradnak (`releaseNotFound: true` esetén törlődnek), mert egy meg nem talált bizonylat azt jelenti, hogy a rendeléshez még ki kell állítani.
+
+## Egyeztetés az adatkapcsolat archívumával
+
+A Számlázz.hu [adatkapcsolata](/docs/adatkapcsolat) a napi nyugtaarchívumot is elküldheti. Ez a forrás-igazság: a `reconcile()` pótolja a naplóból hiányzó nyugtákat, és jelzi azokat, amelyek a naplóban vannak, de az archívumban nincsenek.
+
+```ts
+const egyeztetes = await journal.reconcile(push.receipts)
+console.log(egyeztetes.added, egyeztetes.missingFromArchive)
+```
+
+`dryRun: true` esetén csak jelent, nem ír.
+
+## Tárolók
+
+| Tároló | Mikor |
+| --- | --- |
+| `kvJournal(store)` | Redis, Upstash vagy Durable Object; a tárolónak tudnia kell atomikus számlálót (`increment`). |
+| `memoryJournal()` | Tesztekhez és egyetlen folyamathoz. |
+| Saját `JournalStorage` | SQL adatbázishoz: hat metódust kell megírnod (bejegyzés írása, olvasása, listázása, és ugyanez a befejezetlen tételekre). |
+
+A `kvJournal` alapból 400 napig őrzi a bejegyzéseket (`retentionDays`), a befejezetlen tételeket 30 napig. A napló nem helyettesíti a Számlázz.hu archívumát, csak a napi jelentésekhez és egyeztetéshez kell.

@@ -1,16 +1,46 @@
 # Változásnapló
 
+## Kiadatlan
+
+### Mi változott
+
+**Dupla számla ellen, több folyamat között is.** Az azonos rendelésre egyszerre érkező `createOnce` hívásokat a kassza összevonja, a `createOnceLock` közös tárolóval pedig serverless példányok között is csak egy bizonylat készül. Új hibakategóriák: `in_progress` és `store_unavailable`.
+
+**Megbízhatóbb próbálkozás-napló és hangos hibák.** A kitiltás elleni számláló atomikus (Redis `INCR`), tárolóhibánál folyamaton belüli tartalékkal; `attemptLedgerMode: 'fail-closed'` is választható. Az új `onWarning` hook megkapja a korábban csendben elnyelt hibákat, az `onDocumentError: 'throw'` pedig `DocumentHookError`-t ad (benne az elkészült bizonylattal), ha a napló írása elbukik.
+
+**Új alkönyvtárak.** `kassza/stores` (atomikus Redis/Upstash adapterek, Durable Object tároló, `diagnoseStore`), `kassza/journal` (bizonylatnapló a NAV napi összesítőhöz, befejezetlen tételekkel és egyeztetéssel), `kassza/batch` (idempotens, sebességkorlátos tömeges számlázás és számlázási időszakok), `kassza/node` (Express, NestJS, Fastify), `kassza/observe` (napló, tracing, Prometheus metrikák, telemetria nélkül).
+
+**Fizetések.** Részleges visszatérítéskor számlánál visszatérítésenként helyesbítő számla készül, az összeg tételenként pontosan szétosztva (`allocateRefund`); több áfakulcsnál és nyugtánál javaslatot kapsz. A webhookok `dedupe` opcióval a már feldolgozott eseményt a Számla Agent hívása nélkül nyugtázzák. A `registerPaymentOnce` stabil kulccsal pontosan egyszer rögzít befizetést.
+
+**Kisebb fejlesztések.** Adószám-gyorsítótár (`taxpayerCache`), `docsUrl` minden ismert hibakódon (külön oldallal a weboldalon), `checkSzamlazzIp` elutasítási okkal, ±20% szórás és `Retry-After` az újrapróbálásnál, a magányos helyettesítő karakter (félbevágott emoji) kiszűrése az XML-ből, XML mélységkorlát, `kassza doctor --capabilities --report --check-update`.
+
+**Javítás.** A SimplePay visszatérítési események azonosítója mostantól visszatérítésenként egyedi. Ha a `createOnce` utólagos ellenőrzése maga is hibára fut, a kassza ismeretlen kimenetet jelez (`details.outcome: 'unknown'`, `details.lookupError`) a téves „nem készült el” helyett, és ezt a hibát a párhuzamos hívók sem öröklik. A napló a más folyamathoz tartozó foglalást nem törli. A `kassza/node` az Express 4 `express.json()` üres törzsénél a nyers streamet olvassa, a HTTP/2 pszeudo-fejléceket kihagyja. A hiányos `refundItems` tétel érthető validációs hibát ad.
+
+**Megjegyzés.** A `IssuedDocument` két új változatot kapott (`correction`, `refund-proposal`), a `SzamlazzErrorCategory` kettőt (`in_progress`, `store_unavailable`). Ha `switch`-csel kezeled őket, egészítsd ki az ágakat.
+
 ## 0.13.0 (2026-10-03)
+
+### Mi változott
+
+A NAV nyugta-adatszolgáltatás kliense (`kassza/nav`: lekérdezés, egyeztetés, beküldés `allowWrite`-tal), a Számlázz.hu pénzügyi adatkapcsolat fogadója (`kassza/data-link`), a hamis Számla Agent (`createFakeAgentFetch` a `kassza/testing`-ben, hibabeillesztéssel), a `kassza` parancssor (`doctor`, `verify`, `xml preview`, `invoice get`, `receipt get`, `nav summary`) és az MCP szerver (`kassza/mcp`, `npx kassza mcp`).
 
 - Karbantartási kiadás
 
 ## 0.12.0 (2026-10-02)
+
+### Mi változott
+
+Fizetésből bizonylat: Stripe, SimplePay, Barion, Revolut és PayPal webhook-kezelők és az `issueForPayment()` (`kassza/payments`). Pontosan egyszer nyugtára is (`receipts.createOnce`), kitiltás elleni próbálkozás-napló folyamatok között (`attemptLedger`), `onDocument` hook, `maintenanceCooldownMs`. Nyugta vagy számla döntés (`chooseDocument`), nyugta utólagos számlává alakítása (`receipts.convertToInvoice`), NAV napi összesítő és napi zárás (`kassza/reports`), megbízotti számlázás (`kassza/delegation`).
 
 ### Újdonságok
 
 - implement createOnce functionality for receipts with comprehensive tests (2f97dc1)
 
 ## 0.11.0 (2026-10-01)
+
+### Mi változott
+
+Karbantartás: a README és a TypeScript beállítások rendbetétele, funkcionális változás nélkül.
 
 ### Újdonságok
 

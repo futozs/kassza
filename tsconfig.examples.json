@@ -1,0 +1,19 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "isolatedDeclarations": false,
+    "declaration": false,
+    "allowImportingTsExtensions": true,
+    "paths": {
+      "kassza": ["./src/index.ts"],
+      "kassza/*": ["./src/*"]
+    }
+  },
+  "include": [
+    "examples/nextjs-stripe/lib/kassza.ts",
+    "examples/nextjs-stripe/lib/webhook.ts",
+    "examples/cloudflare-simplepay/src/handler.ts",
+    "examples/express-billing/src/billing.ts"
+  ]
+}

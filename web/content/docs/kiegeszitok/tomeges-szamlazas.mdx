@@ -1,0 +1,62 @@
+---
+title: Tömeges és ismétlődő számlázás
+description: Havi díjak, tagdíjak, bérleti díjak biztonságos kiállítása a kassza/batch modullal - idempotens kulcsok, sebességkorlát, próbafuttatás, leállás a Számlázz.hu korlátjánál, és hónap végét helyesen kezelő időszakok.
+---
+
+Havonta sok számla kiállítása pont az a helyzet, ahol a Számlázz.hu szabályai a leginkább számítanak: ne küldj túl gyorsan, és egy hibás kérést ne ismételj. A `kassza/batch` a végrehajtást adja; az ütemezést (cron, várólista) a platformod.
+
+```ts
+import { billingPeriodAt, runBatch } from 'kassza/batch'
+
+const idoszak = billingPeriodAt({ interval: 'month', anchor: '2026-01-31', paymentDueInDays: 8 }, new Date())
+
+const eredmeny = await runBatch(kassza, {
+  items: elofizetesek.map((elofizetes) => ({
+    key: `SUB-${elofizetes.id}-${idoszak.start}`,
+    document: () => ({
+      kind: 'invoice',
+      input: {
+        buyer: elofizetes.vevo,
+        dueDate: idoszak.dueDate,
+        items: [{ name: `Havidíj (${idoszak.start} – ${idoszak.end})`, grossUnitPrice: elofizetes.dij, vat: 27 }],
+      },
+    }),
+  })),
+  ratePerMinute: 30,
+  journal,
+  onProgress: (allapot) => console.log(`${allapot.done}/${allapot.total}`),
+})
+
+console.log(eredmeny.created.length, eredmeny.existing.length, eredmeny.failed)
+```
+
+## Amit garantál
+
+| Tulajdonság | Hogyan |
+| --- | --- |
+| Újraindítható | Minden tétel a `key`-t kapja rendelésszámnak, és `createOnce`-szal készül. Egy megszakadt futás újraindítva a már kiállítottakat `existing`-ként jelzi, nem állítja ki újra. |
+| Kíméletes | Alapból percenként legfeljebb 30 tétel indul, egyszerre egy (`concurrency` legfeljebb 4). |
+| Leáll, ha kell | Tesztfiók-korlát (167), hitelesítési, fiók-, karbantartási, kitiltási vagy tároló-hibánál nem indít új tételt; a többit `skipped`-ként adja vissza. Automatikusan soha nem próbálja újra. |
+| Hibaizoláció | Egy tétel adathibája (például validáció) nem állítja meg a többit; a végén a `failed` lista tartalmazza. |
+| Megszakítható | `signal` (AbortSignal) esetén nem indít új tételt. |
+
+## Próbafuttatás
+
+`dryRun: true` esetén minden számlához előnézetet kér (a Számlázz.hu kiszámolja, de nem állítja ki), a nyugtákat helyben számolja ki. Semmi nem készül el, a végén a `previewed` lista és a `grossTotal` mutatja, mit állítanál ki.
+
+## Időszakok
+
+| Függvény | Mit ad |
+| --- | --- |
+| `billingPeriod(beallitas, n)` | Az n-edik időszak (0-tól): `start`, `end`, `dueDate`, `key`. |
+| `billingPeriodAt(beallitas, datum)` | A dátumot tartalmazó időszak. |
+| `billingPeriodsBetween(beallitas, tol, ig)` | Az időszakok egy tartományban. |
+| `todayPeriod(beallitas)` | A mai (budapesti dátum szerinti) időszak. |
+
+A hónap végi kezdőnapot csúszás nélkül kezeli: a január 31-én induló havi előfizetés időszakai február 28-án (szökőévben 29-én), majd március 31-én kezdődnek, mert mindig az első naptól számol. Az időszakok hézag és átfedés nélkül követik egymást.
+
+<Callout type="info" title="Teljesítési dátum">
+  Időszakos elszámolásnál a teljesítés dátumára az áfatörvény külön szabályt ad. A kassza nem dönt
+  helyetted: a `start`, `end` és `dueDate` alapján add meg a `fulfillmentDate`-et a könyvelőddel
+  egyeztetett szabály szerint.
+</Callout>

@@ -1,6 +1,6 @@
 ---
 title: Pontosan egyszer
-description: Számla és nyugta pontosan egyszer a createOnce metódusokkal, védelem a fiók kitiltása ellen folyamatok között (attemptLedger), karbantartási szünet és az onDocument hook.
+description: Számla és nyugta pontosan egyszer a createOnce metódusokkal, egyidejű hívások és elosztott zár, védelem a fiók kitiltása ellen folyamatok között (attemptLedger), karbantartási szünet, az onDocument hook és a figyelmeztetések.
 ---
 
 Egy webhook, egy várólista vagy egy türelmetlen felhasználó ugyanazt a kérést többször is elküldheti. A Számlázz.hu ugyanakkor nem engedi, hogy egy sikertelen kérést ötnél többször elküldj, és egy időtúllépés után nem tudhatod, elkészült-e a bizonylat. Ezt a három problémát oldják meg az alábbi eszközök.
@@ -42,12 +42,46 @@ Nyugtánál a `receipts.createOnce()` a rendelésszámot hívásazonosítóként
 | `matchOrderNumber` | `true` | Számlánál a külső azonosító mellett a rendelésszámra is keres. |
 | `recoveryDelayMs` | `1000` | A visszakeresések előtti várakozás (az első után duplázódik). |
 | `signal` | – | Megszakítás. |
+| `lock` | a `createOnceLock` | Hívásonkénti elosztott zár, vagy `false` a kikapcsoláshoz. |
+| `lockTtlSeconds` | `600` | Meddig él a zár, ha a folyamat menet közben leáll. |
+| `lockWaitMs` | `10000` | Meddig vár egy másik folyamat zárjára, mielőtt `in_progress` hibát ad. |
+| `lockFailure` | `'throw'` | Mi legyen, ha a zár tárolója nem érhető el: `'throw'` vagy `'proceed'`. |
 
 <Callout type="warning" title="Ha a visszakeresés sem talál semmit">
   Ritkán előfordul, hogy a kiállítás kimenete bizonytalan, és a visszakeresés sem találja a
   bizonylatot. Ilyenkor a kassza az eredeti hibát dobja tovább, `details.outcome: 'unknown'`
   jelöléssel. Ne állítsd ki kézzel újra: később hívd meg ugyanígy a `createOnce()`-t, az előbb
   megkeresi a bizonylatot.
+</Callout>
+
+## Egyidejű hívások: egy rendelés, egy bizonylat
+
+Ugyanaz a webhook kétszer is megérkezhet egyszerre, vagy két serverless példány dolgozhatja fel ugyanazt a rendelést. Ha két `createOnce()` hívás egyszerre keres, mindkettő azt látja, hogy még nincs számla, és mindkettő kiállítaná. Nyugtánál a Számlázz.hu a második kérést a hívásazonosító miatt elutasítja, számlánál viszont csak akkor, ha a fiókban be van kapcsolva a rendelésszám ismétlődésének tiltása.
+
+A kassza ezért két szinten véd:
+
+1. **Egy folyamaton belül** az azonos rendelésre egyszerre érkező hívások összevonódnak: az első kiállít, a többi ugyanazt a bizonylatot kapja `created: false` jelzéssel. Ez akkor is működik, ha kérésenként új kassza példányt hozol létre (serverless minta). Nem kell hozzá beállítás.
+2. **Folyamatok között** egy közös tárolóban tartott, rövid életű zár véd. A zárat az kapja meg, aki elsőként kéri; a többi folyamat megvárja, majd visszakeresi a már elkészült bizonylatot.
+
+```ts title="lib/kassza.ts"
+import { Redis } from '@upstash/redis'
+import { createKassza } from 'kassza'
+import { upstashRedisStore } from 'kassza/stores'
+
+const store = upstashRedisStore(Redis.fromEnv())
+
+export const kassza = createKassza({
+  cookieStore: store,
+  attemptLedger: store,
+  createOnceLock: store,
+})
+```
+
+A zárhoz olyan tároló kell, amely atomikusan tud „írni, ha még nincs” (`setIfAbsent`): a `kassza/stores` Redis, Upstash és Durable Object tárolója ilyen, a Cloudflare KV nem. Ha egy másik folyamat a várakozási időn belül nem végez, a kassza `in_progress` kategóriájú hibát dob: ilyenkor ne állítsd ki kézzel, hanem hívd meg később ugyanígy a `createOnce()`-t (webhookban adj vissza 5xx választ, és a szolgáltató újraküldi).
+
+<Callout type="info" title="Tároló kiválasztása">
+  A `kassza/stores` `diagnoseStore(tároló)` függvénye kipróbálja a tárolót, és megmondja, mire alkalmas
+  (munkamenet, próbálkozás-napló, zár, bizonylatnapló).
 </Callout>
 
 ## Kitiltás elleni védelem folyamatok között
@@ -57,17 +91,19 @@ A Számlázz.hu egy kérést legfeljebb ötször enged elküldeni. A kassza egy 
 ```ts title="lib/kassza.ts"
 import { Redis } from '@upstash/redis'
 import { createKassza } from 'kassza'
-import { upstashRedisCookieStore } from 'kassza/cookie-stores'
+import { upstashRedisStore } from 'kassza/stores'
 
-const redis = Redis.fromEnv()
+const store = upstashRedisStore(Redis.fromEnv())
 
 export const kassza = createKassza({
-  cookieStore: upstashRedisCookieStore(redis),
-  attemptLedger: upstashRedisCookieStore(redis),
+  cookieStore: store,
+  attemptLedger: store,
 })
 ```
 
-A tároló ugyanaz a felület, mint a munkamenet tárolója, így bármelyik [`kassza/cookie-stores`](/docs/alapok/munkamenet) adapter megfelel. A kulcsot a kérés tartalmából képzi a kassza (SHA-256), az Agent kulcsot nem tárolja, és egy napig őrzi.
+A tároló ugyanaz a felület, mint a munkamenet tárolója, így bármelyik [`kassza/stores`](/docs/alapok/munkamenet) adapter megfelel (a régi `kassza/cookie-stores` útvonal is működik). A kulcsot a kérés tartalmából képzi a kassza (SHA-256), az Agent kulcsot nem tárolja, és egy napig őrzi. Ha a tároló tud atomikus számlálót (`increment`, a Redis és Upstash adapterek igen), két egyszerre hibázó folyamat sem veszít el próbálkozást.
+
+Ha a tároló nem érhető el, a kassza alapból továbbengedi a kérést, és a folyamaton belüli számlálóval véd (`attemptLedgerMode: 'fail-open'`), a hibát pedig az `onWarning` hooknak jelzi. Ha inkább ne menjen ki kérés, amíg a napló nem működik, állítsd `'fail-closed'`-ra: ilyenkor `store_unavailable` hibát kapsz. Ehhez a tárolót `resilient: false` beállítással hozd létre, különben az adapter maga elnyeli az olvasási hibát.
 
 Öt sikertelen próbálkozás után a kassza már el sem küldi a kérést, hanem `attempt_limit` kategóriájú hibát dob. Ilyenkor embernek kell ránéznie. A hiba elhárítása után a számlálót a hibával törölheted:
 
@@ -97,7 +133,15 @@ const kassza = createKassza({ maintenanceCooldownMs: 120_000 })
 
 ## onDocument: minden elkészült bizonylatról értesítés
 
-Az `onDocument` hook minden sikeres kiállítás, sztornó és befizetés után lefut, a bizonylat adataival. Jó hely a könyvelési napló, az e-mail sor vagy a statisztika frissítésére. Ha a hook hibát dob, a bizonylat attól még elkészült: a kassza csak figyelmeztet.
+Az `onDocument` hook minden sikeres kiállítás, sztornó és befizetés után lefut, a bizonylat adataival. Jó hely a könyvelési napló, az e-mail sor vagy a statisztika frissítésére. Ha a hook hibát dob, a bizonylat attól még elkészült. Hogy ilyenkor mi történjen, az `onDocumentError` dönti el:
+
+| `onDocumentError` | Viselkedés |
+| --- | --- |
+| `'warn'` (alap) | Figyelmeztet (`onWarning`, vagy ha nincs, a konzolra), és a hívás sikeresen visszatér. |
+| `'throw'` | `DocumentHookError`-t dob, amely tartalmazza a már elkészült bizonylatot (`error.event`, `error.document`, `error.number`). |
+| függvény | A te kezelőd kapja meg a hibát és az eseményt; ha az is dob, `DocumentHookError` lesz belőle. |
+
+Ha a hook egy jogilag fontos naplót ír (például a [NAV napi összesítőhöz](/docs/nav-nyugta/napi-osszesito) használt [bizonylatnaplót](/docs/kiegeszitok/bizonylatnaplo)), használd a `'throw'` módot, hogy egy kimaradt bejegyzés ne maradjon észrevétlen. A hibából a bizonylat száma kiolvasható: ne állítsd ki újra, csak a naplóba írást pótold.
 
 ```ts
 const kassza = createKassza({
@@ -120,6 +164,22 @@ const kassza = createKassza({
 | `invoice` | `payment` | Befizetés rögzítése vagy törlése. |
 | `receipt` | `created` | Nyugta készült. |
 | `receipt` | `reversed` | Sztornónyugta készült; a `reversedNumber` az eredeti szám. |
+
+## onWarning: a korábban csendes hibák
+
+Néhány hibát a kassza szándékosan elnyel, hogy a számlázás ne akadjon el: a munkamenet tárolójának kiesését, a próbálkozás-napló hibáját, a hookok kivételeit, a zár felszabadításának hibáját. Az `onWarning` hook ezeket mind megkapja, így naplózhatod vagy riaszthatsz rájuk:
+
+```ts
+const kassza = createKassza({
+  hooks: {
+    onWarning: (figyelmeztetes) => {
+      logger.warn({ fajta: figyelmeztetes.kind, muvelet: figyelmeztetes.operation }, figyelmeztetes.message)
+    },
+  },
+})
+```
+
+A `kind` értéke `session`, `ledger`, `hook`, `document`, `lock`, `dedupe` vagy `cache`. A [megfigyelhetőség](/docs/kiegeszitok/megfigyelhetoseg) modul ezeket metrikaként is számolja.
 
 ## Kapcsolódó
 

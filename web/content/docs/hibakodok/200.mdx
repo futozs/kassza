@@ -1,0 +1,46 @@
+---
+title: "200-as hibakód: Ezt az előtagot ugyanezzel az adószámmal egy másik számlázási fiók használja."
+description: "A Számlázz.hu Számla Agent 200-as hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** Ezt az előtagot ugyanezzel az adószámmal egy másik számlázási fiók használja.
+
+| | |
+| --- | --- |
+| Kategória | `validation` (Hibás adat) |
+| Újrapróbálható | Nem. Változatlanul újraküldve ugyanígy elbukik, és a próbálkozások a kitiltási korlátba számítanak. |
+| A kassza hibája | `SzamlazzError`, `code: 200` |
+
+## Mikor jön elő
+
+A kérés valamelyik adata nem felel meg a Számlázz.hu szabályainak.
+
+## Tipp
+
+Válassz másik előtagot.
+
+## Mi a teendő
+
+Javítsd az adatot a hibaüzenet és a tipp alapján. A kassza a legtöbb ilyen hibát már a kérés elküldése előtt, magyar üzenettel jelzi.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 200) {
+    console.error(error.message, error.hint, error.docsUrl)
+    return jelezdEmbernek(error)
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[52](/docs/hibakodok/52), [53](/docs/hibakodok/53), [57](/docs/hibakodok/57), [68](/docs/hibakodok/68), [101](/docs/hibakodok/101), [202](/docs/hibakodok/202), [259](/docs/hibakodok/259), [260](/docs/hibakodok/260)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

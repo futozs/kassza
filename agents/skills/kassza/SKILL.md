@@ -21,6 +21,9 @@ Before writing code, read the package docs from `node_modules/kassza/agents/`:
 6. Tests must use `createMockKassza()` or `createFakeAgentFetch()` from `kassza/testing`, never a real Agent key.
 7. Issue Agent receipts only for activities without the online cash register obligation, and only when all four receipt conditions hold (`chooseDocument()` checks them). A fixed shop, café or restaurant needs an online cash register instead.
 8. Never submit NAV receipt reports for receipts issued in Számlázz.hu; it reports them itself. Use `kassza/nav` read-only unless the user explicitly reports a paper receipt pad.
+9. In serverless or multi-instance deployments, pass a shared `createOnceLock` store from `kassza/stores` (Redis, Upstash or Durable Object; not Cloudflare KV), so two instances cannot issue the same order twice.
+10. When `onDocument` writes a journal used for NAV reports (`kassza/journal`), set `onDocumentError: 'throw'` so a missed write is never silent.
+11. Under Express or NestJS, wrap webhook handlers with `toNodeHandler` from `kassza/node` and mount them before `express.json()`.
 
 ## Checklist before finishing
 

@@ -32,6 +32,30 @@ export function analyzeVersions(downloads) {
   return { entries, total, flat, flatVersions: flat ? cluster.length : 0, flatShare }
 }
 
+export function cleanedEstimate(versions) {
+  if (!versions) return null
+  const counts = versions.entries
+    .map((entry) => entry.count)
+    .filter((count) => count >= FLAT_MIN_DOWNLOADS)
+    .sort((a, b) => a - b)
+  let best = []
+  for (let start = 0; start < counts.length; start++) {
+    let end = start
+    while (end + 1 < counts.length && (counts[end + 1] ?? 0) <= (counts[start] ?? 0) * FLAT_RATIO)
+      end++
+    if (end - start + 1 > best.length) best = counts.slice(start, end + 1)
+  }
+  if (best.length < 3) return { estimate: versions.total, baseline: 0, cleaned: false }
+  const baseline = best[Math.floor(best.length / 2)] ?? 0
+  const estimate = versions.entries.reduce(
+    (sum, entry) => sum + Math.max(0, entry.count - baseline),
+    0,
+  )
+  return { estimate, baseline, cleaned: true }
+}
+
+export const CODE_SEARCH_QUERIES = ['"from \'kassza\'"', '"createKassza("']
+
 async function fetchJson(url, headers = {}) {
   try {
     const response = await fetch(url, {
@@ -71,6 +95,17 @@ export async function collectStats({ name, repo, version }) {
     ),
     fetchText(`https://github.com/${repo}/network/dependents`),
   ])
+  const codeSearch = process.env.GITHUB_TOKEN
+    ? await Promise.all(
+        CODE_SEARCH_QUERIES.map(async (query) => {
+          const result = await fetchJson(
+            `https://api.github.com/search/code?q=${encodeURIComponent(query)}&per_page=1`,
+            githubHeaders,
+          )
+          return { query, total: result?.total_count ?? null }
+        }),
+      )
+    : null
   return {
     npm: {
       lastWeek: week?.downloads ?? null,
@@ -91,6 +126,7 @@ export async function collectStats({ name, repo, version }) {
       npmPackagesDepsDev: depsDev ? depsDev.dependentCount : null,
       npmDirectDepsDev: depsDev ? depsDev.directDependentCount : null,
     },
+    codeSearch,
   }
 }
 
@@ -100,6 +136,15 @@ function show(value) {
 
 export function formatReport(name, version, stats) {
   const lines = [`${name}@${version} statisztika`, '']
+  const cleaned = cleanedEstimate(stats.npm.versions)
+  if (cleaned) {
+    lines.push(
+      cleaned.cleaned
+        ? `Tisztított becslés (7 nap): ${cleaned.estimate} letöltés a tükrök verziónkénti ~${cleaned.baseline} letöltésén felül (nyers: ${show(stats.npm.lastWeek)})`
+        : `Tisztított becslés (7 nap): ${cleaned.estimate} (nem látszik tükör-minta)`,
+      '',
+    )
+  }
   lines.push('Letöltések (npm, a robotokat és tükröket is tartalmazza)')
   lines.push(`  elmúlt 7 nap:   ${show(stats.npm.lastWeek)}`)
   lines.push(`  elmúlt 30 nap:  ${show(stats.npm.lastMonth)}`)
@@ -127,11 +172,17 @@ export function formatReport(name, version, stats) {
       `  Forkok:                    ${stats.github.forks}`,
     )
   }
-  lines.push(
-    '',
-    'GitHub kódkeresés (kell hozzá bejelentkezés): ',
-    `  https://github.com/search?type=code&q=${encodeURIComponent(`"${name}" path:package.json`)}`,
-  )
+  if (stats.codeSearch) {
+    lines.push('', 'GitHub kódkeresés (nyilvános repók)')
+    for (const entry of stats.codeSearch)
+      lines.push(`  ${entry.query}: ${show(entry.total)} találat`)
+  } else {
+    lines.push(
+      '',
+      'GitHub kódkeresés (GITHUB_TOKEN kell hozzá, vagy böngészőben): ',
+      `  https://github.com/search?type=code&q=${encodeURIComponent(`"${name}" path:package.json`)}`,
+    )
+  }
   return lines.join('\n')
 }
 

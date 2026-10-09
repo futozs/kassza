@@ -53,31 +53,60 @@ export function wait(ms: number, signal: AbortSignal | undefined): Promise<void>
   })
 }
 
+export interface RecoveryState {
+  lookupError?: SzamlazzError | undefined
+}
+
 export async function recoverAfterFailure<T>(
   lookup: () => Promise<T | null>,
   delayMs: number,
   signal: AbortSignal | undefined,
+  state: RecoveryState = {},
 ): Promise<T | null> {
   for (let attempt = 1; attempt <= RECOVERY_LOOKUPS; attempt++) {
     await wait(delayMs * attempt, signal)
-    const found = await lookup().catch((error: unknown) => {
-      if (error instanceof SzamlazzError && error.retryable) return undefined
-      throw error
-    })
+    let found: T | null | undefined
+    try {
+      found = await lookup()
+    } catch (error) {
+      if (!(error instanceof SzamlazzError)) throw error
+      state.lookupError = error
+      if (!error.retryable) return null
+      found = undefined
+    }
     if (found) return found
   }
   return null
 }
 
-export function unknownOutcomeError(error: SzamlazzError, reference: string): SzamlazzError {
+export interface UnknownOutcomeOptions {
+  readonly lookupError?: SzamlazzError | undefined
+  readonly method?: string | undefined
+  readonly subject?: string | undefined
+}
+
+export function unknownOutcomeError(
+  error: SzamlazzError,
+  reference: string,
+  options: UnknownOutcomeOptions = {},
+): SzamlazzError {
+  const lookupError = options.lookupError
+  const lookupNote = lookupError
+    ? ` A visszakeresés is hibát adott (${lookupError.category}: ${lookupError.message}), ezt előbb hárítsd el.`
+    : ''
   return new SzamlazzError(error.message, {
     category: error.category,
     code: error.code,
     action: error.action,
     httpStatus: error.httpStatus,
     rawResponse: error.rawResponse,
-    details: { ...error.details, outcome: 'unknown', reference },
-    hint: `Nem tudni biztosan, hogy a(z) ${reference} bizonylat elkészült-e, és a visszakeresés sem találta meg. Ne állítsd ki kézzel újra: később hívd meg ugyanígy a createOnce-t, az előbb visszakeres.`,
+    details: {
+      ...error.details,
+      outcome: 'unknown',
+      reference,
+      ...(lookupError ? { lookupError: `${lookupError.category}: ${lookupError.message}` } : {}),
+    },
+    hint: `Nem tudni biztosan, hogy a(z) ${reference} ${options.subject ?? 'bizonylata'} elkészült-e, és a visszakeresés sem találta meg.${lookupNote} Ne állítsd ki kézzel újra: később hívd meg ugyanígy a ${options.method ?? 'createOnce'}-t, az előbb visszakeres.`,
     cause: error,
   })
 }

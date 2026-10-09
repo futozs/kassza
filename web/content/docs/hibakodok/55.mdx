@@ -1,0 +1,46 @@
+---
+title: "55-ös hibakód: E-számla aláírása sikertelen."
+description: "A Számlázz.hu Számla Agent 55-ös hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** E-számla aláírása sikertelen.
+
+| | |
+| --- | --- |
+| Kategória | `account` (Fiókbeállítás) |
+| Újrapróbálható | Nem. Újraküldve is ugyanez lesz. |
+| A kassza hibája | `SzamlazzError`, `code: 55` |
+
+## Mikor jön elő
+
+A fiók beállítása, előfizetése vagy jogosultsága nem engedi a műveletet.
+
+## Tipp
+
+A tanúsítvány lejárt, vagy az időbélyeg szerver nem érhető el.
+
+## Mi a teendő
+
+Embernek kell a Számlázz.hu felületén rendeznie (előfizetés, beállítás, jogosultság). A kódból ezt nem lehet megoldani.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 55) {
+    console.error(error.message, error.hint, error.docsUrl)
+    return jelezdEmbernek(error)
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[8](/docs/hibakodok/8), [17](/docs/hibakodok/17), [49](/docs/hibakodok/49), [54](/docs/hibakodok/54), [136](/docs/hibakodok/136), [137](/docs/hibakodok/137), [250](/docs/hibakodok/250), [353](/docs/hibakodok/353)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

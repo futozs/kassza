@@ -102,18 +102,49 @@ describe('createOnce párhuzamos hívásokkal', () => {
     expect(agent.invoices.size).toBe(2)
   })
 
-  test('ha az első hívás elbukik, a várakozó újra visszakeres, majd kiállít', async () => {
+  test('üzleti hibánál (57) a várakozó ugyanazt a hibát kapja, és nem küldi újra a kérést', async () => {
     const { agent, kassza } = fakeKassza({ rejectDuplicateOrderNumbers: false })
     agent.fail({ code: 57 }, { action: 'createInvoice' })
 
-    const [first, second] = await Promise.allSettled([
+    const results = await Promise.allSettled([
       kassza.invoices.createOnce(INVOICE),
       kassza.invoices.createOnce(INVOICE),
     ])
 
-    expect(first.status).toBe('rejected')
-    expect(second).toMatchObject({ status: 'fulfilled', value: { created: true } })
+    expect(results.map((result) => result.status)).toEqual(['rejected', 'rejected'])
+    expect(agent.requests.filter((request) => request.action === 'createInvoice')).toHaveLength(1)
+  })
+
+  test('bizonytalan hibánál (időtúllépés) a várakozó visszakeres, és nem állít ki duplát', async () => {
+    const agent = createFakeAgentFetch({ rejectDuplicateOrderNumbers: false })
+    agent.fail('ghostSuccess', { action: 'createInvoice' })
+    let created = false
+    let blockedLookups = 0
+    const flakyFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      await new Promise((resolve) => setTimeout(resolve, 5))
+      const body = init?.body
+      const action = body instanceof FormData ? [...body.keys()][0] : undefined
+      if (created && action === 'action-szamla_agent_xml' && blockedLookups < 6) {
+        blockedLookups += 1
+        throw new TypeError('fetch failed')
+      }
+      if (action === 'action-xmlagentxmlfile') created = true
+      return agent.fetch(input, init)
+    }) as typeof globalThis.fetch
+    const kassza = createKassza({ agentKey: TEST_AGENT_KEY, retryDelayMs: 0, fetch: flakyFetch })
+
+    const results = await Promise.allSettled([
+      kassza.invoices.createOnce(INVOICE, { recoveryDelayMs: 0 }),
+      kassza.invoices.createOnce(INVOICE, { recoveryDelayMs: 0 }),
+    ])
+
+    expect(results[0]).toMatchObject({
+      status: 'rejected',
+      reason: { details: { outcome: 'unknown' } },
+    })
+    expect(results[1]).toMatchObject({ status: 'fulfilled', value: { created: false } })
     expect(agent.invoices.size).toBe(1)
+    expect(agent.requests.filter((request) => request.action === 'createInvoice')).toHaveLength(1)
   })
 
   test('két egyidejű nyugta-createOnce pontosan egy nyugtát állít ki', async () => {

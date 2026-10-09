@@ -3,8 +3,10 @@ import { SzamlazzError } from '../core/errors'
 import {
   type CreateOnceOptions,
   isUncertainOutcome,
+  type RecoveryState,
   recoverAfterFailure,
   resolveRecoveryDelay,
+  unknownOutcomeError,
 } from '../core/once'
 import { guardOnce, type OnceGuard } from '../core/once-guard'
 import type { GetInvoiceOptions, InvoiceDetails, InvoiceDetailsPayment } from './get'
@@ -72,7 +74,7 @@ function matchingPayment(
 
 function describe(description: string | undefined, marker: string): string {
   const text = description?.trim()
-  return text ? `${text} ${marker}` : marker
+  return text ? `${marker} ${text}` : marker
 }
 
 function unreadableMarker(invoiceNumber: string, marker: string): SzamlazzError {
@@ -127,17 +129,28 @@ export async function registerPaymentOnce(
       )
     } catch (error) {
       if (!isUncertainOutcome(error)) throw error
-      const recovered = await recoverAfterFailure(lookup, delayMs, options.signal)
+      const state: RecoveryState = {}
+      const recovered = await recoverAfterFailure(lookup, delayMs, options.signal, state)
       if (recovered) return { ...base, created: true, existing: recovered }
-      throw error
+      throw unknownOutcomeError(error, `${invoiceNumber} számla`, {
+        subject: `${key} kulcsú befizetése`,
+        lookupError: state.lookupError,
+        method: 'registerPaymentOnce',
+      })
     }
     const confirmed = await lookup()
     if (!confirmed) throw unreadableMarker(invoiceNumber, marker)
     return { ...base, created: true, payment, existing: confirmed }
   }
 
-  return guardOnce(guard, `payment:${invoiceNumber}:${key}`, options, run, (result) => ({
-    ...result,
-    created: false,
-  }))
+  return guardOnce(
+    guard,
+    `payment:${JSON.stringify([invoiceNumber, key])}`,
+    options,
+    run,
+    (result) => ({
+      ...result,
+      created: false,
+    }),
+  )
 }

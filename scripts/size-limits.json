@@ -1,0 +1,35 @@
+{
+  "gzipKb": {
+    "kassza": 66,
+    "kassza/money": 10,
+    "kassza/validators": 4,
+    "kassza/ipn": 9,
+    "kassza/storage": 16,
+    "kassza/storage/fs": 9,
+    "kassza/cookie-stores": 8,
+    "kassza/testing": 65,
+    "kassza/reports": 10,
+    "kassza/payments": 37,
+    "kassza/payments/stripe": 11,
+    "kassza/payments/simplepay": 12,
+    "kassza/payments/barion": 9,
+    "kassza/payments/revolut": 10,
+    "kassza/payments/paypal": 11,
+    "kassza/delegation": 72,
+    "kassza/nav": 28,
+    "kassza/data-link": 24,
+    "kassza/mcp": 85,
+    "kassza/stores": 8,
+    "kassza/journal": 13,
+    "kassza/node": 2,
+    "kassza/batch": 26,
+    "kassza/observe": 5
+  },
+  "forbidden": {
+    "kassza": ["dist/nav/", "dist/mcp/", "dist/delegation/", "dist/cli.", "dist/storage/fs"],
+    "kassza/money": ["dist/nav/", "dist/payments/"],
+    "kassza/node": ["dist/client"],
+    "kassza/stores": ["dist/client"],
+    "kassza/observe": ["dist/client"]
+  }
+}

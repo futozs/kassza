@@ -1,4 +1,5 @@
 import { SzamlazzError } from './errors'
+import { isUncertainOutcome } from './once'
 import type { KeyValueStore } from './store'
 import type { WarningHook } from './warnings'
 
@@ -180,14 +181,8 @@ async function runLocked<T>(
   }
 }
 
-const SHARED_FAILURES: ReadonlySet<string> = new Set([
-  'in_progress',
-  'store_unavailable',
-  'configuration',
-])
-
 function isSharedFailure(error: unknown): boolean {
-  return error instanceof SzamlazzError && SHARED_FAILURES.has(error.category)
+  return error instanceof SzamlazzError && !isUncertainOutcome(error)
 }
 
 export async function guardOnce<T>(

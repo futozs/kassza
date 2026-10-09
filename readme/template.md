@@ -4,7 +4,8 @@
 
 <p align="center">
   <b>Számlázz.hu, TypeScriptben, egyszerűbben.</b><br>
-  Nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. Mind a 11 Agent művelet, 0 függőség, nulla runtime kompromisszum.
+  Nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. Mind a 11 Agent művelet, 0 függőség, nulla runtime kompromisszum.<br>
+  <sub><a href="{{repo}}/blob/main/README.en.md">English overview</a></sub>
 </p>
 
 <p align="center">
@@ -80,7 +81,8 @@ Ennyi. A kerekítést, a magyar dátumot, az XML-t, a session cookie-t és a hib
 | ⚙️ [Beállítás](#beállítás) | 🧾 [Nyugták](#nyugták) | 📊 [NAV nyugta-adatszolgáltatás](#nav-nyugta-adatszolgáltatás) | ⚡ [Serverless és edge](#serverless-és-edge) |
 | 🚨 [Hibakezelés](#hibakezelés) | 🏛️ [Adószám lekérdezés](#adószám-lekérdezés) | 🤝 [Megbízotti számlázás](#megbízotti-számlázás) | 🧪 [Tesztelés](#tesztelés) |
 | 🎛️ [Haladó beállítások](#haladó-beállítások) | 🔔 [Fizetési értesítés (IPN)](#fizetési-értesítés-ipn) | 🔗 [Pénzügyi adatkapcsolat](#pénzügyi-adatkapcsolat) | 🧮 [Validátorok és pénzszámítás](#validátorok-és-pénzszámítás) |
-| 🤖 [AI-val kódolsz?](#ai-val-kódolsz) | | | 💻 [Parancssor és MCP szerver](#parancssor-és-mcp-szerver) |
+| 🤖 [AI-val kódolsz?](#ai-val-kódolsz) | 🔁 [Tömeges számlázás](#tömeges-és-ismétlődő-számlázás) | 🟩 [Node.js és Express](#nodejs-és-express) | 💻 [Parancssor és MCP szerver](#parancssor-és-mcp-szerver) |
+| | | 📒 [Bizonylatnapló](#bizonylatnapló) | 📈 [Megfigyelhetőség](#megfigyelhetőség) |
 
 ## Weboldal, sandbox és receptek
 
@@ -383,6 +385,8 @@ await kassza.invoices.clearPayments('E-WEB-2026-12')
 
 A `registerPayment` egyetlen befizetést és több részletet is fogad. A `clearPayments` az összes befizetést törli a számláról.
 
+Ha ugyanaz a befizetés több helyről is érkezhet (banki értesítés, webhook), a `registerPaymentOnce({ invoiceNumber, key, amount })` egy stabil kulccsal pontosan egyszer rögzíti: a kulcsot jelölőként a befizetés leírásába teszi, és rögzítés előtt megkeresi.
+
 {{more:befizetes-rogzitese|befizetes}}
 
 </details>
@@ -533,7 +537,7 @@ if (ceg.valid) {
 }
 ```
 
-A cégadatok a NAV-tól jönnek, a cím formázva, például `1031 Budapest, Záhony utca 7.`
+A cégadatok a NAV-tól jönnek, a cím formázva, például `1031 Budapest, Záhony utca 7.` Űrlapokhoz a `taxpayerCache: { store }` beállítás közös tárolóban megjegyzi az eredményt, így ugyanaz az adószám csak egyszer megy ki.
 
 {{more:adoszam-lekerdezes|adoszam}}
 
@@ -582,6 +586,10 @@ try {
 | `network` / `timeout` / `maintenance` | Átmeneti hiba |
 | `rate_limit` | A tesztfiókban túl sok bizonylat készült rövid idő alatt (167) |
 | `attempt_limit` | Ezt a kérést már ötször sikertelenül küldték el, ezért a kassza el sem küldi |
+| `in_progress` | Egy másik folyamat éppen ugyanezt a bizonylatot állítja ki (a `createOnce` zárja) |
+| `store_unavailable` | Egy kötelezőnek beállított tároló (zár, napló) nem érhető el, a kérés el sem ment |
+
+Minden ismert hibakódnak saját oldala van; a hiba `docsUrl` mezője oda mutat, így a naplóból egy kattintás.
 
 {{more:alapok/hibakezeles|hibakezeles-validacio}}
 
@@ -599,7 +607,16 @@ const { number, created } = await kassza.invoices.createOnce({
 })
 ```
 
-Kiállítás előtt megkeresi a számlát, hálózati hiba, időtúllépés vagy 56-os hiba után pedig visszakeresi. Ha a webhook kétszer fut le, a második hívás `created: false` eredménnyel a meglévő számlát adja. Ha ugyanazt a kérést több szerver is küldheti, az `attemptLedger` opció a folyamatok között is betartja az öt próbálkozásos korlátot.
+Kiállítás előtt megkeresi a számlát, hálózati hiba, időtúllépés vagy 56-os hiba után pedig visszakeresi. Ha a webhook kétszer fut le, a második hívás `created: false` eredménnyel a meglévő számlát adja. Az egyszerre érkező, azonos rendelésre szóló hívásokat a kassza összevonja; több szerver vagy serverless példány között a `createOnceLock` közös tároló zárja véd a dupla számla ellen:
+
+```ts
+import { upstashRedisStore } from 'kassza/stores'
+
+const store = upstashRedisStore(Redis.fromEnv())
+const kassza = createKassza({ cookieStore: store, attemptLedger: store, createOnceLock: store })
+```
+
+Az `attemptLedger` a folyamatok között is betartja az öt próbálkozásos korlátot, atomikus számlálóval.
 
 {{more:alapok/pontosan-egyszer|penztari-nyugta}}
 
@@ -668,8 +685,9 @@ export const POST = stripeWebhook({
 })
 ```
 
-- Az újraküldött webhook nem állít ki második bizonylatot.
+- Az újraküldött webhook nem állít ki második bizonylatot; a `dedupe: store` opcióval a már feldolgozott eseményt a Számla Agent hívása nélkül nyugtázza.
 - Teljes visszatérítéskor a kassza sztornózza a bizonylatot.
+- Részleges visszatérítéskor számlánál visszatérítésenként egy helyesbítő számlát állít ki, a visszatérített összeget tételenként pontosan szétosztva; több áfakulcsnál és nyugtánál javaslatot ad.
 - Ugyanígy működik a `simplePayWebhook`, a `barionWebhook`, a `revolutWebhook` és a `payPalWebhook`.
 
 {{more:fizetesek|}}
@@ -709,6 +727,34 @@ A NAV kliens alapból csak olvas: a Számlázz.hu által jelentett nyugtákat ne
 </details>
 
 {{links:nav-nyugta}}
+
+## Bizonylatnapló
+
+A NAV napi összesítő és a napi zárás a saját nyilvántartásodból számol, mert a Számla Agent nem listáz nyugtákat dátum szerint. A `kassza/journal` ezt a nyilvántartást adja.
+
+<details>
+<summary><b>Napló a NAV összesítőhöz</b> · <code>createJournal()</code>, <code>kvJournal()</code></summary>
+
+```ts
+import { createJournal, kvJournal } from 'kassza/journal'
+import { navDailyReports } from 'kassza/reports'
+
+const journal = createJournal(kvJournal(store))
+const kassza = createKassza({
+  hooks: { onDocument: (event) => journal.record(event), onDocumentError: 'throw' },
+})
+
+const jelentesek = navDailyReports(await journal.receipts({ from: '2026-10-01', to: '2026-10-31' }))
+```
+
+- A `trackReceipt()` és a `trackInvoice()` a kiállítás előtt befejezetlen tételt rögzít; ha a folyamat közben leáll, a `settle()` később visszakeresi és lezárja.
+- A `reconcile()` az adatkapcsolat napi nyugtaarchívumával egyeztet, és pótolja a hiányzó tételeket.
+
+{{more:kiegeszitok/bizonylatnaplo|}}
+
+</details>
+
+{{links:nav-nyugta/hatarido}}
 
 ## Megbízotti számlázás
 
@@ -825,13 +871,13 @@ További adapterek: `s3Storage` (AWS SDK), `r2BindingStorage`, `vercelBlobStorag
 A session cookie újrahasznosítása gyorsítja a hívásokat. Serverless környezetben tedd közös tárolóba.
 
 <details>
-<summary><b>Upstash Redis</b> · <code>upstashRedisCookieStore()</code></summary>
+<summary><b>Upstash Redis</b> · <code>upstashRedisStore()</code></summary>
 
 ```ts
 import { Redis } from '@upstash/redis'
-import { upstashRedisCookieStore } from 'kassza/cookie-stores'
+import { upstashRedisStore } from 'kassza/stores'
 
-const kassza = createKassza({ cookieStore: upstashRedisCookieStore(Redis.fromEnv()) })
+const kassza = createKassza({ cookieStore: upstashRedisStore(Redis.fromEnv()) })
 ```
 
 {{more:alapok/munkamenet|munkamenet}}
@@ -839,19 +885,23 @@ const kassza = createKassza({ cookieStore: upstashRedisCookieStore(Redis.fromEnv
 </details>
 
 <details>
-<summary><b>Cloudflare Workers</b> · <code>cloudflareKvCookieStore()</code></summary>
+<summary><b>Cloudflare Workers</b> · <code>cloudflareKvStore()</code>, <code>durableObjectStore()</code></summary>
 
 ```ts
-import { cloudflareKvCookieStore } from 'kassza/cookie-stores'
+import { cloudflareKvStore } from 'kassza/stores'
 
-const kassza = createKassza({ agentKey: env.SZAMLAZZ_AGENT_KEY, cookieStore: cloudflareKvCookieStore(env.KASSZA_KV) })
+const kassza = createKassza({ agentKey: env.SZAMLAZZ_AGENT_KEY, cookieStore: cloudflareKvStore(env.KASSZA_KV) })
 ```
+
+A KV munkamenetnek jó, de nincs benne atomikus írás: a `createOnce` zárjához és a naplóhoz Workers alatt a `durableObjectStore()` kell.
 
 {{more:kiegeszitok/serverless-es-edge|}}
 
 </details>
 
-Van még `ioredisCookieStore`, `nodeRedisCookieStore` és `customCookieStore` is. Ha a tároló elérhetetlen, a számlázás attól még működik.
+Van még `ioredisStore`, `nodeRedisStore` és `customStore` is (a régi `kassza/cookie-stores` nevek is működnek). A `diagnoseStore(store)` megmondja, mire alkalmas egy tároló. Ha a tároló elérhetetlen, a számlázás attól még működik.
+
+A csomag minden futtatókörnyezetben ugyanazt adja: a CI a buildelt csomagot Node.js, Bun, Deno és Cloudflare workerd alatt is lefuttatja.
 
 {{links:kiegeszitok/serverless-es-edge|munkamenet|cloudflare-workers}}
 
@@ -1008,7 +1058,8 @@ const kassza = createKassza({
 })
 ```
 
-- Az `onDocument` minden kiállított és sztornózott bizonylat, valamint rögzített befizetés után lefut. Ha hibát dob, a bizonylat attól még elkészült.
+- Az `onDocument` minden kiállított és sztornózott bizonylat, valamint rögzített befizetés után lefut. Ha hibát dob, a bizonylat attól még elkészült; az `onDocumentError: 'throw'` beállítással ilyenkor `DocumentHookError` jön, benne a bizonylattal.
+- Az `onWarning` megkapja a korábban csendben elnyelt hibákat (tároló, hook, zár).
 - A `maintenanceCooldownMs` karbantartási hiba után ennyi ideig nem küld kérést, hanem azonnal `maintenance` hibát ad, így átválthatsz tartalék folyamatra.
 
 {{more:alapok/pontosan-egyszer|}}
@@ -1016,6 +1067,73 @@ const kassza = createKassza({
 </details>
 
 {{links:alapok/halozat-es-biztonsag|hookok}}
+
+## Megfigyelhetőség
+
+A kassza nem küld haza semmit. A saját rendszeredben a `kassza/observe` ad strukturált naplót, OpenTelemetry-kompatibilis tracinget és Prometheus metrikákat, függőség nélkül és titokmentesen.
+
+<details>
+<summary><b>Napló, tracing, metrikák</b> · <code>observe()</code>, <code>createMetricsRegistry()</code></summary>
+
+```ts
+import { combineHooks, createMetricsRegistry, observe } from 'kassza/observe'
+
+const metrics = createMetricsRegistry()
+const kassza = createKassza({ hooks: combineHooks(observe({ logger: console, metrics }), sajatHookok) })
+
+metrics.renderPrometheus()
+```
+
+{{more:kiegeszitok/megfigyelhetoseg|}}
+
+</details>
+
+## Tömeges és ismétlődő számlázás
+
+Havidíj, tagdíj, bérleti díj: a `kassza/batch` idempotens kulcsokkal, sebességkorláttal és próbafuttatással állítja ki a bizonylatokat, és a Számlázz.hu korlátjánál megáll.
+
+<details>
+<summary><b>Havi számlázás</b> · <code>runBatch()</code>, <code>billingPeriodAt()</code></summary>
+
+```ts
+import { billingPeriodAt, runBatch } from 'kassza/batch'
+
+const idoszak = billingPeriodAt({ interval: 'month', anchor: '2026-01-31' }, new Date())
+const eredmeny = await runBatch(kassza, {
+  items: elofizetesek.map((elofizetes) => ({
+    key: `SUB-${elofizetes.id}-${idoszak.start}`,
+    document: () => ({ kind: 'invoice', input: szamlaElofizetesbol(elofizetes, idoszak) }),
+  })),
+  dryRun: false,
+})
+```
+
+Egy megszakadt futás újraindítva nem állít ki duplát. A hónap végi kezdőnapot csúszás nélkül kezeli.
+
+{{more:kiegeszitok/tomeges-szamlazas|}}
+
+</details>
+
+## Node.js és Express
+
+A webhook-kezelők Web-szabványos `(Request) => Response` függvények. Express, NestJS és Fastify alá a `kassza/node` köti be őket, a nyers törzs (aláírás!) megőrzésével.
+
+<details>
+<summary><b>Express</b> · <code>toNodeHandler()</code></summary>
+
+```ts
+import { toNodeHandler } from 'kassza/node'
+import { stripeWebhook } from 'kassza/payments/stripe'
+
+app.post('/webhooks/stripe', toNodeHandler(stripeWebhook({ secret, onPayment })))
+app.use(express.json())
+```
+
+A webhook útvonal az `express.json()` elé kerüljön; ha egy middleware már feldolgozta a törzset, a kassza érthető hibát ad.
+
+{{more:kiegeszitok/node-express|}}
+
+</details>
 
 ## Parancssor és MCP szerver
 
@@ -1028,7 +1146,7 @@ npx kassza xml preview szamla.json
 npx kassza invoice get --order REND-1001
 ```
 
-A `doctor` ellenőrzi a Node.js-t, az Agent kulcsot, a gép óráját és a munkamenetet. Az `xml preview` kiírja a küldendő XML-t az Agent kulcs nélkül, így supportjegyhez is csatolható.
+A `doctor` ellenőrzi a Node.js-t, az Agent kulcsot, a gép óráját és a munkamenetet; a `--capabilities` az e-számla engedélyt, a `--report` titokmentes Markdown jelentést ad hibajegyhez. Az `xml preview` kiírja a küldendő XML-t az Agent kulcs nélkül, így supportjegyhez is csatolható.
 
 {{more:kiegeszitok/parancssor|}}
 

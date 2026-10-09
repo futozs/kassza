@@ -1,0 +1,42 @@
+---
+title: "335-ös hibakód: A hivatkozott díjbekérő nem található."
+description: "A Számlázz.hu Számla Agent 335-ös hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** A hivatkozott díjbekérő nem található.
+
+| | |
+| --- | --- |
+| Kategória | `not_found` (Nem található) |
+| Újrapróbálható | Nem. |
+| A kassza hibája | `SzamlazzError`, `code: 335` |
+
+## Mikor jön elő
+
+A hivatkozott bizonylat nem létezik ezen a fiókon.
+
+## Mi a teendő
+
+Ellenőrizd a számot vagy a rendelésszámot. A `find()` metódusok ilyenkor `null`-t adnak hibadobás helyett.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 335) {
+    console.error(error.message, error.hint, error.docsUrl)
+    return jelezdEmbernek(error)
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[7](/docs/hibakodok/7), [339](/docs/hibakodok/339)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

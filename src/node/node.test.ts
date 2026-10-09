@@ -177,6 +177,18 @@ describe('toWebRequest middleware-ek után', () => {
     expect(() => toWebRequest(fakeRequest({ body: { amount: 1 } }))).toThrow('express.json()')
   })
 
+  test('az Express 4 express.json() üres {} törzsénél a még olvasatlan streamet használja', async () => {
+    const placeholder = toWebRequest(fakeRequest({ body: {}, chunks: ['{"nyers":', '1}'] }))
+    const nullPrototype = toWebRequest(fakeRequest({ body: Object.create(null), chunks: ['x'] }))
+
+    expect(await placeholder.text()).toBe('{"nyers":1}')
+    expect(await nullPrototype.text()).toBe('x')
+    expect(() => toWebRequest(fakeRequest({ body: {}, readableEnded: true }))).toThrow(
+      NodeBodyError,
+    )
+    expect(() => toWebRequest(fakeRequest({ body: [] }))).toThrow(NodeBodyError)
+  })
+
   test('a már elolvasott, továbbadás nélküli törzsnél hibát dob', () => {
     expect(() => toWebRequest(fakeRequest({ readableEnded: true }))).toThrow(NodeBodyError)
   })
@@ -215,6 +227,43 @@ describe('toWebRequest middleware-ek után', () => {
     )
     expect(request.headers.get('x-multi')).toBe('1, 2')
     expect(request.headers.has('x-none')).toBe(false)
+  })
+
+  test('a HTTP/2 pszeudo-fejléceket kihagyja, a hostot az :authority-ből veszi, ha nincs host', () => {
+    const request = toWebRequest(
+      fakeRequest({
+        method: 'GET',
+        headers: {
+          ':method': 'GET',
+          ':path': '/hook',
+          ':authority': 'shop.hu:8443',
+          ':scheme': 'https',
+          'x-egyeb': 'igen',
+        },
+        socket: { encrypted: true },
+      }),
+    )
+    const withHost = toWebRequest(
+      fakeRequest({ method: 'GET', headers: { host: 'host.hu', ':authority': 'masik.hu' } }),
+    )
+
+    expect(request.url).toBe('https://shop.hu:8443/hook')
+    expect(request.headers.get('x-egyeb')).toBe('igen')
+    expect([...request.headers.keys()].some((name) => name.startsWith(':'))).toBe(false)
+    expect(withHost.url).toBe('http://host.hu/hook')
+  })
+
+  test('sima objektumból (Fastify) is kérést épít, törzs nélkül üresen', async () => {
+    const withBody = toWebRequest({
+      method: 'POST',
+      url: '/hook?x=1',
+      headers: { host: 'shop.hu' },
+      body: new TextEncoder().encode('fastify'),
+    })
+    const empty = toWebRequest({ method: 'POST', url: '/hook', headers: { host: 'shop.hu' } })
+    expect(await withBody.text()).toBe('fastify')
+    expect(withBody.url).toBe('http://shop.hu/hook?x=1')
+    expect(await empty.text()).toBe('')
   })
 
   test('a stream törzset darabonként olvassa, a szöveges darabot is', async () => {

@@ -1,0 +1,43 @@
+---
+title: Mi a teendő december 31. előtt?
+description: A NAV nyugta-adatszolgáltatás türelmi ideje 2026. december 31-én lejár. Döntési fa három forgatókönyvre, és hogy mit kell addig a kasszával előkészíteni.
+---
+
+A számítógéppel előállított nyugták adatszolgáltatása 2026. szeptember 1-jétől kötelező, a NAV **2026. december 31-ig** nem szankcionál. Az Agenttel kiállított nyugtákról a Számlázz.hu a NAV összekötés után maga jelent; hogy a fiókodban ez mikortól él, azt a Számlázz.hu tájékoztatásából követheted. Mivel ez a te kötelezettséged marad, érdemes mindhárom lehetséges helyzetre felkészülni.
+
+## Mindhárom esetben kell: bizonylatnapló
+
+A napi összesítőhöz és az egyeztetéshez a kiállított nyugták listája kell, amit a Számla Agent nem tud dátum szerint visszaadni. Ezért az első lépés mindig ugyanaz: kösd be a [bizonylatnaplót](/docs/kiegeszitok/bizonylatnaplo), `onDocumentError: 'throw'` beállítással, hogy egy kimaradt bejegyzés ne maradjon észrevétlen.
+
+## A) A Számlázz.hu időben jelent helyetted
+
+1. Ne küldd be te is a nyugtákat: az kettős adatszolgáltatás. A kassza NAV kliense alapból csak olvas.
+2. Naponta (vagy hetente) [egyeztess](/docs/nav-nyugta/egyeztetes): a naplóból számolt napi összesítőt a `reconcileNavReports()` veti össze a NAV-nál rögzítettekkel.
+3. Ha egy nap hiányzik vagy eltér, jelezd a Számlázz.hu-nak.
+
+## B) A türelmi idő lejár, és nincs automatikus jelentés
+
+1. A [NAV kliens](/docs/nav-nyugta/nav-kliens) írási útvonalával (`allowWrite: true`) magad küldöd be a napi összesítőt, 3 naptári napon belül.
+2. Ehhez NAV technikai felhasználó kell. Előtte próbáld végig a teljes kört a NAV **teszt** környezetében: a kassza repójában az `npm run nav:rehearsal` szkript hitelesít, beküld, listáz, módosít és érvénytelenít, és minden lépés eredményét kiírja.
+3. Kapcsold ki a beküldést, amint a Számlázz.hu automatikája élesedik (lásd A).
+
+## C) Változik a szabály vagy a határidő
+
+1. A napló és a `navDailyReports()` visszamenőleg is újrafuttatható, így egy módosított szabály szerinti összesítő a régi napokra is elkészíthető.
+2. A kassza változásfigyelője hetente összeveti a Számlázz.hu NAV-nyugta oldalát és a NAV eRECEIPT specifikációját a kassza által ismerttel, és eltérésnél hibajegyet nyit.
+
+## Ellenőrzőlista
+
+| Teendő | Hol |
+| --- | --- |
+| Bizonylatnapló bekötve, `onDocumentError: 'throw'` | [Bizonylatnapló](/docs/kiegeszitok/bizonylatnaplo) |
+| Befejezetlen tételek rendezése (`journal.settle()`) ütemezve | [Bizonylatnapló](/docs/kiegeszitok/bizonylatnaplo#befejezetlen-tételek-írj-előbb-aztán-állíts-ki) |
+| Napi összesítő a naplóból | [Napi összesítő](/docs/nav-nyugta/napi-osszesito) |
+| Egyeztetés a NAV-val | [Egyeztetés](/docs/nav-nyugta/egyeztetes) |
+| NAV technikai felhasználó és tesztkörnyezeti próba (ha B-re készülsz) | [NAV kliens](/docs/nav-nyugta/nav-kliens) |
+| Tartalék kézi nyugtatömb | [Kézi nyugtatömb](/docs/nav-nyugta/kezi-nyugtatomb) |
+
+<Callout type="warning" title="Nem jogi tanács">
+  Ez az oldal a kassza eszközeit rendezi a lehetséges helyzetek szerint. Hogy a te tevékenységedre
+  pontosan mi vonatkozik, azt a könyvelőddel egyeztesd.
+</Callout>

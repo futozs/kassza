@@ -467,3 +467,62 @@ describe('README példák', () => {
     expect(naplo).toEqual([`invoice created ${szamla.number}`])
   })
 })
+
+describe('README példák: új modulok', async () => {
+  const { billingPeriodAt, runBatch } = await import('../src/batch/index')
+  const { createJournal, memoryJournal } = await import('../src/journal/index')
+  const { toNodeHandler } = await import('../src/node/index')
+  const { combineHooks, createMetricsRegistry, observe } = await import('../src/observe/index')
+  const { diagnoseStore, memoryStore } = await import('../src/stores/index')
+
+  test('pontosan egyszer közös tárolóval, napló a NAV összesítőhöz', async () => {
+    const store = memoryStore()
+    const journal = createJournal(memoryJournal(), { now: FAKE_NOW })
+    const agent = createFakeAgentFetch({ now: FAKE_NOW, testAccount: false })
+    const kassza = createKassza({
+      agentKey: TEST_AGENT_KEY,
+      fetch: agent.fetch,
+      cookieStore: store,
+      attemptLedger: store,
+      createOnceLock: store,
+      hooks: { onDocument: (event) => journal.record(event), onDocumentError: 'throw' },
+      defaults: { receipt: { prefix: 'NYGT', paymentMethod: 'bankkártya' } },
+    })
+
+    await kassza.receipts.createOnce({ orderNumber: 'R-1', items })
+    const jelentesek = navDailyReports(
+      await journal.receipts({ from: '2026-10-01', to: '2026-10-31' }),
+    )
+
+    expect(jelentesek).toHaveLength(1)
+    expect((await diagnoseStore(store)).ok).toBe(true)
+  })
+
+  test('megfigyelhetőség és tömeges számlázás', async () => {
+    const metrics = createMetricsRegistry()
+    const agent = createFakeAgentFetch({ now: FAKE_NOW })
+    const kassza = createKassza({
+      agentKey: TEST_AGENT_KEY,
+      fetch: agent.fetch,
+      hooks: combineHooks(observe({ metrics }), {}),
+    })
+    const idoszak = billingPeriodAt({ interval: 'month', anchor: '2026-01-31' }, '2026-10-15')
+    const eredmeny = await runBatch(kassza, {
+      items: [1, 2].map((id) => ({
+        key: `SUB-${id}-${idoszak.start}`,
+        document: () => ({ kind: 'invoice' as const, input: { buyer, items } }),
+      })),
+      ratePerMinute: 600_000,
+      dryRun: false,
+    })
+
+    expect(idoszak.start).toBe('2026-09-30')
+    expect(eredmeny.created).toHaveLength(2)
+    expect(metrics.renderPrometheus()).toContain('kassza_documents_total')
+  })
+
+  test('Express-kezelő típushelyes', () => {
+    const handler = toNodeHandler(stripeWebhook({ secret: 'whsec_x', onPayment: () => undefined }))
+    expect(handler).toBeTypeOf('function')
+  })
+})

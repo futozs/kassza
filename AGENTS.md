@@ -22,6 +22,14 @@ npm run ci
 - `npm run readme` regenerates the README images in `readme/assets/` and then `README.md` (see [README](#readme)).
 - `npm run e2e` runs every Számla Agent operation (all but `connectPrincipal`) against the real Számlázz.hu **test account**. It needs `SZAMLAZZ_TEST_AGENT_KEY` (see `.env.example`), and it is not part of `npm run ci`. See [E2E](#e2e).
 - `npm run ci` runs lint, typecheck, the README sync check, coverage (at least 80%), build, publint and attw.
+- `npm run smoke` runs `scripts/smoke.mjs` against the built `dist` (ESM and CommonJS). CI runs the same file under Bun and Deno, and `scripts/smoke-workerd.mjs` inside Cloudflare workerd (Miniflare).
+- `npm run size` measures the gzip size of every entry point's import closure against `scripts/size-limits.json` and fails on forbidden modules (the root must not pull in `nav`, `mcp`, `delegation` or the CLI).
+- `npm run drift` compares the upstream sources (Számlázz.hu XSDs, error codes and IPN IPs from the docs, the NAV receipt page, the PHP changelog, the NAV eRECEIPT repo) with `scripts/drift.lock.json`. Only hashes, code numbers and IPs are stored, never docs text. After adapting kassza to a change, run `npm run drift -- --update`. `.github/workflows/drift.yml` runs it weekly and opens an issue.
+- `npm run commitlint` checks the commit messages since `origin/main`. Enable the local hook once with `git config core.hooksPath .githooks`.
+- `node scripts/error-pages.mjs` (after `npm run build`) regenerates `web/content/docs/hibakodok/` from `AGENT_ERROR_CODES`; `tests/error-pages.test.ts` fails when they are out of sync.
+- `npm run fuzz:preview` and `npm run probe:limits` call `invoices.preview` on the **test account** (they refuse a live account): the first compares kassza's rounding with Számlázz.hu's totals for random carts and appends mismatches to `tests/fixtures/rounding-regressions.json`, the second maps field length and character limits into `probe-limits.result.json`.
+- `npm run nav:rehearsal` runs the full NAV receipt interface round trip in the NAV **test** environment with `NAV_TEST_*` credentials.
+- `npm run sbom` prints a CycloneDX SBOM of the published package.
 
 ## Layout
 
@@ -42,6 +50,15 @@ npm run ci
 | `src/mcp/` | Runtime-neutral MCP server (2026-07-28 stateless and legacy `initialize`), tools with preview confirmation |
 | `src/cli/` | The `kassza` command (`doctor`, `verify`, `xml preview`, `invoice get`, `receipt get`, `nav summary`, `mcp`); `bin.ts` is the Node entry |
 | `src/validators/`, `src/ipn/`, `src/storage/`, `src/cookie-stores/` | Subpath modules (see `package.json#exports` and `tsdown.config.ts`) |
+| `src/core/store.ts`, `src/stores/` | `KeyValueStore` with the optional atomic operations, the memory store, the Durable Object store and `diagnoseStore`; `src/cookie-stores/` holds the Redis/KV adapters and re-exports `src/stores` |
+| `src/core/once-guard.ts` | In-process singleflight and the cross-process `createOnce` lock |
+| `src/core/warnings.ts`, `src/core/document-events.ts` | `onWarning` events, `onDocumentError` modes and `DocumentHookError` |
+| `src/journal/` | The document journal (`createJournal`, `kvJournal`, `memoryJournal`) |
+| `src/batch/` | `runBatch` and the billing period helpers |
+| `src/node/` | `toNodeHandler` for Express, NestJS and `node:http` (type-only `node:` imports) |
+| `src/observe/` | `observe()`, `combineHooks()` and the Prometheus metrics registry |
+| `src/payments/partial-refund.ts`, `src/money/refund.ts` | Partial refunds and the exact, house-monotone refund allocation |
+| `tests/properties/` | fast-check property tests for money, refunds, XML and reports |
 | `tests/helpers.ts` | `createTestContext` and `mockAgent`, a fake `fetch` that captures multipart requests |
 | `tests/fake-agent.ts`, `tests/mcp.ts` | Helpers for tests that run the real client against `createFakeAgentFetch`, and for MCP tests |
 | `tests/xsd.ts` | `validateAgainstXsd` via `xmllint` |
@@ -55,13 +72,13 @@ npm run ci
 - English identifiers, Hungarian error messages, Hungarian test names.
 - TypeScript is strict, with `exactOptionalPropertyTypes`, `noUncheckedIndexedAccess` and `isolatedDeclarations`, so exported functions need explicit return types.
 - Biome: single quotes, no semicolons, 100-column lines.
-- Zero runtime dependencies. Keep `src/` runtime-neutral: no `Buffer`, and no `node:` imports except in `src/storage/fs.ts` and `src/cli/bin.ts`. Keep CLI logic in `src/cli/run.ts` and its commands behind the `CliIo` interface, so tests run it in memory.
+- Zero runtime dependencies. Keep `src/` runtime-neutral: no `Buffer`, and no `node:` imports except in `src/storage/fs.ts` and `src/cli/bin.ts` (`src/node/` may use `import type` from `node:http` only, so its build has no `node:` import). Keep CLI logic in `src/cli/run.ts` and its commands behind the `CliIo` interface, so tests run it in memory.
 - The MCP write tools (`create_*`, `reverse_*`) only run with `allowWrite` (`KASSZA_MCP_ALLOW_WRITE=1`) and a confirmation code from the matching preview tool. Never weaken either guard.
 - XML request elements must follow XSD order. Build requests with `buildXmlDocument`, `el` and `optionalEl`, and add an XSD contract test for every request.
 - Dates are always `Europe/Budapest` (`toAgentDate`, `todayInBudapest`).
 - Never add automatic retries for business errors, and never mark a create operation `safeToRetry` unless it has an idempotency key.
 - Every module has colocated `*.test.ts` files. Tests never call the real Számlázz.hu API, with one exception: `tests/e2e/live.test.ts`, which `vitest.config.ts` excludes and only `npm run e2e` runs.
-- When a public API changes, update `readme/template.md` (then run `npm run readme`), `agents/api.md` and `agents/recipes.md` in the same change.
+- When a public API changes, update `tests/__snapshots__/public-api.json` deliberately (`npx vitest run tests/public-api.test.ts -u`), and `readme/template.md` (then run `npm run readme`), `agents/api.md` and `agents/recipes.md` in the same change.
 
 ## E2E
 

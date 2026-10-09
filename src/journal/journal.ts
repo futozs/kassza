@@ -87,7 +87,7 @@ export interface Journal {
   record(event: DocumentEvent): Promise<void>
   recordReceipt(receipt: Receipt): Promise<boolean>
   recordInvoice(details: InvoiceDetails): Promise<boolean>
-  reserve(kind: JournalDocumentKind, orderNumber: string): Promise<void>
+  reserve(kind: JournalDocumentKind, orderNumber: string): Promise<boolean>
   release(kind: JournalDocumentKind, orderNumber: string): Promise<void>
   trackReceipt(
     orderNumber: string,
@@ -117,8 +117,14 @@ function requireOrderNumber(orderNumber: string): string {
   return trimmed
 }
 
+const UNSETTLED_CATEGORIES: ReadonlySet<string> = new Set(['in_progress', 'store_unavailable'])
+
 function isDefinitelyNotCreated(error: unknown): boolean {
-  return error instanceof SzamlazzError && !isUncertainOutcome(error)
+  if (!(error instanceof SzamlazzError)) return false
+  const uncertain: boolean = isUncertainOutcome(error)
+  return (
+    !uncertain && !UNSETTLED_CATEGORIES.has(error.category) && error.details?.outcome !== 'unknown'
+  )
 }
 
 function archivedReceipt(item: Receipt | DataLinkArchivedReceipt): Receipt {
@@ -140,9 +146,9 @@ export function createJournal(storage: JournalStorage, options: JournalOptions =
   const put = (entry: JournalEntry | undefined): Promise<boolean> =>
     entry ? storage.putEntry(entry) : Promise.resolve(false)
 
-  async function reserve(kind: JournalDocumentKind, orderNumber: string): Promise<void> {
+  async function reserve(kind: JournalDocumentKind, orderNumber: string): Promise<boolean> {
     const current = now()
-    await storage.putReservation({
+    return storage.putReservation({
       kind,
       orderNumber: requireOrderNumber(orderNumber),
       date: toAgentDate(current),
@@ -161,12 +167,14 @@ export function createJournal(storage: JournalStorage, options: JournalOptions =
     entryOf: (result: T) => JournalEntry,
   ): Promise<T> {
     const order = requireOrderNumber(orderNumber)
-    await reserve(kind, order)
+    const ownsReservation = await reserve(kind, order)
     let result: T
     try {
       result = await run()
     } catch (error) {
-      if (isDefinitelyNotCreated(error)) await storage.deleteReservation(kind, order)
+      if (ownsReservation && isDefinitelyNotCreated(error)) {
+        await storage.deleteReservation(kind, order)
+      }
       throw error
     }
     try {

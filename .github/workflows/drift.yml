@@ -1,0 +1,42 @@
+name: Változásfigyelő (Számlázz.hu, NAV)
+
+on:
+  schedule:
+    - cron: '41 6 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: drift
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444
+        with:
+          node-version: 24
+      - name: Upstream eltérések keresése
+        id: drift
+        env:
+          DRIFT_REPORT_FILE: drift-report.md
+        run: node scripts/drift.mjs
+        continue-on-error: true
+      - name: Hibajegy nyitása vagy frissítése
+        if: steps.drift.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TITLE: 'Változásfigyelő: eltérés a Számlázz.hu vagy a NAV forrásaiban'
+        run: |
+          test -s drift-report.md || echo 'A változásfigyelő nem tudott jelentést készíteni, nézd meg a futás naplóját.' > drift-report.md
+          existing=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number --jq '.[0].number')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body-file drift-report.md
+          else
+            gh issue create --title "$TITLE" --body-file drift-report.md
+          fi

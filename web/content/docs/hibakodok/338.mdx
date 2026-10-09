@@ -1,0 +1,46 @@
+---
+title: "338-as hibakód: A hívásazonosító már létezik."
+description: "A Számlázz.hu Számla Agent 338-as hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** A hívásazonosító már létezik.
+
+| | |
+| --- | --- |
+| Kategória | `duplicate` (Már létezik) |
+| Újrapróbálható | Nem. A bizonylat valószínűleg már elkészült. |
+| A kassza hibája | `SzamlazzError`, `code: 338` |
+
+## Mikor jön elő
+
+Ezzel a rendelésszámmal vagy hívásazonosítóval már készült bizonylat.
+
+## Tipp
+
+Ezzel a callId-val már készült nyugta, kérdezd le a meglévőt.
+
+## Mi a teendő
+
+Ne állítsd ki újra: kérdezd le a meglévőt. A `createOnce()` ezt magától megteszi, és a meglévő bizonylatot adja vissza.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 338) {
+    const meglevo = await kassza.invoices.find({ orderNumber: szamla.orderNumber })
+    return meglevo
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[71](/docs/hibakodok/71), [152](/docs/hibakodok/152)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

@@ -220,7 +220,7 @@ describe('invoices.createOnce', () => {
     expect(agent.calls).toHaveLength(3)
   })
 
-  test('a visszakeresés közbeni hálózati hibát átvészeli, a nem újrapróbálhatót továbbdobja', async () => {
+  test('a visszakeresés közbeni hálózati hibát átvészeli; a nem újrapróbálhatónál ismeretlen kimenetet jelez, az okkal', async () => {
     const recovers = kasszaWith(
       NOT_FOUND,
       NOT_FOUND,
@@ -248,7 +248,11 @@ describe('invoices.createOnce', () => {
         { buyer: BUYER, items: ITEMS, orderNumber: 'ORDER-1' },
         { recoveryDelayMs: 0 },
       ),
-    ).rejects.toMatchObject({ code: 3, category: 'auth' })
+    ).rejects.toMatchObject({
+      category: 'network',
+      details: { outcome: 'unknown', lookupError: expect.stringContaining('auth') },
+      hint: expect.stringContaining('A visszakeresés is hibát adott'),
+    })
   })
 
   test('lookupFirst: false esetén azonnal létrehoz, a saját externalId-t megtartja', async () => {

@@ -1,0 +1,41 @@
+---
+title: "1-es hibakód: Rendszerkarbantartás, kérem próbálja meg pár perc múlva."
+description: "A Számlázz.hu Számla Agent 1-es hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** Rendszerkarbantartás, kérem próbálja meg pár perc múlva.
+
+| | |
+| --- | --- |
+| Kategória | `maintenance` (Karbantartás) |
+| Újrapróbálható | Igen, néhány perc múlva. |
+| A kassza hibája | `SzamlazzError`, `code: 1` |
+
+## Mikor jön elő
+
+A Számlázz.hu átmenetileg nem érhető el.
+
+## Tipp
+
+A Számlázz.hu oldalán van karbantartás, néhány perc múlva próbáld újra.
+
+## Mi a teendő
+
+Várj néhány percet. Lekérdezéseknél a kassza magától újrapróbál; kiállításnál a `createOnce()` később biztonságosan újrahívható. Tartós kiesésnél válts tartalék folyamatra (például kézi nyugtatömbre).
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 1) {
+    return utemezdKesobbre(szamla)
+  }
+  throw error
+}
+```
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

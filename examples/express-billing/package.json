@@ -1,0 +1,13 @@
+{
+  "name": "kassza-express-billing",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node --env-file=.env --experimental-strip-types src/server.ts"
+  },
+  "dependencies": {
+    "express": "^5.0.0",
+    "ioredis": "^5.0.0",
+    "kassza": "^0.14.0"
+  }
+}

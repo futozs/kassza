@@ -158,8 +158,9 @@ describe('runBatch', () => {
     expect(started).toHaveLength(3)
     await pending
 
-    expect(started[1]! - started[0]!).toBeGreaterThanOrEqual(1_000)
-    expect(started[2]! - started[1]!).toBeGreaterThanOrEqual(1_000)
+    const gaps = started.slice(1).map((time, index) => time - (started[index] ?? time))
+    expect(gaps).toHaveLength(2)
+    for (const gap of gaps) expect(gap).toBeGreaterThanOrEqual(1_000)
   })
 
   test('párhuzamosan is futtat, de legfeljebb a megadott számút', async () => {
@@ -236,7 +237,8 @@ describe('runBatch', () => {
         },
       ],
     })
-    expect(String((result.failed[0]?.error as Error).message)).toContain('eltér a kulcstól')
+    const error = result.failed[0]?.error
+    expect(error instanceof Error ? error.message : String(error)).toContain('eltér a kulcstól')
   })
 
   test('üres listára üres eredményt ad', async () => {

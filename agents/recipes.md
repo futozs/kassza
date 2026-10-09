@@ -136,19 +136,21 @@ Other adapters with the same interface:
 - `fsStorage` from `kassza/storage/fs`
 - `memoryStorage`
 
-## 7. Serverless and edge: share the session
+## 7. Serverless and edge: share the session, the ledger and the lock
 
 ```ts
 import { Redis } from '@upstash/redis'
 import { createKassza } from 'kassza'
-import { upstashRedisCookieStore } from 'kassza/cookie-stores'
+import { upstashRedisStore } from 'kassza/stores'
 
-const kassza = createKassza({ cookieStore: upstashRedisCookieStore(Redis.fromEnv()) })
+const store = upstashRedisStore(Redis.fromEnv())
+const kassza = createKassza({ cookieStore: store, attemptLedger: store, createOnceLock: store })
 ```
 
-- On Cloudflare Workers, use `cloudflareKvCookieStore(env.KASSZA_KV)`.
-- Other stores: `ioredisCookieStore`, `nodeRedisCookieStore`, `customCookieStore({ get, set, delete })`.
-- If the store fails, kassza simply continues without a session.
+- `createOnceLock` prevents a duplicate invoice when two instances process the same order at the same time.
+- On Cloudflare Workers, `cloudflareKvStore(env.KASSZA_KV)` is fine for the session, but locks and the journal need `durableObjectStore(stub)` (KV has no atomic write).
+- Other stores: `ioredisStore`, `nodeRedisStore`, `customStore({ get, set, delete })`. `diagnoseStore(store)` tells what a store is suitable for.
+- If the session store fails, kassza continues without a session and reports it to `hooks.onWarning`.
 
 ## 8. Unit tests without calling Számlázz.hu
 
@@ -238,7 +240,9 @@ export const POST = stripeWebhook({
 - The handler verifies the signature and answers 400, 200 or 500 itself. A thrown error means 500, and the provider redelivers, which is safe: `issueForPayment` looks the document up first.
 - Catch non-retryable errors (a missing VAT rate, an incomplete billing address) and hand them to a human, otherwise the provider keeps redelivering a request that can never succeed. `parkForHuman` is your own function.
 - The same pattern works with `simplePayWebhook`, `barionWebhook`, `revolutWebhook` and `payPalWebhook`; only the credentials differ (see [api.md](./api.md)).
-- A full refund reverses the document. A partial refund is skipped on purpose: it needs a corrective document decided by a human.
+- A full refund reverses the document. A partial refund of an invoice issues one corrective invoice per refund; with several VAT rates (and always for receipts) it returns a `refund-proposal` instead, unless you pass `refundItems` or `partialRefund: 'proportional'`.
+- Add `dedupe: store` to acknowledge redelivered events without calling Számla Agent again.
+- Under Express or NestJS, wrap the handler: `app.post(path, toNodeHandler(stripeWebhook({ ... })))` from `kassza/node`, mounted before `express.json()`.
 - The receipt prefix and payment method come from the client's `defaults.receipt` (recipe 1). Pass `receipt: { ... }` or `invoice: { ... }` only to override fields; a receipt prefix must never be one already used on invoices (error 336).
 
 ## 12. Receipt or invoice, and an invoice after a receipt
@@ -293,7 +297,7 @@ const { missing, mismatched } = reconcileNavReports(local, remote)
 ```
 
 - Számlázz.hu reports the receipts issued there after the NAV connection, so this client stays read-only (no `allowWrite`). Alert a human about `missing` and `mismatched` days.
-- `receiptsBetween` is your own query over stored `Receipt` objects (from `receipts.get`, `issueForPayment` results, or the data link in recipe 15).
+- Get the receipts from `kassza/journal`: `journal.receipts({ from, to })` (see recipe 18). Without it you need your own query over stored `Receipt` objects.
 - Only receipts that Számlázz.hu does not know about, such as a paper pad used during an outage, are yours to submit: `nav.submitReport(paperReceiptReport({ applicableDate, entries }))` with `allowWrite: true`.
 
 ## 14. Platform invoicing for many companies (delegated invoicing)
@@ -385,3 +389,58 @@ The fake Agent runs the real kassza code (XML, multipart, response parsing, retr
 
 - The server is read-only by default. Add `"--allow-write"` to `args` to enable issuing and reversing; even then every write needs the confirmation code from the matching preview tool, for exactly the same input.
 - Start with a Számlázz.hu test account.
+
+## 18. Receipt journal for the NAV daily summary
+
+```ts
+import { createKassza } from 'kassza'
+import { createJournal, kvJournal } from 'kassza/journal'
+import { navDailyReports } from 'kassza/reports'
+import { upstashRedisStore } from 'kassza/stores'
+
+const store = upstashRedisStore(Redis.fromEnv())
+export const journal = createJournal(kvJournal(store))
+export const kassza = createKassza({
+  createOnceLock: store,
+  hooks: { onDocument: (event) => journal.record(event), onDocumentError: 'throw' },
+})
+
+await journal.trackReceipt(order.id, () => kassza.receipts.createOnce({ orderNumber: order.id, items }))
+const reports = navDailyReports(await journal.receipts({ from: '2026-10-01', to: '2026-10-31' }))
+await journal.settle(kassza)
+```
+
+- `trackReceipt` leaves a pending entry when the outcome is unknown; schedule `journal.settle(kassza)` (for example daily) to resolve them.
+- `journal.reconcile(push.receipts)` with the data link archive adds receipts the journal missed.
+
+## 19. Monthly subscription invoicing
+
+```ts
+import { billingPeriodAt, runBatch } from 'kassza/batch'
+
+const period = billingPeriodAt({ interval: 'month', anchor: '2026-01-31', paymentDueInDays: 8 }, new Date())
+const result = await runBatch(kassza, {
+  items: subscriptions.map((subscription) => ({
+    key: `SUB-${subscription.id}-${period.start}`,
+    document: () => ({ kind: 'invoice', input: invoiceFor(subscription, period) }),
+  })),
+  journal,
+})
+if (result.stopped) alertHuman(result.stopped.reason)
+```
+
+- Run it from your scheduler (Vercel Cron, Workers Cron). A rerun reports already issued items as `existing`.
+- Try `dryRun: true` first: invoices are previewed by Számlázz.hu, nothing is created.
+
+## 20. Observability without telemetry
+
+```ts
+import { combineHooks, createMetricsRegistry, observe } from 'kassza/observe'
+
+export const metrics = createMetricsRegistry()
+export const kassza = createKassza({
+  hooks: combineHooks(observe({ logger, tracer, metrics }), { onDocument: (event) => journal.record(event) }),
+})
+```
+
+- Expose `metrics.renderPrometheus()` on an internal endpoint. Alert on `kassza_store_errors_total` and `kassza_unexpected_response_total`.

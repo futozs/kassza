@@ -45,7 +45,7 @@ describe('invoices.registerPaymentOnce', () => {
     })
 
     expect(first).toMatchObject({ created: true, key: 'BANK-1', marker: '[kassza:BANK-1]' })
-    expect(first.existing?.comment).toBe('Utalás [kassza:BANK-1]')
+    expect(first.existing?.comment).toBe('[kassza:BANK-1] Utalás')
     expect(second).toMatchObject({ created: false, existing: { amount: 12_700 } })
     expect(agent.invoices.get(number)?.payments).toHaveLength(1)
   })

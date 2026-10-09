@@ -272,6 +272,54 @@ describe.each(storages)('%s', (_name, makeStorage) => {
   })
 })
 
+describe('befejezetlen tételek több folyamat között', () => {
+  test('ha a foglalás már egy másik hívásé, a biztos hiba sem törli', async () => {
+    const storage = memoryJournal()
+    const journal = createJournal(storage, { now: FAKE_NOW })
+    await journal.reserve('invoice', 'SHARED-1')
+
+    await expect(
+      journal.trackInvoice('SHARED-1', async () => {
+        throw new SzamlazzError('hibás adat', { category: 'validation' })
+      }),
+    ).rejects.toMatchObject({ category: 'validation' })
+
+    expect(await journal.pending(RANGE)).toHaveLength(1)
+  })
+
+  test('in_progress, store_unavailable és ismeretlen kimenet esetén a saját foglalás is megmarad', async () => {
+    for (const error of [
+      new SzamlazzError('másik folyamat', { category: 'in_progress' }),
+      new SzamlazzError('tároló', { category: 'store_unavailable' }),
+      new SzamlazzError('lekérdezési hiba', { category: 'auth', details: { outcome: 'unknown' } }),
+    ]) {
+      const journal = createJournal(memoryJournal(), { now: FAKE_NOW })
+      await expect(
+        journal.trackInvoice('X-1', async () => {
+          throw error
+        }),
+      ).rejects.toBe(error)
+      expect(await journal.pending(RANGE), error.category).toHaveLength(1)
+    }
+  })
+
+  test('az index nélkül maradt foglalás egy újabb foglaláskor láthatóvá válik', async () => {
+    const store = memoryStore()
+    const storage = kvJournal(store)
+    const journal = createJournal(storage, { now: FAKE_NOW })
+    await store.set(
+      'szamlazz:journal:reservation:receipt:LOST-1',
+      JSON.stringify({ kind: 'receipt', orderNumber: 'LOST-1', date: DAY, reservedAt: DAY }),
+      60,
+    )
+    expect(await journal.pending(RANGE)).toEqual([])
+
+    expect(await journal.reserve('receipt', 'LOST-1')).toBe(false)
+
+    expect(await journal.pending(RANGE)).toMatchObject([{ orderNumber: 'LOST-1' }])
+  })
+})
+
 describe('onDocumentError: throw a naplóval', () => {
   test('ha a napló írása elbukik, a hívó DocumentHookError-t kap a bizonylattal', async () => {
     const broken = {

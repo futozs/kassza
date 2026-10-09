@@ -488,7 +488,15 @@ export function createAgentContext(options: SzamlazzOptions = {}): AgentContext 
         })
         return result
       } catch (error) {
-        if (!(error instanceof SzamlazzError)) throw error
+        if (!(error instanceof SzamlazzError)) {
+          callHook(hooks, 'onComplete', {
+            ...base,
+            outcome: 'error',
+            durationMs: Date.now() - startedAt,
+            willRetry: false,
+          })
+          throw error
+        }
         if (countsAsFailedAttempt(error)) await recordFailure(request.action, ledgerKey)
         if (error.category === 'maintenance' && cooldownMs > 0) {
           blockedUntil = Date.now() + cooldownMs

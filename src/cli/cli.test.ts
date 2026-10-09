@@ -223,6 +223,78 @@ describe('kassza CLI: doctor', () => {
   })
 })
 
+describe('kassza CLI: doctor bővítések', () => {
+  test('a --capabilities előnézettel nézi az e-számlát, bizonylat nélkül', async () => {
+    const agent = createFakeAgentFetch({ now: FAKE_NOW })
+
+    const result = await run(['doctor', '--capabilities'], { fetch: agent.fetch })
+
+    expect(result.stdout).toContain('✓ E-számla: engedélyezve')
+    expect(result.stdout).toContain('- Nyugta: a nyugtaelőtagot')
+    expect(agent.invoices.size).toBe(0)
+  })
+
+  test('a --capabilities az 54-es hibát figyelmeztetésként jelzi', async () => {
+    const agent = createFakeAgentFetch({ now: FAKE_NOW })
+    agent.fail({ code: 54 }, { action: 'createInvoice' })
+
+    const result = await run(['doctor', '--capabilities'], { fetch: agent.fetch })
+
+    expect(result.stdout).toContain('! E-számla: nem használható')
+    expect(result.code).toBe(0)
+  })
+
+  test('éles kulcsnál NODE_ENV=test esetén figyelmeztet', async () => {
+    const { agent, kassza } = fakeKassza({ testAccount: false })
+    const invoice = await kassza.invoices.create(INVOICE_INPUT)
+
+    const result = await run(['doctor', '--invoice', invoice.number], {
+      fetch: agent.fetch,
+      env: { NODE_ENV: 'test' },
+    })
+
+    expect(result.stdout).toContain('! Környezet: NODE_ENV=test')
+  })
+
+  test('a --report titokmentes Markdown jelentést ad', async () => {
+    const agent = createFakeAgentFetch({ now: FAKE_NOW })
+
+    const result = await run(['doctor', '--report'], { fetch: agent.fetch })
+
+    expect(result.stdout).toContain('## kassza doctor jelentés')
+    expect(result.stdout).toContain(`- kassza: ${KASSZA_VERSION}`)
+    expect(result.stdout).toContain('| auth | ok |')
+    expect(result.stdout).not.toContain(TEST_AGENT_KEY)
+  })
+
+  test('sikeres futás után a Ki használja? linket is kiírja', async () => {
+    const agent = createFakeAgentFetch({ now: FAKE_NOW })
+    const result = await run(['doctor'], { fetch: agent.fetch })
+    expect(result.stdout).toContain('template=used-by.yml')
+  })
+
+  test('a --check-update az npm legfrissebb verzióját nézi', async () => {
+    const agent = createFakeAgentFetch({ now: FAKE_NOW })
+    const withNpm = (version: string | undefined, status = 200) =>
+      (async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).startsWith('https://registry.npmjs.org/')) {
+          return new Response(JSON.stringify(version === undefined ? {} : { version }), { status })
+        }
+        return agent.fetch(input, init)
+      }) as typeof globalThis.fetch
+
+    const newer = await run(['doctor', '--check-update'], { fetch: withNpm('99.0.0') })
+    const same = await run(['doctor', '--check-update'], { fetch: withNpm(KASSZA_VERSION) })
+    const broken = await run(['doctor', '--check-update'], { fetch: withNpm(undefined) })
+    const down = await run(['doctor', '--check-update'], { fetch: withNpm('1.0.0', 503) })
+
+    expect(newer.stdout).toContain('! Frissítés: elérhető a kassza 99.0.0')
+    expect(same.stdout).toContain('✓ Frissítés: a kassza')
+    expect(broken.stdout).toContain('- Frissítés: az npm nem volt elérhető')
+    expect(down.stdout).toContain('HTTP 503')
+  })
+})
+
 describe('kassza CLI: verify és lekérdezések', () => {
   test('verify sikeres és elutasított kulccsal', async () => {
     const agent = createFakeAgentFetch({ now: FAKE_NOW })

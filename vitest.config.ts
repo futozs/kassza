@@ -1,9 +1,17 @@
-import { configDefaults, defineConfig } from 'vitest/config'
+import { fileURLToPath } from 'node:url'
+import { defineConfig } from 'vitest/config'
+
+const src = fileURLToPath(new URL('./src/', import.meta.url))
 
 export default defineConfig({
+  resolve: {
+    alias: [
+      { find: /^kassza$/, replacement: `${src}index.ts` },
+      { find: /^kassza\/(.*)$/, replacement: `${src}$1` },
+    ],
+  },
   test: {
     include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
-    exclude: [...configDefaults.exclude, 'tests/e2e/live.test.ts'],
     coverage: {
       provider: 'v8',
       include: ['src/**/*.ts'],

@@ -1,0 +1,46 @@
+---
+title: "152-es hibakód: Már létező rendelésszám."
+description: "A Számlázz.hu Számla Agent 152-es hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** Már létező rendelésszám.
+
+| | |
+| --- | --- |
+| Kategória | `duplicate` (Már létezik) |
+| Újrapróbálható | Nem. A bizonylat valószínűleg már elkészült. |
+| A kassza hibája | `SzamlazzError`, `code: 152` |
+
+## Mikor jön elő
+
+Ezzel a rendelésszámmal vagy hívásazonosítóval már készült bizonylat.
+
+## Tipp
+
+A fiókban be van kapcsolva a rendelésszám ismétlődés tiltása. Ez a bizonylat valószínűleg már elkészült.
+
+## Mi a teendő
+
+Ne állítsd ki újra: kérdezd le a meglévőt. A `createOnce()` ezt magától megteszi, és a meglévő bizonylatot adja vissza.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 152) {
+    const meglevo = await kassza.invoices.find({ orderNumber: szamla.orderNumber })
+    return meglevo
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[71](/docs/hibakodok/71), [338](/docs/hibakodok/338)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

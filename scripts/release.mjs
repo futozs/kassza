@@ -3,6 +3,15 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { setTimeout as sleep } from 'node:timers/promises'
 import { fileURLToPath } from 'node:url'
+import {
+  detectBump as chooseBump,
+  isStableJump,
+  nextVersion,
+  prependEntry,
+  renderChangelogEntry,
+  splitChangelog,
+} from './changelog-core.mjs'
+import { isConventional } from './commitlint-core.mjs'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..')
 const packagePath = join(root, 'package.json')
@@ -17,6 +26,7 @@ const dryRun = args.includes('--dry-run')
 const skipChecks = args.includes('--skip-checks')
 const ciMode = args.includes('--ci')
 const requestedBump = args.find((arg) => ['patch', 'minor', 'major'].includes(arg))
+const allowStable = args.includes('--allow-stable') || process.env.KASSZA_ALLOW_STABLE === '1'
 
 const ESC = String.fromCharCode(27)
 const GREEN = `${ESC}[32m`
@@ -24,13 +34,6 @@ const RED = `${ESC}[31m`
 const RESET = `${ESC}[0m`
 const RECORD_SEPARATOR = String.fromCharCode(30)
 const UNIT_SEPARATOR = String.fromCharCode(31)
-
-const SECTIONS = [
-  ['breaking', 'Törő változások'],
-  ['feat', 'Újdonságok'],
-  ['fix', 'Javítások'],
-  ['perf', 'Gyorsítások'],
-]
 
 const RELEASE_TYPES = new Set(['feat', 'fix', 'perf'])
 const NON_LIBRARY_PATHSPEC = ['--', '.', ':(exclude)web']
@@ -145,48 +148,21 @@ function readCommits(since) {
     .filter(isReleasable)
 }
 
-function detectBump(commits, currentVersion) {
-  if (requestedBump) return requestedBump
-  const [major] = currentVersion.split('.').map(Number)
-  if (commits.some((commit) => commit.breaking)) return major === 0 ? 'minor' : 'major'
-  if (commits.some((commit) => commit.type === 'feat')) return 'minor'
-  return 'patch'
+function nonConventionalSubjects(since) {
+  const range = since ? [`${since}..HEAD`] : []
+  return git('log', ...range, '--no-merges', '--pretty=format:%h %s', ...NON_LIBRARY_PATHSPEC)
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !isConventional(line.slice(line.indexOf(' ') + 1)))
 }
 
-function nextVersion(version, bump) {
-  const [major = 0, minor = 0, patch = 0] = version.split('-')[0].split('.').map(Number)
-  if (major === 0 && minor === 0 && patch === 0) return '0.1.0'
-  if (bump === 'major') return `${major + 1}.0.0`
-  if (bump === 'minor') return `${major}.${minor + 1}.0`
-  return `${major}.${minor}.${patch + 1}`
-}
-
-function sectionOf(commit) {
-  return commit.breaking ? 'breaking' : commit.type
-}
-
-function renderChangelogEntry(version, commits) {
-  const date = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Budapest' }).format(new Date())
-  const lines = [`## ${version} (${date})`, '']
-  for (const [key, title] of SECTIONS) {
-    const items = commits.filter((commit) => sectionOf(commit) === key)
-    if (items.length === 0) continue
-    lines.push(
-      `### ${title}`,
-      '',
-      ...items.map((commit) => `- ${commit.text} (${commit.hash})`),
-      '',
-    )
-  }
-  if (commits.length === 0) lines.push('- Karbantartási kiadás', '')
-  return lines.join('\n')
+function readChangelog() {
+  return existsSync(changelogPath) ? readFileSync(changelogPath, 'utf8') : undefined
 }
 
 function writeChangelog(entry) {
-  const header = '# Változásnapló\n\n'
-  const existing = existsSync(changelogPath) ? readFileSync(changelogPath, 'utf8') : header
-  const body = existing.startsWith(header) ? existing.slice(header.length) : existing
-  writeFileSync(changelogPath, `${header}${entry}\n${body}`)
+  writeFileSync(changelogPath, prependEntry(readChangelog(), entry))
 }
 
 const pkg = JSON.parse(readFileSync(packagePath, 'utf8'))
@@ -213,9 +189,29 @@ if (ciMode && commits.length === 0 && !requestedBump) {
   log('Nincs kiadásra érdemes változás (feat, fix, perf vagy törő változás a web/ mappán kívül).')
   process.exit(0)
 }
-const bump = detectBump(commits, pkg.version)
+const skippedSubjects = nonConventionalSubjects(previousTag)
+if (skippedSubjects.length > 0) {
+  log(
+    `Figyelem: ${skippedSubjects.length} commit nem Conventional Commits formátumú, ezért kimarad a változásnaplóból és a verziólépésből:`,
+  )
+  for (const subject of skippedSubjects) log(`  ${subject}`)
+}
+const bump = chooseBump(commits, pkg.version, requestedBump)
 const version = nextVersion(pkg.version, bump)
-const entry = renderChangelogEntry(version, commits)
+if (isStableJump(pkg.version, version) && !allowStable) {
+  fail(
+    `A kassza béta (0.x), ez a kiadás stabil verzió lenne (${version}). Az 1.0 tudatos döntés: futtasd --allow-stable kapcsolóval (vagy KASSZA_ALLOW_STABLE=1), ha valóban itt az ideje.`,
+  )
+}
+const releaseDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Budapest' }).format(
+  new Date(),
+)
+const entry = renderChangelogEntry(
+  version,
+  commits,
+  splitChangelog(readChangelog()).unreleased,
+  releaseDate,
+)
 
 if (isPublished(pkg.name, version)) {
   fail(

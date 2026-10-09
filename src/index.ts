@@ -16,6 +16,7 @@ export {
 export {
   ATTEMPT_LEDGER_KEY_PREFIX,
   ATTEMPT_LEDGER_TTL_SECONDS,
+  type AttemptLedgerMode,
   attemptLedgerKey,
 } from './core/attempt-ledger'
 export { bytesToBase64 } from './core/binary'
@@ -36,14 +37,18 @@ export {
   toBudapestTimestamp,
   todayInBudapest,
 } from './core/dates'
-export type {
-  DocumentEvent,
-  DocumentHook,
-  InvoiceCreatedEvent,
-  InvoicePaymentEvent,
-  InvoiceReversedEvent,
-  ReceiptCreatedEvent,
-  ReceiptReversedEvent,
+export {
+  type DocumentErrorHandler,
+  type DocumentErrorMode,
+  type DocumentEvent,
+  type DocumentHook,
+  DocumentHookError,
+  type InvoiceCreatedEvent,
+  type InvoicePaymentEvent,
+  type InvoiceReversedEvent,
+  isDocumentHookError,
+  type ReceiptCreatedEvent,
+  type ReceiptReversedEvent,
 } from './core/document-events'
 export {
   AGENT_ERROR_CODES,
@@ -56,7 +61,22 @@ export {
   suggestedPrefix,
 } from './core/errors'
 export type { CreateOnceOptions } from './core/once'
+export {
+  DEFAULT_LOCK_TTL_SECONDS,
+  DEFAULT_LOCK_WAIT_MS,
+  type LockFailureMode,
+  ONCE_LOCK_KEY_PREFIX,
+  type OnceLockOptions,
+} from './core/once-guard'
 export { type CookieStore, memoryCookieStore } from './core/session'
+export {
+  type Awaitable,
+  type KeyValueStore,
+  memoryStore,
+  type StoreCapabilities,
+  storeCapabilities,
+} from './core/store'
+export type { KasszaWarning, KasszaWarningKind, WarningHook } from './core/warnings'
 export {
   type ChooseDocumentBuyer,
   type ChooseDocumentInput,
@@ -110,6 +130,11 @@ export type {
   RegisteredPayment,
   RegisterPaymentInput,
 } from './invoices/payment'
+export {
+  paymentMarker,
+  type RegisteredPaymentOnce,
+  type RegisterPaymentOnceInput,
+} from './invoices/payment-once'
 export type { InvoicePdf } from './invoices/pdf'
 export type { ProformaReference } from './invoices/proforma'
 export type { InvoiceReference } from './invoices/reference'
@@ -173,4 +198,10 @@ export type {
   SendReceiptInput,
 } from './receipts/types'
 export type { TaxpayerAddress } from './taxpayer/address'
+export {
+  DEFAULT_TAXPAYER_INVALID_TTL_SECONDS,
+  DEFAULT_TAXPAYER_TTL_SECONDS,
+  TAXPAYER_CACHE_KEY_PREFIX,
+  type TaxpayerCacheOptions,
+} from './taxpayer/cache'
 export type { TaxpayerInfo, TaxpayerTaxNumber } from './taxpayer/query-taxpayer'

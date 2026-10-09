@@ -1,0 +1,42 @@
+---
+title: "56-os hibakód: A bizonylat elkészült, de az értesítő e-mail kiküldése sikertelen."
+description: "A Számlázz.hu Számla Agent 56-os hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** A bizonylat elkészült, de az értesítő e-mail kiküldése sikertelen.
+
+| | |
+| --- | --- |
+| Kategória | `partial_success` (Részben sikeres) |
+| Újrapróbálható | Nem. A bizonylat már létezik. |
+| A kassza hibája | `SzamlazzError`, `code: 56` |
+
+## Mikor jön elő
+
+A bizonylat elkészült, csak egy mellékes lépés (például az értesítő e-mail) maradt el.
+
+## Tipp
+
+NE állítsd ki újra a bizonylatot. Kérdezd le rendelésszám vagy külső azonosító alapján, és küldd ki az e-mailt később.
+
+## Mi a teendő
+
+Ne állítsd ki újra. Kérdezd le a bizonylatot rendelésszámmal, és a kimaradt lépést (e-mail) pótold külön.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 56) {
+    const meglevo = await kassza.invoices.find({ orderNumber: szamla.orderNumber })
+    return meglevo
+  }
+  throw error
+}
+```
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

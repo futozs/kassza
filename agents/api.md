@@ -11,15 +11,18 @@ const kassza = createKassza({
   agentKey?: string,
   username?: string, password?: string,
   defaults?: { invoice?: InvoiceDefaults, receipt?: ReceiptDefaults },
-  cookieStore?: CookieStore | false,
-  attemptLedger?: CookieStore,
+  cookieStore?: KeyValueStore | false,
+  attemptLedger?: KeyValueStore,
+  attemptLedgerMode?: 'fail-open' | 'fail-closed',
+  createOnceLock?: KeyValueStore,
+  taxpayerCache?: { store: KeyValueStore, ttlSeconds?, invalidTtlSeconds? },
   timeoutMs?: number,
   maxAttempts?: number,
   retryDelayMs?: number,
   maintenanceCooldownMs?: number,
   fetch?: typeof fetch,
   endpoint?: string,
-  hooks?: { onRequest?, onResponse?, onError?, onDocument? },
+  hooks?: { onRequest?, onResponse?, onError?, onComplete?, onDocument?, onDocumentError?, onWarning? },
 })
 ```
 
@@ -29,9 +32,15 @@ const kassza = createKassza({
 - `timeoutMs` defaults to 60000.
 - `maxAttempts` defaults to 3 and is capped at 5. It applies only to operations that are safe to retry.
 - `hooks` receive events for logging. They never receive the XML payload or the key.
-- `attemptLedger` is a shared store with the `CookieStore` interface (for example `upstashRedisCookieStore(redis)` from `kassza/cookie-stores`). It counts failed attempts of identical requests across processes for a day. After 5 failures kassza throws an `attempt_limit` error without sending the request; after a human fixed the cause, call `kassza.resetAttempts(error)`.
+- `KeyValueStore` (alias `CookieStore`) is `{ get, set, delete }` plus the optional atomic `setIfAbsent`, `increment`, `deleteIfEquals`. Adapters live in `kassza/stores` (see below).
+- `attemptLedger` is a shared store. It counts failed attempts of identical requests across processes for a day, atomically when the store has `increment`. After 5 failures kassza throws an `attempt_limit` error without sending the request; after a human fixed the cause, call `kassza.resetAttempts(error)`. If the store fails, `attemptLedgerMode: 'fail-open'` (default) falls back to an in-process counter and emits `onWarning`; `'fail-closed'` throws `store_unavailable` without sending (create the adapter with `resilient: false` so read errors reach kassza).
+- `createOnceLock` is a shared store with `setIfAbsent` (Redis, Upstash, Durable Object; not Cloudflare KV). It makes `createOnce` exactly-once across processes. Calls for the same order inside one process are always merged, without any option.
+- `taxpayerCache` caches `taxpayer.query` results (valid ones for a day, invalid ones for 10 minutes; errors are never cached).
 - `maintenanceCooldownMs` defaults to 0. When set, a maintenance error (code 1) blocks all requests of the client for that long, and they fail at once with category `maintenance`.
-- `hooks.onDocument(event)` runs after every created or reversed document and every registered payment, with `{ kind: 'invoice' | 'receipt', action: 'created' | 'reversed' | 'payment', number, document }` (plus `reversedNumber` for reversals and `input` for created invoices). It is awaited, and an error thrown in it is logged, never rethrown.
+- `hooks.onDocument(event)` runs after every created or reversed document and every registered payment, with `{ kind: 'invoice' | 'receipt', action: 'created' | 'reversed' | 'payment', number, document }` (plus `reversedNumber` for reversals and `input` for created invoices). It is awaited. `hooks.onDocumentError` decides what happens when it throws: `'warn'` (default, the call still succeeds), `'throw'` (a `DocumentHookError` carrying `event`, `document` and `number` of the document that WAS created; never re-create it) or a handler `(error, event) => void`.
+- `hooks.onWarning(warning)` receives the errors kassza swallows on purpose: `{ kind: 'session' | 'ledger' | 'hook' | 'document' | 'lock' | 'dedupe' | 'cache', message, error, action?, operation? }`.
+- `hooks.onRequest`, `onResponse`, `onError` and `onComplete` events carry `{ action, attempt, requestId }`; `onResponse` adds `status`, `durationMs`, `responseBytes`, `sessionReused`; `onComplete` adds `outcome: 'success' | 'error'`, `durationMs`, `error?`, `willRetry` and fires once per attempt.
+- Retries of safe operations wait `retryDelayMs * 2^(attempt-1)` with ±20% jitter, and honour `Retry-After` (no retry when it exceeds 60 s).
 
 ## Invoices: `kassza.invoices`
 
@@ -42,6 +51,7 @@ const kassza = createKassza({
 | `preview(input: CreateInvoiceInput)` | `InvoicePreview` (PDF only, no document is created) | never |
 | `reverse(input: string \| ReverseInvoiceOptions)` | `ReversedInvoice` | never |
 | `registerPayment(input: RegisterPaymentInput)` | `RegisteredPayment` | only when `additive: false` |
+| `registerPaymentOnce({ invoiceNumber, key, amount, method?, date?, description?, taxNumber? }, options?)` | `RegisteredPaymentOnce` (`{ invoiceNumber, key, marker, created, payment?, existing? }`) | never resends; looks the payment up by its marker |
 | `clearPayments(input: string \| { invoiceNumber })` | `RegisteredPayment` | yes |
 | `getPdf(ref: InvoiceReference)` | `InvoicePdf` | yes |
 | `get(ref: InvoiceReference, { includePdf? })` | `InvoiceDetails` | yes |
@@ -52,7 +62,7 @@ const kassza = createKassza({
 
 ### createOnce
 
-`invoices.createOnce(input, { lookupFirst?, matchOrderNumber?, recoveryDelayMs?, signal? })` makes invoicing exactly-once:
+`invoices.createOnce(input, { lookupFirst?, matchOrderNumber?, recoveryDelayMs?, signal?, lock?, lockTtlSeconds?, lockWaitMs?, lockFailure? })` makes invoicing exactly-once:
 
 1. It looks the invoice up by external ID (and, with `matchOrderNumber`, by order number) and returns it if it exists.
 2. Otherwise it creates the invoice.
@@ -62,6 +72,8 @@ const kassza = createKassza({
 - `lookupFirst` and `matchOrderNumber` default to `true`.
 - It returns `InvoiceOnceResult`: `{ number, created, externalId, invoice?: CreatedInvoice, details?: InvoiceDetails }`. `created` is `false` when the invoice already existed.
 - If the outcome stays unknown, it rethrows the original error with `details.outcome: 'unknown'`. Do not create the invoice by hand then; call `createOnce` again later.
+- Concurrent calls for the same order in one process share one execution; the others get the result with `created: false`. Across processes `lock` (default: the client's `createOnceLock`, `false` disables) is held for `lockTtlSeconds` (600); a waiter polls up to `lockWaitMs` (10000) and then throws `in_progress` (respond 5xx in a webhook so it is redelivered). `lockFailure: 'throw'` (default) throws `store_unavailable` when the lock store is down; `'proceed'` continues without a lock and warns.
+- `registerPaymentOnce` writes `[kassza:{key}]` into the payment description and looks for it on the invoice before registering. If the marker cannot be read back after registering, it throws `unexpected_response` with `details.registered: 'true'`: the payment exists, do not call again.
 
 ### CreateInvoiceInput
 
@@ -187,7 +199,7 @@ Notes on the fields:
 
 ## Taxpayer: `kassza.taxpayer`
 
-`query(taxNumber: string): TaxpayerInfo` accepts `12345676`, `12345676-2-42` or `HU12345676`.
+`query(taxNumber: string): TaxpayerInfo` accepts `12345676`, `12345676-2-42` or `HU12345676`. With `taxpayerCache` the result is cached by the 8-digit taxpayer ID.
 
 `TaxpayerInfo` is `{ valid, name?, shortName?, taxNumber?: { taxpayerId, vatCode?, countyCode?, formatted? }, address?: TaxpayerAddress, addresses, incorporation?, infoDate? }`, and `TaxpayerAddress.formatted` looks like `'1031 Budapest, Záhony utca 7.'`.
 
@@ -261,13 +273,34 @@ createFakeAgentFetch(options?: FakeAgentOptions): FakeAgent
 ### `kassza/money`
 
 - `calculateInvoiceItem(input, currency?)` and `calculateReceiptItem(input, currency?)` return `ItemAmounts`.
+- `allocateRefund(items: { name, vat, grossAmount, unit?, identifier? }[], refundGross, { decimals?, refundedBefore? })` splits a refund exactly over items (Sainte-Laguë, BigInt), path-independent: refunds split into parts give the same per-item totals as one refund.
 - `summarizeItems(items)` returns `{ netAmount, vatAmount, grossAmount, byVat }`.
 - `roundMoney(value, decimals)`, `isVatRate(value)`, `NUMERIC_VAT_RATES`, `SPECIAL_VAT_CODES`.
 
-### `kassza/storage` and `kassza/cookie-stores`
+### `kassza/storage`
 
 - `storePdf(storage, key, pdf)` and `invoicePdfKey({ number })` save PDFs through adapters: `s3FetchStorage`, `s3Storage`, `r2BindingStorage`, `vercelBlobStorage`, `uploadthingStorage`, `supabaseStorage`, `memoryStorage`, and `fsStorage` from `kassza/storage/fs`.
-- Session and attempt-ledger stores: `upstashRedisCookieStore`, `ioredisCookieStore`, `nodeRedisCookieStore`, `cloudflareKvCookieStore`, `customCookieStore({ get, set, delete })`, `memoryCookieStore`.
+
+### `kassza/stores` (also `kassza/cookie-stores`)
+
+- `memoryStore()`, `upstashRedisStore(redis)`, `ioredisStore(redis)`, `nodeRedisStore(client)`, `cloudflareKvStore(namespace)`, `customStore(store)`, `resilientStore(store)`; the old `*CookieStore` names are aliases.
+- Redis adapters get the atomic operations through Lua (`eval`) when the client has it. Cloudflare KV has none: use `durableObjectStore(stub)` with `handleDurableObjectStoreRequest(this.ctx.storage, request)` inside your Durable Object class for locks and the journal on Workers.
+- Adapters are resilient by default: `get`/`set`/`delete` errors are reported to `onError` and swallowed, atomic operation errors are reported and rethrown. `resilient: false` rethrows everything.
+- `diagnoseStore(store)` returns `{ ok, capabilities, suitableFor: { session, attemptLedger, createOnceLock, journal, webhookDedupe }, latencyMs, problems }` after a round-trip with a temporary key.
+
+### `kassza/journal`
+
+```ts
+const journal = createJournal(kvJournal(store), { now? })
+createKassza({ hooks: { onDocument: (event) => journal.record(event), onDocumentError: 'throw' } })
+```
+
+- `kvJournal(store, { prefix?, retentionDays? (400), reservationTtlDays? (30) })` needs a store with `increment`; `memoryJournal()` for tests; or implement `JournalStorage` for SQL.
+- `record(event)` stores created and reversed documents (payments are ignored); idempotent by document number.
+- `trackReceipt(orderNumber, run)` / `trackInvoice(orderNumber, run)` reserve before `run` and complete after it. Definite `SzamlazzError`s release the reservation; uncertain errors and crashes leave it pending. A failed journal write after success throws `JournalWriteError` with `result`.
+- `pending(range?)` lists reservations (last 30 days by default); `settle(kassza, { range?, releaseNotFound? })` looks them up by order number and records what it finds.
+- `entries({ from, to, kind? })`, `receipts({ from, to, includeTest? })` (feed into `navDailyReports`), at most 366 days per call.
+- `reconcile(archive, { from?, to?, dryRun? })` compares with the data link receipt archive: `{ range, added, missingFromArchive, matched }`.
 
 ### `kassza/payments`
 
@@ -283,7 +316,8 @@ Webhook handlers are `(request: Request) => Promise<Response>`, usable directly 
 
 - Common options: `onPayment(payment)`, `onError?(error)`, `method?` (the payment method written on the document), `maxBodyBytes?`, `fetch?`; `sandbox?` where the provider has one.
 - Responses: `400` for a bad signature or payload (never reaches `onPayment`), `200` on success (`204` for Revolut, a signed JSON for SimplePay), `500` when `onPayment` throws, so the provider redelivers.
-- `PaymentEvent` is `{ provider, kind: 'paid' | 'refunded' | 'partially-refunded' | 'failed' | 'other', id, eventId?, eventType?, orderRef?, amount?: { value, currency }, refundedAmount?, paidAt?, method, customer?, items?, raw }`. Amounts are in major units (12700 HUF, not minor units).
+- `PaymentEvent` is `{ provider, kind: 'paid' | 'refunded' | 'partially-refunded' | 'failed' | 'other', id, eventId?, eventType?, orderRef?, amount?: { value, currency }, refundedAmount?, refunds?: { id, amount, refundedBefore?, createdAt? }[], paidAt?, method, customer?, items?, raw }`. Amounts are in major units (12700 HUF, not minor units). `refunds` lists the individual refunds the provider reported (Barion and SimplePay: all; Revolut and PayPal: the current one; Stripe: the delta of `charge.refunded` keyed by the event ID).
+- `dedupe?: KeyValueStore` and `dedupeTtlSeconds?` (7 days): an event that was already processed successfully is acknowledged without calling `onPayment` again. It is marked only after `onPayment` succeeds.
 
 ```ts
 const result = await kassza.issueForPayment(payment, {
@@ -297,17 +331,35 @@ const result = await kassza.issueForPayment(payment, {
   orderNumber?: string,
   exchangeRate?, exchangeBank?,
   allowAmountMismatch?: boolean,
+  partialRefund?: 'auto' | 'proportional' | 'skip',
+  refundItems?: ({ refund, invoiceNumber, items }) => PaymentDocumentItem[] | undefined,
   receipt?: Partial<CreateReceiptInput>,
   invoice?: Partial<CreateInvoiceInput>,
 })
 ```
 
-- `paid`: chooses receipt or invoice with `chooseDocument` (override with `document`) and issues it with `createOnce`. `refunded`: reverses that document exactly once. `partially-refunded`, `failed` and `other`: skipped, because a partial refund needs a corrective document decided by a human.
+- `paid`: chooses receipt or invoice with `chooseDocument` (override with `document`) and issues it with `createOnce`. `refunded`: reverses that document exactly once. `failed` and `other`: skipped.
+- `partially-refunded`: for an invoice, one corrective invoice per refund (external ID `{orderNumber}/R-{refund}`), with the refund allocated exactly over the original items (`allocateRefund`, house-monotone, never more than an item's original amount across refunds). If the invoice has several VAT rates and no `refundItems` is given, it returns `{ kind: 'refund-proposal', ... }` instead (or allocate proportionally with `partialRefund: 'proportional'`). For a receipt it always returns a `refund-proposal`. Without `payment.refunds` it is skipped with a reason.
 - The order number defaults to `{PROVIDER}-{payment id}`, for example `STRIPE-pi_123`, so the payment and its refund share it.
 - Items come from `items`, then the provider's line items, then one item with the paid amount (`fallbackItemName`). VAT comes from `vatFor`, the provider's per-item rate, then `vat`. Without any, it throws `validation`: kassza never guesses VAT.
 - The document total must equal the paid amount, unless `allowAmountMismatch: true`.
-- It returns `{ kind: 'receipt', number, created, receipt, decision, orderNumber }`, `{ kind: 'invoice', number, created, invoice, decision, orderNumber }`, `{ kind: 'reversal', document, reversedNumber, number?, created, orderNumber }` or `{ kind: 'skipped', reason, orderNumber }`.
+- It returns `{ kind: 'receipt', number, created, receipt, decision, orderNumber }`, `{ kind: 'invoice', number, created, invoice, decision, orderNumber }`, `{ kind: 'reversal', document, reversedNumber, number?, created, orderNumber }`, `{ kind: 'correction', correctedNumber, created, corrections: { refundId, externalId, number, created, grossTotal, invoice }[], orderNumber }`, `{ kind: 'refund-proposal', document, documentNumber, refunds: { refundId, grossTotal, items }[], reason, orderNumber }` or `{ kind: 'skipped', reason, orderNumber }`.
 - `issueForPayment(api, payment, options)` from `kassza/payments` does the same with any object that has `invoices` and `receipts` (`createOnce`, `find`, `reverse`), for example a delegated client.
+
+### `kassza/batch`
+
+- `runBatch(kassza, { items: { key, document: () => ({ kind: 'invoice' | 'receipt', input }) }[], concurrency? (1, max 4), ratePerMinute? (30), dryRun?, journal?, signal?, onProgress?, recoveryDelayMs? })` issues each item with `createOnce`, using `key` as the order number, so a rerun never duplicates. It stops (marking the rest `skipped`) on `rate_limit`, `auth`, `account`, `configuration`, `maintenance`, `attempt_limit` or `store_unavailable`; other item errors land in `failed`. `dryRun` previews invoices and computes receipts locally. Returns `{ dryRun, items, created, existing, previewed, failed, skipped, stopped?, grossTotal }`.
+- `billingPeriod({ interval: 'week' | 'month' | 'quarter' | 'year', anchor, paymentDueInDays? }, index)`, `billingPeriodAt(options, date)`, `billingPeriodsBetween(options, from, to)`, `todayPeriod(options)` return `{ index, interval, start, end, dueDate?, key }` in Budapest dates; month ends never drift (Jan 31 → Feb 28/29 → Mar 31). The fulfilment date is the caller's legal decision.
+
+### `kassza/node`
+
+- `toNodeHandler(webHandler, { trustProxy?, onError? })` adapts any `(Request) => Response` handler to Express, NestJS and `node:http`. It streams the raw body (so signatures verify), uses `rawBody` (NestJS) or a Buffer `body` (`express.raw`), and throws `NodeBodyError` when `express.json()` already consumed the body. With Express `next`, errors go to `next`.
+- `toWebRequest(nodeRequest)` and `writeWebResponse(response, nodeResponse)` for Fastify or custom servers.
+
+### `kassza/observe`
+
+- `observe({ logger?, tracer?, metrics?, redact? (true), orderRefSalt?, logRequests? })` returns hooks: structured logs without secrets (order numbers as `hmac:` refs), one span per attempt (OpenTelemetry `Tracer` compatible), and metrics. `combineHooks(...hooks)` merges hook sets.
+- `createMetricsRegistry(buckets?)` is a dependency-free registry with `renderPrometheus()`. Metrics: `kassza_requests_total{action,outcome}`, `kassza_request_duration_ms{action}`, `kassza_retries_total`, `kassza_maintenance_total`, `kassza_unexpected_response_total`, `kassza_store_errors_total{store}`, `kassza_warnings_total{kind}`, `kassza_documents_total{kind,action}`.
 
 ### `kassza/delegation`
 

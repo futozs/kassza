@@ -17,6 +17,8 @@ const NAMED_ENTITIES: Readonly<Record<string, string>> = {
   apos: "'",
 }
 
+export const MAX_XML_DEPTH = 256
+
 const MAX_CODE_POINT = 0x10ffff
 const MIN_SURROGATE = 0xd800
 const MAX_SURROGATE = 0xdfff
@@ -157,7 +159,12 @@ export function parseXml(xml: string): XmlElement {
     } else {
       root = element
     }
-    if (!selfClosing) stack.push(element)
+    if (!selfClosing) {
+      if (stack.length >= MAX_XML_DEPTH) {
+        throw new XmlParseError(`Az XML túl mélyen ágyazott (legfeljebb ${MAX_XML_DEPTH} szint).`)
+      }
+      stack.push(element)
+    }
   }
 
   if (stack.length > 0) throw new XmlParseError(`Lezáratlan elem: ${stack.at(-1)?.name}`)

@@ -152,17 +152,17 @@ export function kvJournal(store: KeyValueStore, options: KvJournalOptions = {}):
     async putReservation(reservation) {
       const key = reservationKey(reservation.kind, reservation.orderNumber)
       const value = JSON.stringify(reservation)
-      if (store.setIfAbsent) {
-        if (!(await store.setIfAbsent(key, value, reservationTtl))) return
-      } else {
-        await store.set(key, value, reservationTtl)
-      }
       await appendToDay(
         'rday',
         reservation.date,
         `${reservation.kind}:${reservation.orderNumber}`,
         reservationTtl,
       )
+      if (store.setIfAbsent) return store.setIfAbsent(key, value, reservationTtl)
+      const existing = await store.get(key)
+      if (existing !== undefined && existing !== null) return false
+      await store.set(key, value, reservationTtl)
+      return true
     },
     async deleteReservation(kind, orderNumber) {
       await store.delete(reservationKey(kind, orderNumber))
@@ -205,7 +205,9 @@ export function memoryJournal(): JournalStorage {
     },
     async putReservation(reservation) {
       const id = key(reservation.kind, reservation.orderNumber)
-      if (!reservations.has(id)) reservations.set(id, reservation)
+      if (reservations.has(id)) return false
+      reservations.set(id, reservation)
+      return true
     },
     async deleteReservation(kind, orderNumber) {
       reservations.delete(key(kind, orderNumber))

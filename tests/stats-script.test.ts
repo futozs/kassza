@@ -1,6 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
   analyzeVersions,
+  cleanedEstimate,
   formatReport,
   parseDependentsCount,
   type Stats,
@@ -55,5 +56,37 @@ describe('a statisztika script', () => {
 
     expect(report).toContain('kassza@1.0.0 statisztika')
     expect(report).toContain('elmúlt 7 nap:   nem elérhető')
+  })
+
+  test('a tisztított becslés a tükrök verziónkénti forgalma feletti részt számolja', () => {
+    const analysis = analyzeVersions({
+      '0.13.0': 260,
+      '0.12.0': 185,
+      '0.11.0': 173,
+      '0.10.0': 180,
+      '0.1.0': 4,
+    })
+    expect(cleanedEstimate(analysis)).toEqual({ estimate: 85, baseline: 180, cleaned: true })
+    const flat = analyzeVersions({ '0.13.0': 189, '0.12.0': 185, '0.11.0': 173, '0.10.0': 48 })
+    expect(cleanedEstimate(flat)).toEqual({ estimate: 4, baseline: 185, cleaned: true })
+    const varied = analyzeVersions({ '1.0.0': 500, '0.9.0': 20 })
+    expect(cleanedEstimate(varied)).toEqual({ estimate: 520, baseline: 0, cleaned: false })
+    expect(cleanedEstimate(null)).toBeNull()
+  })
+
+  test('a jelentés első sora a tisztított becslés, a kódkeresés találatai is megjelennek', () => {
+    const report = formatReport('kassza', '0.13.0', {
+      npm: {
+        lastWeek: 813,
+        lastMonth: null,
+        lastYear: null,
+        versions: analyzeVersions({ '0.13.0': 189, '0.12.0': 185, '0.11.0': 173 }),
+      },
+      github: null,
+      dependents: { githubRepositories: null, npmPackagesDepsDev: null, npmDirectDepsDev: null },
+      codeSearch: [{ query: '"createKassza("', total: 3 }],
+    })
+    expect(report.split('\n')[2]).toContain('Tisztított becslés (7 nap): 4')
+    expect(report).toContain('"createKassza(": 3 találat')
   })
 })

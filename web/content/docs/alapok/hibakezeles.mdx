@@ -42,6 +42,7 @@ try {
 | `httpStatus` | `number \| undefined` | A válasz HTTP státusza. |
 | `rawResponse` | `string \| undefined` | A nyers válasz első 2000 karaktere. PDF-nél nincs. |
 | `isDuplicate`, `isNotFound` | `boolean` | Rövidítés a `duplicate` és a `not_found` kategóriára. |
+| `docsUrl` | `string \| undefined` | A hibakód saját oldala a [hibakódok](/docs/hibakodok) között, ha a kód ismert. |
 
 <Callout type="danger" title="Ne próbálkozz újra ciklusban">
   Ne írj olyan kódot, amely egy sikertelen számlakészítést addig küld újra, amíg sikerül. Egy
@@ -114,11 +115,15 @@ Fejlesztéshez használj Számlázz.hu tesztfiókot. A tesztfiókban 10 percenk�
 
 <ErrorCategoryTable />
 
+Két kategória nem a Számlázz.hu-tól jön, hanem a kassza védelmeiből: az `in_progress` azt jelenti, hogy egy másik folyamat éppen ugyanezt a bizonylatot állítja ki (a [`createOnce` zárja](/docs/alapok/pontosan-egyszer#egyidejű-hívások-egy-rendelés-egy-bizonylat) miatt), a `store_unavailable` pedig azt, hogy egy kötelezőnek beállított tároló (zár vagy `fail-closed` próbálkozás-napló) nem érhető el. Egyik esetben sem ment ki kérés, és egyik sem újrapróbálható automatikusan.
+
 ## Hibakódok
 
 Az alábbi táblázat a kassza által ismert Számlázz.hu hibakódokat mutatja. Az ismeretlen kódú hiba `unknown` kategóriát kap, de a Számlázz.hu eredeti üzenete ilyenkor is megmarad a `message` mezőben.
 
 <ErrorCodeTable />
+
+Minden kódnak saját oldala is van a [hibakódok](/docs/hibakodok) között, magyarázattal és kassza-példával.
 
 ## Következő lépések
 

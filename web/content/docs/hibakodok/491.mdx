@@ -1,0 +1,46 @@
+---
+title: "491-es hibakód: Új kata adónem mellett vállalkozás felé nem állítható ki bizonylat."
+description: "A Számlázz.hu Számla Agent 491-es hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** Új kata adónem mellett vállalkozás felé nem állítható ki bizonylat.
+
+| | |
+| --- | --- |
+| Kategória | `account` (Fiókbeállítás) |
+| Újrapróbálható | Nem. Újraküldve is ugyanez lesz. |
+| A kassza hibája | `SzamlazzError`, `code: 491` |
+
+## Mikor jön elő
+
+A fiók beállítása, előfizetése vagy jogosultsága nem engedi a műveletet.
+
+## Tipp
+
+A fiókban bekapcsolt KATA-védelem tiltja. Hagyd el a vevő adószámát, vagy kapcsold ki a védelmet a saját felelősségedre.
+
+## Mi a teendő
+
+Embernek kell a Számlázz.hu felületén rendeznie (előfizetés, beállítás, jogosultság). A kódból ezt nem lehet megoldani.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 491) {
+    console.error(error.message, error.hint, error.docsUrl)
+    return jelezdEmbernek(error)
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[8](/docs/hibakodok/8), [17](/docs/hibakodok/17), [49](/docs/hibakodok/49), [54](/docs/hibakodok/54), [55](/docs/hibakodok/55), [136](/docs/hibakodok/136), [137](/docs/hibakodok/137), [250](/docs/hibakodok/250)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

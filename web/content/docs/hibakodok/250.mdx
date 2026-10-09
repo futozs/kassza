@@ -1,0 +1,46 @@
+---
+title: "250-es hibakód: A fiók nem használható, mert a fiókgazda még nem vette birtokba, vagy a meghatalmazás nincs elfogadva."
+description: "A Számlázz.hu Számla Agent 250-es hibakódja: mit jelent, mikor jön elő, és hogyan kezeld a kasszával."
+---
+
+**Üzenet:** A fiók nem használható, mert a fiókgazda még nem vette birtokba, vagy a meghatalmazás nincs elfogadva.
+
+| | |
+| --- | --- |
+| Kategória | `account` (Fiókbeállítás) |
+| Újrapróbálható | Nem. Újraküldve is ugyanez lesz. |
+| A kassza hibája | `SzamlazzError`, `code: 250` |
+
+## Mikor jön elő
+
+A fiók beállítása, előfizetése vagy jogosultsága nem engedi a műveletet.
+
+## Tipp
+
+Megbízotti kapcsolatnál a megbízónak birtokba kell vennie a fiókot. Könyvelői vagy aggregátor meghatalmazást a Számlázz.hu felületén kell elfogadni.
+
+## Mi a teendő
+
+Embernek kell a Számlázz.hu felületén rendeznie (előfizetés, beállítás, jogosultság). A kódból ezt nem lehet megoldani.
+
+## Kezelés a kasszával
+
+```ts
+import { isSzamlazzError } from 'kassza'
+
+try {
+  await kassza.invoices.createOnce(szamla)
+} catch (error) {
+  if (isSzamlazzError(error) && error.code === 250) {
+    console.error(error.message, error.hint, error.docsUrl)
+    return jelezdEmbernek(error)
+  }
+  throw error
+}
+```
+
+## Kapcsolódó hibakódok
+
+[8](/docs/hibakodok/8), [17](/docs/hibakodok/17), [49](/docs/hibakodok/49), [54](/docs/hibakodok/54), [55](/docs/hibakodok/55), [136](/docs/hibakodok/136), [137](/docs/hibakodok/137), [353](/docs/hibakodok/353)
+
+A hibakódok teljes, hivatalos listája a [Számlázz.hu dokumentációjában](https://docs.szamlazz.hu/hu/agent/basics/error-handling) van. Ez az oldal a kassza `AGENT_ERROR_CODES` táblájából készül.

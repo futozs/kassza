@@ -198,12 +198,31 @@ function negated(items: readonly PaymentDocumentItem[]): PaymentDocumentItem[] {
   return items.map((item) => ({ ...item, quantity: -Math.abs(item.quantity ?? 1) }))
 }
 
+const REFUND_ITEMS_HINT =
+  'A refundItems a visszatérített tételeket pozitív bruttó egységárral (grossUnitPrice) adja vissza; a kassza fordítja negatívba.'
+
+function assertRefundItems(items: readonly PaymentDocumentItem[], refundId: string): void {
+  for (const item of items) {
+    const price = item.grossUnitPrice
+    const quantity = item.quantity ?? 1
+    if (typeof price !== 'number' || !Number.isFinite(price) || price <= 0) {
+      throw validation(
+        `A refundItems „${item.name}” tételének nincs pozitív bruttó egységára (grossUnitPrice) a(z) ${refundId} visszatérítésnél.`,
+        REFUND_ITEMS_HINT,
+      )
+    }
+    if (!Number.isFinite(quantity) || quantity === 0) {
+      throw validation(
+        `A refundItems „${item.name}” tételének mennyisége érvénytelen (${quantity}) a(z) ${refundId} visszatérítésnél.`,
+        REFUND_ITEMS_HINT,
+      )
+    }
+  }
+}
+
 function grossOf(items: readonly PaymentDocumentItem[]): number {
   return roundMoney(
-    items.reduce(
-      (sum, item) => sum + Math.abs(item.quantity ?? 1) * (item.grossUnitPrice ?? Number.NaN),
-      0,
-    ),
+    items.reduce((sum, item) => sum + Math.abs(item.quantity ?? 1) * (item.grossUnitPrice ?? 0), 0),
     2,
   )
 }
@@ -220,11 +239,12 @@ async function correctionItems(
     items,
   })
   if (custom && custom.length > 0) {
+    assertRefundItems(custom, refund.id)
     const gross = grossOf(custom)
     if (!(Math.abs(gross - refund.amount.value) <= AMOUNT_TOLERANCE)) {
       throw validation(
         `A refundItems tételeinek bruttó összege (${gross}) eltér a(z) ${refund.id} visszatérítés összegétől (${refund.amount.value}).`,
-        'A refundItems a visszatérített tételeket pozitív bruttó egységárral (grossUnitPrice) adja vissza; a kassza fordítja negatívba.',
+        REFUND_ITEMS_HINT,
       )
     }
     return negated(custom)

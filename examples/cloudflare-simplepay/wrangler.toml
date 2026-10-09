@@ -1,0 +1,11 @@
+name = "kassza-simplepay"
+main = "src/index.ts"
+compatibility_date = "2025-09-01"
+
+[[durable_objects.bindings]]
+name = "KASSZA_STORE"
+class_name = "KasszaStore"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["KasszaStore"]

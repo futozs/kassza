@@ -64,7 +64,7 @@ Az `issueForPayment()` a fizetés fajtája szerint dolgozik:
 | --- | --- |
 | `paid` | Eldönti, nyugta vagy számla jár, és pontosan egyszer kiállítja. |
 | `refunded` | Sztornózza a fizetéshez kiállított számlát vagy nyugtát (pontosan egyszer). |
-| `partially-refunded` | Kihagyja: részleges visszatérítésnél helyesbítő számla vagy új bizonylat kell, ezt a könyvelőddel egyeztetve kézzel intézd. |
+| `partially-refunded` | Számlánál visszatérítésenként egy helyesbítő számlát állít ki (pontosan egyszer); nyugtánál javaslatot ad, lásd [Részleges visszatérítés](#részleges-visszatérítés). |
 | `failed`, `other` | Kihagyja. |
 
 ```ts
@@ -77,6 +77,12 @@ switch (eredmeny.kind) {
     break
   case 'reversal':
     console.log('Sztornózva:', eredmeny.reversedNumber, eredmeny.number)
+    break
+  case 'correction':
+    console.log('Helyesbítve:', eredmeny.corrections.map((helyesbites) => helyesbites.number))
+    break
+  case 'refund-proposal':
+    console.log('Kézi teendő:', eredmeny.reason, eredmeny.refunds)
     break
   case 'skipped':
     console.log('Nincs bizonylat:', eredmeny.reason)
@@ -116,6 +122,44 @@ A rendelésszám a szolgáltatóból és a fizetés azonosítójából áll, pé
 - **Sztornó:** számlánál `{rendelésszám}/SS` külső azonosítóval, nyugtánál `{rendelésszám}/SN` hívásazonosítóval.
 
 Ha a webhook kétszer érkezik, a második hívás `created: false` eredményt ad, és nem állít ki új bizonylatot. Ha a sztornó után ismét `paid` esemény jön, a kassza kihagyja, mert a rendeléshez tartozó nyugtát már sztornózták. Ha a nyugtát időközben [számlává alakították](/docs/alapok/nyugta-vagy-szamla#ha-a-vevő-utólag-számlát-kér), visszatérítéskor az átalakított számlát sztornózza.
+
+### Részleges visszatérítés
+
+Ha a vásárló a rendelés egy részét kapja vissza, a szolgáltatók `partially-refunded` eseményt küldenek. A kassza ilyenkor az eredeti számlához **visszatérítésenként egy helyesbítő számlát** állít ki, negatív mennyiségű tételekkel:
+
+- A külső azonosító `{rendelésszám}/R-{visszatérítés}`, így egy újraküldött webhook vagy egy több visszatérítést felsoroló esemény sem állít ki duplát.
+- A visszatérített összeget a kassza az eredeti tételek között **pontosan** osztja szét, tételenként a saját áfakulcsán. Több egymás utáni visszatérítés együtt sem haladja meg egyik tétel eredeti összegét sem, és a teljes összeg visszatérítése pontosan az eredeti tételeket adja.
+- A szolgáltatók tételesen adják a visszatérítéseket (`payment.refunds`): Barionnál és SimplePaynél a teljes listát, Revolutnál és PayPalnál az aktuálisat, Stripe-nál az esemény azonosítójával és a `previous_attributes` különbségével. Ha ez hiányzik, a kassza kihagyja az eseményt (`skipped`), és megírja, miért.
+
+**Ha az eredeti számlán több áfakulcs van**, a kassza nem tudhatja, melyik tétel került vissza (egy 5%-os könyv és egy 27%-os póló közül nem mindegy, melyiket hozták vissza). Ilyenkor alapból nem állít ki semmit, hanem `refund-proposal` eredményt ad a javasolt bontással. Két lehetőséged van:
+
+```ts
+await kassza.issueForPayment(payment, {
+  refundItems: ({ refund, items }) => visszakuldottTetelek(refund.id),
+})
+
+await kassza.issueForPayment(payment, { partialRefund: 'proportional' })
+```
+
+A `refundItems` a visszatérített tételeket adja vissza pozitív bruttó egységárral (a kassza fordítja negatívba, és ellenőrzi, hogy az összeg egyezik). A `partialRefund: 'proportional'` arányos szétosztást kér, ami például százalékos utólagos kedvezménynél helyes. A `partialRefund: 'skip'` a régi viselkedést adja vissza (kihagyás).
+
+**Nyugtánál** a részleges visszatérítés jogi menete nem egyértelmű (sztornó és új nyugta a megmaradó tételekről), ezért a kassza nem állít ki semmit: `refund-proposal` eredményt ad a kiszámolt bontással, amit a könyvelőddel egyeztetve kézzel intézhetsz.
+
+### Ismételt webhookok szűrése
+
+A szolgáltatók ugyanazt az eseményt napokig újraküldhetik. A `createOnce` ilyenkor sem állít ki duplát, de minden újraküldés legalább egy lekérdezés a Számla Agent felé. A `dedupe` opcióval a már **sikeresen** feldolgozott eseményt a kassza a Számla Agent hívása nélkül nyugtázza:
+
+```ts
+import { upstashRedisStore } from 'kassza/stores'
+
+export const POST = stripeWebhook({
+  secret: process.env.STRIPE_WEBHOOK_SECRET ?? '',
+  dedupe: upstashRedisStore(Redis.fromEnv()),
+  onPayment: (payment) => kassza.issueForPayment(payment, { vat: 27 }),
+})
+```
+
+Az eseményt csak a sikeres `onPayment` után jelöli feldolgozottnak (alapból 7 napig, `dedupeTtlSeconds`), így egy elbukott feldolgozás újraküldve újra lefut. Ha a tároló nem érhető el, a feldolgozás megtörténik, és figyelmeztetés megy az `onWarning`-ra.
 
 ## Hibakezelés a webhookban
 

@@ -24,6 +24,20 @@ if (ceg.valid) console.log(ceg.name, ceg.address?.formatted)
   </Card>
 </Cards>
 
+## Gyorsítótár
+
+Egy űrlapon ugyanazt az adószámot sokszor lekérdezheted (gépelés, újratöltés, visszalépés), és minden lekérdezés egy Számla Agent kérés. A `taxpayerCache` beállítással a kassza egy közös tárolóban megjegyzi az eredményt:
+
+```ts
+import { upstashRedisStore } from 'kassza/stores'
+
+const kassza = createKassza({
+  taxpayerCache: { store: upstashRedisStore(Redis.fromEnv()) },
+})
+```
+
+Az érvényes adózót alapból egy napig (`ttlSeconds`), az érvénytelen adószámot 10 percig (`invalidTtlSeconds`) őrzi. A hibát (például hálózati hibát) nem jegyzi meg. A kulcs a törzsszám, így a `12345678` és a `12345678-2-42` ugyanazt a bejegyzést használja. Ha a tároló nem érhető el, a kassza a Számlázz.hu-tól kérdez, és figyelmeztet.
+
 <Callout type="warning" title="A lekérdezés a szerveren fusson">
   A `taxpayer.query()` az Agent kulcsoddal hív, ezért böngészőből ne használd. A böngészőben csak az
   adószám formátumát ellenőrizd a `kassza/validators` modullal, lásd

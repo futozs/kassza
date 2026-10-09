@@ -12,7 +12,9 @@ Read this before writing any code that issues invoices or receipts. These rules 
 6. **Use the test account while developing.** It allows at most 500 invoices per 10 minutes (error `167`, `rate_limit`). Never run tests against a production Agent key.
 7. **An Agent receipt is a computer-generated receipt (számítógéppel előállított nyugta).** It is not an online cash register receipt and not an e-receipt (e-nyugta). Issue it only for activities without the online cash register (OPG) obligation. Fixed-location retail (TEÁOR 47.1–47.7), restaurants and bars (56.1, 56.3, except mobile catering), accommodation (55.1–55.3), rental (77.1–77.2, 77.33), repair (95.1–95.2) and pharmacies need an online cash register or e-cash register instead. Typical valid uses: webshops, online tickets, downloadable products, food trucks and other mobile sales, services without a cash register obligation.
 8. **A receipt may replace an invoice only if all four conditions hold:** the buyer is not a taxable person or legal entity, the total is below 900 000 HUF, it is paid in full by fulfilment, and the buyer did not ask for an invoice. `chooseDocument()` applies these rules, and `issueForPayment()` uses it. If the buyer asks for an invoice later, use `receipts.convertToInvoice()`.
-9. **Never submit NAV receipt reports for receipts issued in Számlázz.hu.** Számlázz.hu reports them itself after the NAV connection, so a second submission is double reporting. The `kassza/nav` client is read-only unless you pass `allowWrite: true`; submit only reports of paper receipt pads.
+9. **In serverless or multi-process setups, give `createOnce` a shared lock.** Two concurrent deliveries of the same webhook on two instances can both see "no invoice yet". Pass `createOnceLock: store` (Redis, Upstash or Durable Object from `kassza/stores`; Cloudflare KV cannot lock). Calls inside one process are merged automatically.
+10. **If your `onDocument` hook writes a legally relevant journal, set `onDocumentError: 'throw'`.** Otherwise a failed write is only a warning and the NAV daily summary silently misses a receipt. Use `kassza/journal` for this.
+11. **Never submit NAV receipt reports for receipts issued in Számlázz.hu.** Számlázz.hu reports them itself after the NAV connection, so a second submission is double reporting. The `kassza/nav` client is read-only unless you pass `allowWrite: true`; submit only reports of paper receipt pads.
 
 ## Behaviour worth knowing
 
@@ -42,7 +44,14 @@ Read this before writing any code that issues invoices or receipts. These rules 
 | Error `250` | A delegated account has not been taken over by its owner, or the delegation is not accepted | Wait for the principal; check with `probeDelegation()` rarely, never in a loop |
 | Error `167` (`rate_limit`) | Too many documents in the test account in a short time | Wait a few minutes; never retry automatically |
 | `attempt_limit` error | The same request already failed 5 times (counted across processes with `attemptLedger`) | A human fixes the cause, then `kassza.resetAttempts(error)` |
+| `attemptLedger` limits | The ledger is conservative: network and timeout failures count too, and the check (read) and the count (increment) are separate store calls, so many processes sending the *same* request at the very same moment can each pass the check | Pair it with `createOnceLock` for documents, so only one process sends at a time |
 | `maintenanceCooldownMs` | After error `1`, kassza sends nothing for the cooldown and throws `maintenance` at once | Switch to a fallback, for example a paper receipt pad |
+| `in_progress` error | Another process holds the `createOnce` lock for this order | Do not issue by hand; call `createOnce` again later (5xx in a webhook) |
+| `store_unavailable` error | The lock store (or a `fail-closed` attempt ledger) is down; nothing was sent | Restore the store, or choose `lockFailure: 'proceed'` / `attemptLedgerMode: 'fail-open'` deliberately |
+| Partial refund on a mixed-VAT invoice | `issueForPayment` returns `refund-proposal`, issues nothing | Pass `refundItems` (what was returned) or `partialRefund: 'proportional'` |
+| `registerPayment` twice | Two payments on the invoice (`additive` defaults to `true`) | Use `registerPaymentOnce({ key })` with a stable bank or payment ID |
+| `szamlaLetoltesPld` (PDF copies) | Obsolete in the XSD; Számlázz.hu ignores it, so kassza does not offer it | Nothing to do |
+| `express.json()` before a webhook route | The raw body is gone, signatures cannot be verified | Mount the route before `express.json()`, or use `express.raw()`; see `kassza/node` |
 
 ## Error categories
 
@@ -59,6 +68,8 @@ Read this before writing any code that issues invoices or receipts. These rules 
 | `maintenance` | Számlázz.hu maintenance (code 1) | kassza retries lookups automatically |
 | `rate_limit` | Too many documents in the test account (code 167) | No, wait a few minutes |
 | `attempt_limit` | The request already failed 5 times; kassza did not send it | No, a human must act, then `resetAttempts` |
+| `in_progress` | Another process is issuing the same document (`createOnce` lock) | Later, by calling `createOnce` again |
+| `store_unavailable` | A required store (lock, fail-closed ledger) is down; nothing was sent | After the store is back |
 | `network` / `timeout` | Transport failure; the outcome is unknown for writes | Look up by `orderNumber` before trying again |
 | `configuration` | Missing key, bad options | No |
 | `unexpected_response` | Számlázz.hu answered in an unknown format | Report it |

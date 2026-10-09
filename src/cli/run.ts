@@ -8,7 +8,7 @@ import {
   verifyCommand,
   xmlPreviewCommand,
 } from './commands'
-import { formatDoctor, runDoctor } from './doctor'
+import { formatDoctor, formatDoctorReport, runDoctor } from './doctor'
 import { CliError, type CliIo, printJson } from './io'
 import { mcpCommand } from './mcp'
 
@@ -17,8 +17,11 @@ export const CLI_USAGE: string = `kassza ${KASSZA_VERSION}: Számlázz.hu Száml
 Használat: kassza <parancs> [kapcsolók]
 
 Parancsok:
-  doctor [--invoice <szám> | --receipt <szám>] [--json]
+  doctor [--invoice <szám> | --receipt <szám>] [--capabilities] [--check-update] [--json | --report]
       A környezet, az Agent kulcs, az óra és a Számlázz.hu kapcsolat ellenőrzése.
+      --capabilities: e-számla engedély előnézettel (bizonylat nem készül)
+      --check-update: az npm legfrissebb verziójának lekérdezése (hálózati hívás)
+      --report: titokmentes Markdown jelentés hibajegyhez
   verify
       Az Agent kulcs ellenőrzése a Számlázz.hu-n.
   xml preview <fájl.json|-> [--type invoice|receipt] [--defaults <fájl.json>]
@@ -38,7 +41,10 @@ Környezeti változók:
 `
 
 const SPECS: Readonly<Record<string, ArgSpec>> = {
-  doctor: { booleans: ['json'], values: ['invoice', 'receipt'] },
+  doctor: {
+    booleans: ['json', 'report', 'capabilities', 'check-update'],
+    values: ['invoice', 'receipt'],
+  },
   verify: {},
   'xml preview': { values: ['type', 'defaults'] },
   'invoice get': { values: ['order', 'external'] },
@@ -59,9 +65,13 @@ async function doctorCommand(io: CliIo, args: ParsedArgs): Promise<number> {
   const checks = await runDoctor(io, {
     invoiceNumber: flagValue(args, 'invoice'),
     receiptNumber: flagValue(args, 'receipt'),
+    capabilities: hasFlag(args, 'capabilities'),
+    checkUpdate: hasFlag(args, 'check-update'),
   })
   if (hasFlag(args, 'json')) printJson(io, { checks })
-  else io.stdout(`kassza doctor ${KASSZA_VERSION}\n${formatDoctor(checks)}`)
+  else if (hasFlag(args, 'report')) {
+    io.stdout(formatDoctorReport(checks, { nodeVersion: io.nodeVersion }))
+  } else io.stdout(`kassza doctor ${KASSZA_VERSION}\n${formatDoctor(checks)}`)
   return checks.some((check) => check.status === 'fail') ? 1 : 0
 }
 

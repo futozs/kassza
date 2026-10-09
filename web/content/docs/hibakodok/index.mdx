@@ -1,0 +1,80 @@
+---
+title: Hibakódok
+description: A Számlázz.hu Számla Agent hibakódjai egyenként, magyarázattal és kassza-példával.
+---
+
+Minden hibakódhoz külön oldal tartozik: mit jelent, mikor jön elő, mi a teendő, és hogyan kezeld a kódban. A kassza hibáin a `docsUrl` mező közvetlenül ide mutat, így a naplóból egy kattintással megnyitható.
+
+```ts
+console.error(error.message, error.hint, error.docsUrl)
+```
+
+| Kód | Üzenet | Kategória |
+| --- | --- | --- |
+| [1](/docs/hibakodok/1) | Rendszerkarbantartás, kérem próbálja meg pár perc múlva. | `maintenance` |
+| [3](/docs/hibakodok/3) | Sikertelen bejelentkezés. | `auth` |
+| [7](/docs/hibakodok/7) | Hiányzó adat: ismeretlen számlaszám, rendelésszám vagy külső azonosító. | `not_found` |
+| [8](/docs/hibakodok/8) | Nincs jogosultság vagy megfelelő díjcsomag a művelet elvégzéséhez. | `account` |
+| [17](/docs/hibakodok/17) | Nem megengedett művelet. | `account` |
+| [49](/docs/hibakodok/49) | A tanúsítvány használatához jelszó szükséges. | `account` |
+| [52](/docs/hibakodok/52) | Az áfakulcs nem értelmezhető. | `validation` |
+| [53](/docs/hibakodok/53) | Hiányzó XML fájl. | `validation` |
+| [54](/docs/hibakodok/54) | E-számla készítés nincs engedélyezve. | `account` |
+| [55](/docs/hibakodok/55) | E-számla aláírása sikertelen. | `account` |
+| [56](/docs/hibakodok/56) | A bizonylat elkészült, de az értesítő e-mail kiküldése sikertelen. | `partial_success` |
+| [57](/docs/hibakodok/57) | XML beolvasási hiba. | `validation` |
+| [68](/docs/hibakodok/68) | Már létezik cég ezzel az adószámmal és számlaszám-előtaggal. | `validation` |
+| [71](/docs/hibakodok/71) | Már létező rendelésszám. | `duplicate` |
+| [101](/docs/hibakodok/101) | A bejelentkezési név már foglalt. | `validation` |
+| [135](/docs/hibakodok/135) | Számla Agent futtatásához lépj ki a Számlázz.hu rendszerből a böngészőben. | `auth` |
+| [136](/docs/hibakodok/136) | Bejelentkezési hiba, lépj be a Számlázz.hu rendszerébe böngészőn keresztül. | `account` |
+| [137](/docs/hibakodok/137) | Nincs engedély számlázási fiók létrehozására Számla Agenten keresztül. | `account` |
+| [152](/docs/hibakodok/152) | Már létező rendelésszám. | `duplicate` |
+| [164](/docs/hibakodok/164) | A funkciót csak egyetlen fiókhoz hozzáférő felhasználó használhatja. | `auth` |
+| [167](/docs/hibakodok/167) | A tesztfiókban túllépted a rövid idő alatt kiállítható bizonylatok számát. | `rate_limit` |
+| [200](/docs/hibakodok/200) | Ezt az előtagot ugyanezzel az adószámmal egy másik számlázási fiók használja. | `validation` |
+| [202](/docs/hibakodok/202) | A megadott számlaszám előtag nem megfelelő. | `validation` |
+| [250](/docs/hibakodok/250) | A fiók nem használható, mert a fiókgazda még nem vette birtokba, vagy a meghatalmazás nincs elfogadva. | `account` |
+| [259](/docs/hibakodok/259) | A tétel nettó értéke nem megfelelő. | `validation` |
+| [260](/docs/hibakodok/260) | A tétel áfa értéke nem megfelelő. | `validation` |
+| [261](/docs/hibakodok/261) | A tétel bruttó értéke nem megfelelő. | `validation` |
+| [262](/docs/hibakodok/262) | A tétel nettó értéke nem megfelelő. | `validation` |
+| [263](/docs/hibakodok/263) | A tétel áfa értéke nem megfelelő. | `validation` |
+| [264](/docs/hibakodok/264) | A tétel bruttó értéke nem megfelelő. | `validation` |
+| [309](/docs/hibakodok/309) | Érvénytelen adat. | `validation` |
+| [335](/docs/hibakodok/335) | A hivatkozott díjbekérő nem található. | `not_found` |
+| [336](/docs/hibakodok/336) | A nyugta előtag már számlákhoz használatban van. | `validation` |
+| [337](/docs/hibakodok/337) | A nyugta előtag formátuma hibás. | `validation` |
+| [338](/docs/hibakodok/338) | A hívásazonosító már létezik. | `duplicate` |
+| [339](/docs/hibakodok/339) | A nyugtaszám nem létezik. | `not_found` |
+| [340](/docs/hibakodok/340) | A kifizetett összeg eltér a bruttó végösszegtől. | `validation` |
+| [352](/docs/hibakodok/352) | A számla kelte csak a mai nap lehet. | `validation` |
+| [353](/docs/hibakodok/353) | Nincs egyetlen érvényes számlaszám-előtag sem. | `account` |
+| [354](/docs/hibakodok/354) | Ez a számlaszám-előtag nem használható. | `validation` |
+| [356](/docs/hibakodok/356) | A megadott számlaszám-előtag helyett másikat kell használni. | `validation` |
+| [357](/docs/hibakodok/357) | Add meg a számlaszám-előtagot. | `validation` |
+| [358](/docs/hibakodok/358) | Ezt a számlát csak a fiók tulajdonosa sztornózhatja. | `account` |
+| [359](/docs/hibakodok/359) | Ez a számla megbízott számlakibocsátás keretében készült, a sztornót a megbízott végezheti. | `account` |
+| [360](/docs/hibakodok/360) | Az előtag nem módosítható, mert már készült vele bizonylat. | `validation` |
+| [362](/docs/hibakodok/362) | Ezt az előtagot ez az adószám korábban már használta. | `validation` |
+| [363](/docs/hibakodok/363) | A tétel bruttó értékének egész számnak kell lennie. | `validation` |
+| [364](/docs/hibakodok/364) | A tétel nettó értéke maximum 2 tizedes jegyet tartalmazhat. | `validation` |
+| [365](/docs/hibakodok/365) | A tétel áfa értéke maximum 2 tizedes jegyet tartalmazhat. | `validation` |
+| [395](/docs/hibakodok/395) | Érvénytelen áfakulcs. | `validation` |
+| [396](/docs/hibakodok/396) | A megadott dátum túl korai. | `validation` |
+| [489](/docs/hibakodok/489) | Ez a számla megbízott számlakibocsátás keretében készült, az ismétlést a megbízott végezheti. | `account` |
+| [491](/docs/hibakodok/491) | Új kata adónem mellett vállalkozás felé nem állítható ki bizonylat. | `account` |
+| [493](/docs/hibakodok/493) | Ezt a számlát csak a fiók tulajdonosa helyesbítheti. | `account` |
+| [494](/docs/hibakodok/494) | Ez a számla megbízott számlakibocsátás keretében készült, a helyesbítést a megbízott végezheti. | `account` |
+| [506](/docs/hibakodok/506) | A jelszó túl rövid. | `validation` |
+| [507](/docs/hibakodok/507) | A jelszó túl hosszú. | `validation` |
+| [524](/docs/hibakodok/524) | A nyugtaszám-előtag nincs engedélyezve. | `account` |
+| [537](/docs/hibakodok/537) | Egy tételhez legfeljebb 400 adattörlő kód adható. | `validation` |
+| [538](/docs/hibakodok/538) | Adattörlő kód demo- és tesztfiókban nem használható. | `account` |
+| [539](/docs/hibakodok/539) | Nincs bekapcsolva az adattörlő kód használata. | `account` |
+| [551](/docs/hibakodok/551) | Egyszerűsített számlakép OSS vagy nem magyar adószám mellett nem használható. | `validation` |
+| [552](/docs/hibakodok/552) | Egyszerűsített számlaképen legfeljebb két tétel adható meg. | `validation` |
+| [553](/docs/hibakodok/553) | Egyszerűsített számlakép esetén érvénytelen adókulcs. | `validation` |
+| [554](/docs/hibakodok/554) | Egyszerűsített számlaképű számla nem helyesbíthető. | `validation` |
+| [555](/docs/hibakodok/555) | Egyszerűsített számlaképen a tételek áfakulcsai nem különbözhetnek. | `validation` |
+| [556](/docs/hibakodok/556) | Egyszerűsített számlakép szállítólevélen és helyesbítő számlán nem használható. | `validation` |

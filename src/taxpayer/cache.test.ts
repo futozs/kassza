@@ -61,8 +61,10 @@ describe('cachedTaxpayerQuery', () => {
       set: () => Promise.reject(new Error('le')),
       delete: () => undefined,
     }
-    const cached = cachedTaxpayerQuery(vi.fn(async () => VALID), { store: broken }, (warning) =>
-      warnings.push(warning),
+    const cached = cachedTaxpayerQuery(
+      vi.fn(async () => VALID),
+      { store: broken },
+      (warning) => warnings.push(warning),
     )
 
     expect(await cached('12345678')).toEqual(VALID)

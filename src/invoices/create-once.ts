@@ -2,6 +2,7 @@ import { SzamlazzError } from '../core/errors'
 import {
   type CreateOnceOptions,
   isUncertainOutcome,
+  type RecoveryState,
   recoverAfterFailure,
   resolveRecoveryDelay,
   unknownOutcomeError,
@@ -113,14 +114,18 @@ export async function createInvoiceOnce(
       return { number: invoice.number, created: true, externalId, invoice }
     } catch (error) {
       if (!isUncertainOutcome(error)) throw error
+      const state: RecoveryState = {}
       const recovered = await recoverAfterFailure(
         () => lookup(api, externalId, orderNumber, type, options),
         delayMs,
         options.signal,
+        state,
       )
       if (recovered) return existingResult(recovered, externalId, error.category !== 'duplicate')
-      if (error.category === 'duplicate') throw error
-      throw unknownOutcomeError(error, `${orderNumber} rendelés`)
+      if (error.category === 'duplicate' && !state.lookupError) throw error
+      throw unknownOutcomeError(error, `${orderNumber} rendelés`, {
+        lookupError: state.lookupError,
+      })
     }
   }
 

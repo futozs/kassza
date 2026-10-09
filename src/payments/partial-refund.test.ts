@@ -179,6 +179,32 @@ describe('issueForPayment részleges visszatérítésnél', () => {
     ).rejects.toMatchObject({ category: 'validation' })
   })
 
+  test('a refundItems bruttó egységár vagy érvényes mennyiség nélkül validációs hibát dob, kérés nélkül', async () => {
+    const { agent, kassza } = await invoiced(MIXED_VAT)
+    const sent = agent.requests.length
+    for (const items of [
+      [{ name: 'Póló', netUnitPrice: 4_724, vat: 27 as const }],
+      [{ name: 'Póló', grossUnitPrice: Number.NaN, vat: 27 as const }],
+      [{ name: 'Póló', grossUnitPrice: -6_000, vat: 27 as const }],
+      [{ name: 'Póló', quantity: 0, grossUnitPrice: 6_000, vat: 27 as const }],
+      [
+        {
+          name: 'Póló',
+          quantity: Number.POSITIVE_INFINITY,
+          grossUnitPrice: 6_000,
+          vat: 27 as const,
+        },
+      ],
+    ]) {
+      await expect(
+        kassza.issueForPayment(partial([refund('TR-1', 6_000)]), { refundItems: () => items }),
+      ).rejects.toMatchObject({ category: 'validation', message: expect.stringContaining('Póló') })
+    }
+    expect(
+      agent.requests.slice(sent).filter((request) => request.action === 'createInvoice'),
+    ).toEqual([])
+  })
+
   test('nyugtánál csak javaslatot ad', async () => {
     const { agent, kassza } = fakeKassza()
     await kassza.issueForPayment(paid(SINGLE_VAT, 10_000), { document: 'receipt' })
