@@ -1,6 +1,6 @@
 # Változásnapló
 
-## Kiadatlan
+## 0.14.0 (2026-10-09)
 
 ### Mi változott
 
@@ -17,6 +17,12 @@
 **Javítás.** A SimplePay visszatérítési események azonosítója mostantól visszatérítésenként egyedi. Ha a `createOnce` utólagos ellenőrzése maga is hibára fut, a kassza ismeretlen kimenetet jelez (`details.outcome: 'unknown'`, `details.lookupError`) a téves „nem készült el” helyett, és ezt a hibát a párhuzamos hívók sem öröklik. A napló a más folyamathoz tartozó foglalást nem törli. A `kassza/node` az Express 4 `express.json()` üres törzsénél a nyers streamet olvassa, a HTTP/2 pszeudo-fejléceket kihagyja. A hiányos `refundItems` tétel érthető validációs hibát ad.
 
 **Megjegyzés.** A `IssuedDocument` két új változatot kapott (`correction`, `refund-proposal`), a `SzamlazzErrorCategory` kettőt (`in_progress`, `store_unavailable`). Ha `switch`-csel kezeled őket, egészítsd ki az ágakat.
+
+### Újdonságok
+
+- **test:** új barrier függvény hozzáadása párhuzamos hívások kezelésére (531c8bc)
+- új lefedettségi jelvények generálása és tesztelése feat: új XSD séma hozzáadása a fetch-xsd scripthez refactor: badge generálás refaktorálása és optimalizálása fix: animációs időzítők és átmenetek javítása a landing oldalon docs: beállítások dokumentációjának hozzáadása ci: új workflow a lefedettségi jelvények frissítésére (8baa308)
+- **taxpayer:** implement caching for taxpayer queries with tests (1e57896)
 
 ## 0.13.0 (2026-10-03)
 
