@@ -16,6 +16,19 @@ function slowAgent(options: FakeAgentOptions = {}): FakeAgent & {
   return Object.assign(agent, { slowFetch })
 }
 
+function barrier(parties: number): () => Promise<void> {
+  let arrived = 0
+  let open: () => void = () => undefined
+  const opened = new Promise<void>((resolve) => {
+    open = resolve
+  })
+  return async () => {
+    arrived += 1
+    if (arrived >= parties) open()
+    await opened
+  }
+}
+
 function fakeKassza(agentOptions: FakeAgentOptions = {}, kasszaOptions: KasszaOptions = {}) {
   const agent = slowAgent(agentOptions)
   const kassza = createKassza({
@@ -78,9 +91,10 @@ describe('createOnce párhuzamos hívásokkal', () => {
   })
 
   test('más Agent kulcsú fiókok hívásai nem várnak egymásra', async () => {
-    const agent = slowAgent({ rejectDuplicateOrderNumbers: false })
-    const first = createKassza({ agentKey: TEST_AGENT_KEY, fetch: agent.slowFetch })
-    const second = createKassza({ agentKey: `${TEST_AGENT_KEY}x`, fetch: agent.slowFetch })
+    const firstAgent = slowAgent({ rejectDuplicateOrderNumbers: false })
+    const secondAgent = slowAgent({ rejectDuplicateOrderNumbers: false })
+    const first = createKassza({ agentKey: TEST_AGENT_KEY, fetch: firstAgent.slowFetch })
+    const second = createKassza({ agentKey: `${TEST_AGENT_KEY}x`, fetch: secondAgent.slowFetch })
 
     const results = await Promise.all([
       first.invoices.createOnce(INVOICE),
@@ -88,7 +102,8 @@ describe('createOnce párhuzamos hívásokkal', () => {
     ])
 
     expect(results.every((result) => result.created)).toBe(true)
-    expect(agent.invoices.size).toBe(2)
+    expect(firstAgent.invoices.size).toBe(1)
+    expect(secondAgent.invoices.size).toBe(1)
   })
 
   test('különböző rendelésszámok párhuzamosan futnak', async () => {
@@ -194,12 +209,19 @@ describe('createOnce elosztott zárral', () => {
   })
 
   test('zár nélkül két külön folyamat két számlát állít ki (ez a hiba, amit a zár megelőz)', async () => {
-    const agent = slowAgent({ rejectDuplicateOrderNumbers: false })
+    const agent = createFakeAgentFetch({ rejectDuplicateOrderNumbers: false })
+    const arrive = barrier(2)
+    const gatedFetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const body = init?.body
+      const action = body instanceof FormData ? [...body.keys()][0] : undefined
+      if (action === 'action-xmlagentxmlfile') await arrive()
+      return agent.fetch(input, init)
+    }) as typeof globalThis.fetch
     vi.resetModules()
     const first = await import('../client')
     vi.resetModules()
     const second = await import('../client')
-    const options = { agentKey: TEST_AGENT_KEY, fetch: agent.slowFetch }
+    const options = { agentKey: TEST_AGENT_KEY, fetch: gatedFetch }
 
     await Promise.all([
       first.createKassza(options).invoices.createOnce(INVOICE),
