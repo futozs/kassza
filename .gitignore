@@ -12,3 +12,5 @@ coverage/
 .xsd-cache/
 .roadmap/
 probe-limits.result.json
+.vercel
+.env*

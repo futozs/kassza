@@ -2,6 +2,7 @@
   "framework": "nextjs",
   "installCommand": "npm ci",
   "buildCommand": "npm run build",
+  "ignoreCommand": "if [ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- :/web; then exit 0; else exit 1; fi",
   "git": {
     "deploymentEnabled": {
       "main": true,

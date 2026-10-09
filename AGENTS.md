@@ -135,6 +135,8 @@ The website never lists `kassza` in its own `package.json` or lockfiles. `web/sc
 
 Only `main` deploys on Vercel: `git.deploymentEnabled` in `web/vercel.json` switches every other branch off, so the project has no Preview deployments. The orphan `badges` branch has no `web/` folder, so the badges workflow gives it its own copy of that switch.
 
+The site is only rebuilt when `web/` changed since the last successful deployment. `ignoreCommand` in `web/vercel.json` compares `web/` with `VERCEL_GIT_PREVIOUS_SHA` and skips the build only when they are identical; a missing or unreachable previous commit (Vercel clones just 10 commits deep) always means a build. The site reads nothing outside `web/`, so keep it that way or widen the pathspec. `tests/web-ignore-build.test.ts` runs the real command against throwaway git repositories; extend it before changing the command.
+
 On GitHub, `.github/workflows/release.yml` runs `release:ci` for every push to `main` and exits early when there is no releasable commit. A maintainer can also start it by hand from the Actions tab (`workflow_dispatch`) with `patch`, `minor` or `major` to force a release.
 
 Write commit messages as Conventional Commits (`feat: ...`, `fix: ...`) so the changelog groups them.
