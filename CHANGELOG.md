@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.18.0 (2026-10-14)
+
+### Újdonságok
+
+- **invoices:** hozzáadva a kassza aggregátor kódja a számlázási XML-hez (02484e2)
+
 ## 0.17.0 (2026-10-14)
 
 ### Újdonságok
