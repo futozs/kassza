@@ -1,4 +1,5 @@
 import { MAX_INVOICE_ATTACHMENTS } from '../core/actions'
+import { KASSZA_AGGREGATOR } from '../core/aggregator'
 import { encodeUtf8 } from '../core/binary'
 import type { AgentAttachment } from '../core/context'
 import { addBudapestDays, type DateInput, toAgentDate } from '../core/dates'
@@ -63,7 +64,7 @@ export interface ResolvedInvoice {
   readonly simpleItems: boolean | undefined
   readonly euVat: boolean | undefined
   readonly logoExtra: string | undefined
-  readonly aggregator: string | undefined
+  readonly aggregator: string
   readonly guardian: boolean | undefined
   readonly articleIdentifierInvoice: boolean | undefined
   readonly seller: InvoiceSeller
@@ -328,7 +329,8 @@ export function resolveInvoice(
     simpleItems,
     euVat: input.euVat ?? defaults.euVat,
     logoExtra: presentText(input.logoExtra) ?? presentText(defaults.logoExtra),
-    aggregator: presentText(input.aggregator) ?? presentText(defaults.aggregator),
+    aggregator:
+      presentText(input.aggregator) ?? presentText(defaults.aggregator) ?? KASSZA_AGGREGATOR,
     guardian: input.guardian ?? defaults.guardian,
     articleIdentifierInvoice: input.articleIdentifierInvoice ?? defaults.articleIdentifierInvoice,
     seller: mergeSeller(defaults.seller, input.seller),

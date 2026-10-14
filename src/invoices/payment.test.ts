@@ -6,6 +6,7 @@ import {
   textErrorResponse,
 } from '../../tests/helpers'
 import { canValidateXsd, validateAgainstXsd } from '../../tests/xsd'
+import { KASSZA_AGGREGATOR } from '../core/aggregator'
 import { el } from '../core/xml/serialize'
 import {
   buildClearPaymentsXml,
@@ -68,6 +69,20 @@ describe('buildRegisterPaymentXml', () => {
     expect(xml).toContain('<osszeg>2000.5</osszeg>')
     expect(xml).toContain('<leiras>Minta</leiras>')
     expect(xml.match(/<kifizetes>/g)).toHaveLength(2)
+  })
+
+  test('a kassza aggregátor kódját az additiv és a valaszVerzio közé írja', () => {
+    const xml = buildRegisterPaymentXml(CREDENTIALS, FULL_INPUT)
+
+    expect(xml).toContain(`<aggregator>${KASSZA_AGGREGATOR}</aggregator>`)
+    expect(xml.indexOf('<additiv>')).toBeLessThan(xml.indexOf('<aggregator>'))
+    expect(xml.indexOf('<aggregator>')).toBeLessThan(xml.indexOf('<valaszVerzio>'))
+  })
+
+  test('a befizetések törlése is a kassza aggregátor kódjával megy', () => {
+    const xml = buildClearPaymentsXml(CREDENTIALS, 'E-1')
+
+    expect(xml).toContain(`<aggregator>${KASSZA_AGGREGATOR}</aggregator>`)
   })
 
   test('üres befizetéslistára a clearPayments-re utaló hibát dob', () => {

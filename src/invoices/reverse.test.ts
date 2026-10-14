@@ -7,6 +7,7 @@ import {
   textErrorResponse,
 } from '../../tests/helpers'
 import { canValidateXsd, validateAgainstXsd } from '../../tests/xsd'
+import { KASSZA_AGGREGATOR } from '../core/aggregator'
 import { bytesToBase64 } from '../core/binary'
 import { el } from '../core/xml/serialize'
 import type { InvoiceTemplate } from './create-types'
@@ -51,6 +52,14 @@ describe('buildReverseInvoiceXml', () => {
     expect(xml).not.toContain('keltDatum')
     expect(xml).not.toContain('<elado>')
     expect(xml).not.toContain('<vevo>')
+  })
+
+  test('a kassza aggregátor kódját a szamlaLetoltes és a valaszVerzio közé írja', () => {
+    const xml = buildReverseInvoiceXml(CREDENTIALS, 'E-TST-2026-1')
+
+    expect(xml).toContain(`<aggregator>${KASSZA_AGGREGATOR}</aggregator>`)
+    expect(xml.indexOf('<szamlaLetoltes>')).toBeLessThan(xml.indexOf('<aggregator>'))
+    expect(xml.indexOf('<aggregator>')).toBeLessThan(xml.indexOf('<valaszVerzio>'))
   })
 
   test('a teljes inputot a sémának megfelelő sorrendben írja', () => {

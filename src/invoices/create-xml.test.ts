@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { canValidateXsd, validateAgainstXsd } from '../../tests/xsd'
+import { KASSZA_AGGREGATOR } from '../core/aggregator'
 import {
   childText,
   findChild,
@@ -203,11 +204,13 @@ describe('buildCreateInvoiceXml', () => {
       'eszamla',
       'szamlaLetoltes',
       'valaszVerzio',
+      'aggregator',
     ])
     const settings = findChild(root, 'beallitasok')
     expect(childText(settings, 'eszamla')).toBe('false')
     expect(childText(settings, 'szamlaLetoltes')).toBe('true')
     expect(childText(settings, 'valaszVerzio')).toBe('2')
+    expect(childText(settings, 'aggregator')).toBe(KASSZA_AGGREGATOR)
     const header = findChild(root, 'fejlec')
     expect(names(header)).toEqual([
       'keltDatum',

@@ -1,0 +1,1 @@
+export const KASSZA_AGGREGATOR = '3UMUqqWEJ7bXfJp9KXNWcrddY9sKjDVD'

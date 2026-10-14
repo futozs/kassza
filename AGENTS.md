@@ -18,7 +18,7 @@ npm run ci
 
 - `npm test` runs Vitest.
 - `npm run xsd:fetch` downloads the official XSDs into `.xsd-cache/`. The contract tests need these and `xmllint`.
-- `npm run stats` prints npm downloads (with a bot and mirror warning), GitHub dependents, deps.dev dependents and stars. The package sends no telemetry and must never get any by default: real usage is measured only through these public signals and the voluntary "Ki használja?" list (`used-by` issue template).
+- `npm run stats` prints npm downloads (with a bot and mirror warning), GitHub dependents, deps.dev dependents and stars. The package sends no telemetry and must never get any by default: real usage is measured only through these public signals and the voluntary "Ki használja?" list (`used-by` issue template). The one exception is not telemetry: `KASSZA_AGGREGATOR` (`src/core/aggregator.ts`), the aggregator code Számlázz.hu issued for kassza, goes into the `aggregator` element of the invoice create, reverse and payment requests (the only schemas that have it), so Számlázz.hu can attribute the documents to kassza. It adds no request and goes nowhere but the Számla Agent; a caller's own `aggregator` on invoice create overrides it.
 - `npm run readme` regenerates the README images in `readme/assets/` and then `README.md` (see [README](#readme)).
 - `npm run e2e` runs every Számla Agent operation (all but `connectPrincipal`) against the real Számlázz.hu **test account**. It needs `SZAMLAZZ_TEST_AGENT_KEY` (see `.env.example`), and it is not part of `npm run ci`. See [E2E](#e2e).
 - `npm run ci` runs lint, typecheck, the README sync check, coverage (at least 80%), build, publint and attw.

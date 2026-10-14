@@ -1,3 +1,4 @@
+import { KASSZA_AGGREGATOR } from '../core/aggregator'
 import type { AgentContext, RequestOptions } from '../core/context'
 import type { DateInput } from '../core/dates'
 import { SzamlazzError } from '../core/errors'
@@ -85,6 +86,7 @@ export function buildReverseInvoiceXml(
         ...credentials,
         el('eszamla', options.eInvoice ?? false),
         el('szamlaLetoltes', options.downloadPdf ?? true),
+        el('aggregator', KASSZA_AGGREGATOR),
         el('valaszVerzio', RESPONSE_VERSION_XML),
         optionalEl('szamlaKulsoAzon', optionalText(options.externalId)),
       ]),
