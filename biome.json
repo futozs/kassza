@@ -1,11 +1,17 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
   "files": {
     "includes": [
       "**",
       "!dist",
       "!coverage",
       "!.research",
+      "!.vercel",
       "!.xsd-cache",
       "!readme/assets",
       "!tests/__snapshots__"

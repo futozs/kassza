@@ -28,6 +28,7 @@ jobs:
         env:
           SZAMLAZZ_TEST_AGENT_KEY: ${{ secrets.SZAMLAZZ_TEST_AGENT_KEY }}
           SZAMLAZZ_E2E_EMAIL: ${{ secrets.SZAMLAZZ_E2E_EMAIL }}
+          SZAMLAZZ_E2E_INVOICE_PREFIX: ${{ vars.SZAMLAZZ_E2E_INVOICE_PREFIX }}
           SZAMLAZZ_E2E_RECEIPT_PREFIX: ${{ vars.SZAMLAZZ_E2E_RECEIPT_PREFIX }}
           SZAMLAZZ_E2E_TAXPAYER: ${{ vars.SZAMLAZZ_E2E_TAXPAYER }}
         run: npm run e2e

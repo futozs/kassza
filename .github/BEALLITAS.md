@@ -18,7 +18,8 @@ Repó → **Settings → Environments → New environment**. A neve pontosan ez 
 
 | Név | Alapértelmezés |
 |---|---|
-| `SZAMLAZZ_E2E_RECEIPT_PREFIX` | `NYGTA`: a tesztfiókban létező nyugtatömb előtagja |
+| `SZAMLAZZ_E2E_INVOICE_PREFIX` | `OHZ`: a tesztfiókban létező számla előtag |
+| `SZAMLAZZ_E2E_RECEIPT_PREFIX` | `EPLSP`: a tesztfiókban létező nyugta előtag |
 | `SZAMLAZZ_E2E_TAXPAYER` | `13421739`: egy létező adószám |
 
 Próba: **Actions → Teljes ellenőrzés → Run workflow**.

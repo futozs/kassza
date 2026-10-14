@@ -13,7 +13,7 @@ describe('az e2e forgatókönyv a fake agent ellen', () => {
   defineE2eSuite({
     createClient: (hooks) =>
       createKassza({ agentKey: TEST_AGENT_KEY, fetch: agent.fetch, retryDelayMs: 0, hooks }),
-    receiptPrefix: 'NYGTA',
+    receiptPrefix: 'EPLSP',
     taxNumber: TAX_NUMBER,
     email: 'e2e@example.com',
     minPdfBytes: 0,

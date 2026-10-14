@@ -719,7 +719,7 @@
   .hero *,
   .hero *::before,
   .hero *::after {
-    animation: none !important;
+    animation: none;
   }
 
   .hs-status-idle,

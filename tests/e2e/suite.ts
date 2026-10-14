@@ -228,7 +228,7 @@ export function defineE2eSuite(options: E2eSuiteOptions): void {
   describe('nyugták', () => {
     const step = groupSteps(run)
     const data: { receipt?: Receipt } = {}
-    const receiptOrder = orderNumber('NYGTA')
+    const receiptOrder = orderNumber('NYUGTA')
 
     step('a nyugta létrejön, a PDF-fel és a helyes összegekkel', async () => {
       const receipt = await kassza.receipts.create({

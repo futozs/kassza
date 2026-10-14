@@ -84,7 +84,7 @@ npm run ci
 
 `npm run e2e` is the only thing that proves the client still matches what Számlázz.hu really answers. The fake agent cannot show that, because it is built from the same docs as the client.
 
-- It needs the **test account** Agent key in `SZAMLAZZ_TEST_AGENT_KEY` (lowercase). Also: `SZAMLAZZ_E2E_EMAIL` (recipient of the receipt e-mail test, needed for full coverage), `SZAMLAZZ_E2E_RECEIPT_PREFIX` (a receipt block that exists in the account, default `NYGTA`), `SZAMLAZZ_E2E_TAXPAYER` (default `13421739`) and `SZAMLAZZ_E2E_DELAY_MS` (default 1500). `scripts/e2e.mjs` loads `.env` and fails loudly when the key is missing, so a skipped run never looks green.
+- It needs the **test account** Agent key in `SZAMLAZZ_TEST_AGENT_KEY` (lowercase). Also: `SZAMLAZZ_E2E_EMAIL` (recipient of the receipt e-mail test, needed for full coverage), `SZAMLAZZ_E2E_INVOICE_PREFIX` (an invoice prefix registered in the account, default `OHZ`), `SZAMLAZZ_E2E_RECEIPT_PREFIX` (a receipt prefix registered in the account, default `EPLSP`; a prefix another account with the same tax number already uses fails with code 200), `SZAMLAZZ_E2E_TAXPAYER` (default `13421739`) and `SZAMLAZZ_E2E_DELAY_MS` (default 1500). `scripts/e2e.mjs` loads `.env` and fails loudly when the key is missing, so a skipped run never looks green.
 - The scenario in `tests/e2e/suite.ts` creates and fetches an invoice (by number, order number and external ID), downloads its PDF, adds, replaces and clears payments, runs `createOnce` twice, reverses the invoice, creates and deletes a proforma, creates, fetches, e-mails and reverses a receipt, and queries a taxpayer. A last test fails when any of the 11 operations never ran.
 - The first step creates a proforma and checks that the account reports it as a test document (`header.test`). If it does not, it deletes the proforma and stops everything. Never weaken this guard (`tests/e2e/guard.ts`).
 - Each group of steps stops at its first failure. An `auth`, `attempt_limit`, `rate_limit` or `maintenance` error stops the whole run. Never add retries or loops here: the docs allow at most 5 attempts for a failing request, and going over leads to a ban.
@@ -97,7 +97,7 @@ npm run ci
   - the live e2e (after `ci` is green).
   A failed scheduled run makes GitHub e-mail the owner ("Run failed: Teljes ellenőrzés"). A Számlázz.hu outage blocks a release until the workflow is re-run. `drift.yml` still runs on Mondays too and opens an issue with the report.
 - The owner's one-time setup (secrets, e-mail alerts, Trusted Publisher) is in `.github/BEALLITAS.md`.
-- The key lives only in the GitHub **environment** `e2e` (Settings → Environments), restricted to the `main` branch: secret `SZAMLAZZ_TEST_AGENT_KEY`, secret `SZAMLAZZ_E2E_EMAIL`, optional variables `SZAMLAZZ_E2E_RECEIPT_PREFIX` and `SZAMLAZZ_E2E_TAXPAYER`. Pull requests and forks never get it, and `ci.yml` does not use it. Never print the key or request XML in test output, because Actions logs of a public repository are public.
+- The key lives only in the GitHub **environment** `e2e` (Settings → Environments), restricted to the `main` branch: secret `SZAMLAZZ_TEST_AGENT_KEY`, secret `SZAMLAZZ_E2E_EMAIL`, optional variables `SZAMLAZZ_E2E_INVOICE_PREFIX`, `SZAMLAZZ_E2E_RECEIPT_PREFIX` and `SZAMLAZZ_E2E_TAXPAYER`. Pull requests and forks never get it, and `ci.yml` does not use it. Never print the key or request XML in test output, because Actions logs of a public repository are public.
 
 ## README
 
