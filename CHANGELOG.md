@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.17.0 (2026-10-14)
+
+### Újdonságok
+
+- **web:** új változók hozzáadása a tesztelési környezethez (40fcd24)
+
 ## 0.16.0 (2026-10-09)
 
 ### Újdonságok
