@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.18.1 (2026-10-26)
+
+### Javítások
+
+- **docs:** frissítve a php-changelog hash értéke (201d3ef)
+
 ## 0.18.0 (2026-10-14)
 
 ### Újdonságok
