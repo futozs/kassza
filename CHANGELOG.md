@@ -1,5 +1,15 @@
 # Változásnapló
 
+## 0.19.0 (2026-11-02)
+
+### Újdonságok
+
+- **url:** új funkciók a perjelek levágására fix(cli): a jelentés formázásának javítása test: új tesztek a trimTrailingSlashes és trimSlashes funkciókhoz (a1f2d8c)
+
+### Javítások
+
+- **errors:** az 520-as és 521-es (adattörlő kód) hibakód felvétele (f408e41)
+
 ## 0.18.1 (2026-10-26)
 
 ### Javítások
