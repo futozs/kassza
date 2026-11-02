@@ -1,4 +1,5 @@
 import { hmacHex, timingSafeEqual } from '../core/crypto'
+import { trimTrailingSlashes } from '../core/url'
 import { fromMinorUnits, normalizeCurrency } from './amounts'
 import { parseJsonObject, plainResponse, readRawBody } from './body'
 import { PaymentProviderError, WebhookVerificationError } from './errors'
@@ -325,7 +326,7 @@ async function stripeGet(url: URL, options: StripeApiOptions, what: string): Pro
 }
 
 function apiUrl(options: StripeApiOptions, pathname: string): URL {
-  return new URL(`${(options.apiUrl ?? STRIPE_API_URL).replace(/\/+$/, '')}${pathname}`)
+  return new URL(`${trimTrailingSlashes(options.apiUrl ?? STRIPE_API_URL)}${pathname}`)
 }
 
 export async function fetchStripeLineItems(

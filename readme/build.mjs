@@ -20,7 +20,7 @@ function escapeHtml(value) {
 }
 
 function linkText(value) {
-  return String(value).replace(/[[\]]/g, '\\$&')
+  return String(value).replace(/[\\[\]]/g, '\\$&')
 }
 
 function shieldsUrl(path, params) {

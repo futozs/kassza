@@ -1,4 +1,5 @@
 import { SzamlazzError } from '../core/errors'
+import { trimTrailingSlashes } from '../core/url'
 import { describeError, StorageError, type StorageOperation } from './errors'
 import {
   assertExpires,
@@ -52,7 +53,7 @@ function bucketBaseUrl(options: S3FetchStorageOptions): string {
       cause: error,
     })
   }
-  const basePath = endpoint.pathname.replace(/\/+$/, '')
+  const basePath = trimTrailingSlashes(endpoint.pathname)
   if (options.forcePathStyle ?? true) return `${endpoint.origin}${basePath}/${bucket}`
   return `${endpoint.protocol}//${bucket}.${endpoint.host}${basePath}`
 }

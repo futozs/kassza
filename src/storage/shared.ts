@@ -1,3 +1,4 @@
+import { trimSlashes, trimTrailingSlashes } from '../core/url'
 import { StorageError } from './errors'
 
 export const PDF_CONTENT_TYPE = 'application/pdf'
@@ -27,7 +28,7 @@ export function assertStorageKey(key: string): string {
 
 export function normalizePrefix(prefix: string | undefined): string {
   if (!prefix) return ''
-  const trimmed = prefix.replace(/^\/+|\/+$/g, '')
+  const trimmed = trimSlashes(prefix)
   if (trimmed === '') return ''
   assertStorageKey(trimmed)
   return `${trimmed}/`
@@ -49,7 +50,7 @@ export function encodeKeyPath(key: string): string {
 }
 
 export function joinPublicUrl(baseUrl: string, key: string): string {
-  return `${baseUrl.replace(/\/+$/, '')}/${encodeKeyPath(key)}`
+  return `${trimTrailingSlashes(baseUrl)}/${encodeKeyPath(key)}`
 }
 
 export function assertExpires(expiresInSeconds: number, maximum: number, key: string): number {

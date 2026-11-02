@@ -358,7 +358,7 @@ export function formatDoctorReport(checks: readonly DoctorCheck[], meta: DoctorR
     '| Ellenőrzés | Állapot | Eredmény |',
     '| --- | --- | --- |',
     ...checks.map(
-      (entry) => `| ${entry.id} | ${entry.status} | ${entry.message.replace(/\|/g, '\\|')} |`,
+      (entry) => `| ${entry.id} | ${entry.status} | ${entry.message.replace(/[\\|]/g, '\\$&')} |`,
     ),
     '',
     summary(checks),

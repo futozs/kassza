@@ -1,6 +1,7 @@
 import type { RequestOptions } from '../core/context'
 import { digestHex } from '../core/crypto'
 import { todayInBudapest } from '../core/dates'
+import { trimTrailingSlashes } from '../core/url'
 import { type NavOperation, NavReceiptError } from './errors'
 import {
   parseAuthTokenResponse,
@@ -206,7 +207,7 @@ function resolveOptions(options: NavReceiptClientOptions): ResolvedOptions {
     throw configuration(`A timeoutMs pozitív szám legyen, kapott: ${timeoutMs}`)
   }
   return {
-    baseUrl: (options.baseUrl ?? NAV_RECEIPT_URLS[options.environment]).replace(/\/+$/, ''),
+    baseUrl: trimTrailingSlashes(options.baseUrl ?? NAV_RECEIPT_URLS[options.environment]),
     login,
     password: options.password,
     passwordHash: passwordHash?.toUpperCase(),
