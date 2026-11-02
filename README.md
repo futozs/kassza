@@ -110,7 +110,7 @@ A teljes magyar dokumentáció, a sandbox és a receptek a **[kasszajs.hu](https
   <a href="https://kasszajs.hu/sandbox?pelda=szamla"><picture><source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/showcase-dark.svg"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/showcase-light.svg" alt="A kassza sandbox: futtatható példák, TypeScript kód és a ténylegesen elküldött XML" width="100%"></picture></a>
 </p>
 
-- 📖 **[Dokumentáció](https://kasszajs.hu/docs)**: 188 oldal magyarul. Minden Agent művelethez kérés, válasz és futtatható minta, a beállítások, a szabályok és az összes ismert hibakód.
+- 📖 **[Dokumentáció](https://kasszajs.hu/docs)**: 190 oldal magyarul. Minden Agent művelethez kérés, válasz és futtatható minta, a beállítások, a szabályok és az összes ismert hibakód.
 - ▶️ **[Sandbox](https://kasszajs.hu/sandbox)**: 28 példa, amit a böngészőben futtathatsz Agent kulcs nélkül, szimulált Számlázz.hu ellen, a ténylegesen elküldött XML-lel. A saját kódodat linkként meg is oszthatod.
 - 🍳 **[Receptek](https://kasszajs.hu/docs/receptek)**: 11 teljes, bemásolható integráció webshophoz, Stripe és IPN webhookhoz, díjbekérőhöz, pénztári nyugtához, PDF tárhelyhez, Cloudflare Workershez és tesztekhez.
 - 🤖 **[llms.txt](https://kasszajs.hu/llms.txt)**: a dokumentáció tartalomjegyzéke AI asszisztenseknek, a teljes szöveg egy fájlban: [llms-full.txt](https://kasszajs.hu/llms-full.txt).
