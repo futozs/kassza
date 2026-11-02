@@ -11,7 +11,8 @@
       "!public/monaco",
       "!public/sandbox-runtime",
       "!generated",
-      "!next-env.d.ts"
+      "!next-env.d.ts",
+      "!**/*.md"
     ]
   },
   "css": {
