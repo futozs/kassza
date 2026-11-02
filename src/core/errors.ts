@@ -302,6 +302,16 @@ export const AGENT_ERROR_CODES: Readonly<Record<number, AgentErrorCodeInfo>> = {
     category: 'validation',
     hint: 'A dedikált felhasználó jelszava legfeljebb 128 karakter lehet.',
   },
+  520: {
+    message: 'Nincs elegendő törlőkódod, kérlek tölts fel újat.',
+    category: 'account',
+    hint: 'Tölts fel új adattörlő kódokat a Számlázz.hu fiókodba. A bizonylat nem jött létre.',
+  },
+  521: {
+    message: 'Jelenleg csak a Számlázz.hu ajánlott számlaképpel használható a törlőkód.',
+    category: 'validation',
+    hint: 'Adattörlő kódot csak az alapértelmezett sablonnal kérj: számlánál az ajánlott számlaképpel (SzlaMost), nyugtánál a normál A4-es sablonnal.',
+  },
   524: {
     message: 'A nyugtaszám-előtag nincs engedélyezve.',
     category: 'account',
