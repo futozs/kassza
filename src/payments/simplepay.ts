@@ -1,6 +1,7 @@
 import { base64ToBytes, bytesToBase64, decodeUtf8 } from '../core/binary'
 import { bytesToHex, hmac, timingSafeEqual } from '../core/crypto'
 import { toBudapestTimestamp } from '../core/dates'
+import { trimTrailingSlashes } from '../core/url'
 import { normalizeCurrency } from './amounts'
 import { parseJsonObject, readRawBody } from './body'
 import { PaymentProviderError, WebhookVerificationError } from './errors'
@@ -157,7 +158,7 @@ function randomSalt(): string {
 function apiBase(options: Pick<SimplePayApiOptions, 'sandbox' | 'apiUrl'>): string {
   const base =
     options.apiUrl ?? (options.sandbox ? SIMPLEPAY_SANDBOX_API_URL : SIMPLEPAY_LIVE_API_URL)
-  return base.replace(/\/+$/, '')
+  return trimTrailingSlashes(base)
 }
 
 function serializeRequest(body: Readonly<Record<string, unknown>>): string {

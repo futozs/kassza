@@ -433,7 +433,7 @@ export function createAgentError(input: AgentErrorInput): SzamlazzError {
   })
 }
 
-const SUGGESTED_PREFIX_PATTERN = /haszn[áa]ld ezt:\s*\(?\s*([A-Z0-9]+)\s*\)?/i
+const SUGGESTED_PREFIX_PATTERN = /haszn[áa]ld ezt:\s*(?:\(\s*)?([A-Z0-9]+)\s*\)?/i
 
 export function suggestedPrefix(error: unknown): string | undefined {
   if (!(error instanceof SzamlazzError) || error.code !== 356) return undefined

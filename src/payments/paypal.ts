@@ -1,4 +1,5 @@
 import { bytesToBase64, encodeUtf8 } from '../core/binary'
+import { trimTrailingSlashes } from '../core/url'
 import { roundMoney } from '../money/rounding'
 import { normalizeCurrency, parseDecimalAmount } from './amounts'
 import { parseJsonObject, plainResponse, readRawBody } from './body'
@@ -55,7 +56,7 @@ interface CachedToken {
 
 function apiBase(options: Pick<PayPalApiOptions, 'sandbox' | 'apiUrl'>): string {
   const base = options.apiUrl ?? (options.sandbox ? PAYPAL_SANDBOX_API_URL : PAYPAL_LIVE_API_URL)
-  return base.replace(/\/+$/, '')
+  return trimTrailingSlashes(base)
 }
 
 async function readJson(response: Response, what: string): Promise<JsonRecord> {

@@ -114,6 +114,12 @@ describe('parseHungarianAddress', () => {
     })
   })
 
+  test('hosszú szóközsorozaton is gyorsan lefut', () => {
+    const start = performance.now()
+    parseHungarianAddress(`1234 Budapest${' '.repeat(200_000)}Fő utca 1.`)
+    expect(performance.now() - start).toBeLessThan(100)
+  })
+
   test('a cím, irányítószám város sorrendet is bontja', () => {
     expect(parseHungarianAddress('Fő utca 1., 1234 Budapest')).toEqual({
       zip: '1234',

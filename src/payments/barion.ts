@@ -1,3 +1,4 @@
+import { trimTrailingSlashes } from '../core/url'
 import { roundMoney } from '../money/rounding'
 import { normalizeCurrency } from './amounts'
 import { plainResponse, readRawBody } from './body'
@@ -49,7 +50,7 @@ export interface BarionApiOptions {
 
 function apiBase(options: Pick<BarionApiOptions, 'sandbox' | 'apiUrl'>): string {
   const base = options.apiUrl ?? (options.sandbox ? BARION_SANDBOX_API_URL : BARION_LIVE_API_URL)
-  return base.replace(/\/+$/, '')
+  return trimTrailingSlashes(base)
 }
 
 function barionErrors(json: JsonRecord | undefined): string[] {

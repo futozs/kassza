@@ -51,7 +51,7 @@ function normalizeInput(value: string): string {
   return value
     .replace(/[\r\n]+/g, ', ')
     .replace(/\s+/g, ' ')
-    .replace(/\s*(?:,\s*)+/g, ', ')
+    .replace(/ ?(?:, ?)+/g, ', ')
     .replace(/^(?:HU|H)\s*-\s*/i, '')
     .replace(/,?\s*(?:Magyarország|Hungary)\.?$/i, '')
     .replace(/^[\s,]+|[\s,]+$/g, '')

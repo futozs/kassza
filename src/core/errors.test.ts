@@ -78,6 +78,13 @@ describe('suggestedPrefix', () => {
     expect(suggestedPrefix(new Error('használd ezt: ABC'))).toBeUndefined()
     expect(suggestedPrefix(undefined)).toBeUndefined()
   })
+
+  test('sok szóközt tartalmazó üzeneten is gyorsan lefut', () => {
+    const error = createAgentError({ code: 356, message: `használd ezt:${' '.repeat(200_000)}` })
+    const start = performance.now()
+    expect(suggestedPrefix(error)).toBeUndefined()
+    expect(performance.now() - start).toBeLessThan(100)
+  })
 })
 
 describe('SzamlazzError.docsUrl', () => {

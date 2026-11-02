@@ -1,4 +1,5 @@
 import { hmacHex, timingSafeEqual } from '../core/crypto'
+import { trimTrailingSlashes } from '../core/url'
 import { fromMinorUnits, normalizeCurrency } from './amounts'
 import { parseJsonObject, readRawBody } from './body'
 import { PaymentProviderError, WebhookVerificationError } from './errors'
@@ -134,7 +135,7 @@ export interface RevolutApiOptions {
 
 function apiBase(options: Pick<RevolutApiOptions, 'sandbox' | 'apiUrl'>): string {
   const base = options.apiUrl ?? (options.sandbox ? REVOLUT_SANDBOX_API_URL : REVOLUT_LIVE_API_URL)
-  return base.replace(/\/+$/, '')
+  return trimTrailingSlashes(base)
 }
 
 export async function fetchRevolutOrder(
