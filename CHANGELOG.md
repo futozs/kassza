@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 0.20.0 (2026-11-05)
+
+### Újdonságok
+
+- a moldáv lej (MDL) felvétele a támogatott devizanemek közé (4869bb3)
+
 ## 0.19.0 (2026-11-02)
 
 ### Újdonságok
