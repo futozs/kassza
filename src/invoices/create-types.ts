@@ -81,6 +81,7 @@ export const CURRENCIES = [
   'KZT',
   'LTL',
   'LVL',
+  'MDL',
   'MXN',
   'MYR',
   'NOK',

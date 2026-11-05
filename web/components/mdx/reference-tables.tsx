@@ -257,6 +257,7 @@ const CURRENCIES: readonly (readonly [string, string])[] = [
   ['CZK', 'cseh korona'],
   ['PLN', 'lengyel zloty'],
   ['RON', 'román lej'],
+  ['MDL', 'moldáv lej'],
   ['RSD', 'szerb dinár'],
   ['HRK', 'horvát kuna (megszűnt)'],
   ['BGN', 'bolgár leva'],

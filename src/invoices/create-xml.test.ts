@@ -455,6 +455,13 @@ describe('buildCreateInvoiceXml', () => {
     expect(findChild(header, 'arfolyam')).toBeUndefined()
   })
 
+  test('moldáv lejes (MDL) számlán a pénznemet változatlanul írja', () => {
+    const header = findChild(build({ ...MINIMAL, currency: 'MDL' }), 'fejlec')
+
+    expect(childText(header, 'penznem')).toBe('MDL')
+    expect(childText(header, 'arfolyamBank')).toBe('MNB')
+  })
+
   test.each([
     [{ type: 'invoice' }, []],
     [{ type: 'proforma' }, ['dijbekero']],
