@@ -137,7 +137,7 @@ Ha a nyugta nem készült el, a `create()` `SzamlazzError`-t dob. A nyugtakész�
 | --- | --- | --- |
 | – | `validation` | A kassza a küldés előtt hibát talált a bemenetben, lásd [Kérés](/docs/nyugta-letrehozas/keres#amit-a-kassza-a-küldés-előtt-ellenőriz). |
 | 3 | `auth` | Hibás Agent kulcs. |
-| 57 | `validation` | Az XML nem felel meg az XSD-nek. Ha adattörlő kódot küldtél, próbáld nélküle: a letölthető XSD-ben a `torloKod` még nem szerepel. |
+| 57 | `validation` | Az XML nem felel meg az XSD-nek. |
 | 71, 152 | `duplicate` | A rendelésszám már szerepel nyugtán, és a fiókban a nyugtákra be van kapcsolva a rendelésszám ismétlődés tiltása. |
 | 136 | `account` | Lejárt előfizetés vagy rendezetlen díj. |
 | 259–261 | `validation` | Hibás tételösszeg. A 261-est forintos nyugtán akkor kapod, ha a nettó és az áfa összege nem pontosan a bruttó. |

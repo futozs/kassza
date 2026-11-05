@@ -25,10 +25,10 @@ describe.skipIf(!canValidateXsd(SCHEMA))('buildGetReceiptXml XSD szerződés', (
     expect(validateAgainstXsd(buildGetReceiptXml(CREDENTIALS, FULL_INPUT), SCHEMA)).toEqual([])
   })
 
-  test('a rendelesSzam a docs XSD-jében szerepel, a letölthető XSD-ben még nem', () => {
+  test('a rendelesSzam a letölthető XSD szerint is érvényes', () => {
     const xml = buildGetReceiptXml(CREDENTIALS, { orderNumber: 'ORD-2026-001' })
 
-    expect(validateAgainstXsd(xml, SCHEMA).join('\n')).toContain('rendelesSzam')
+    expect(validateAgainstXsd(xml, SCHEMA)).toEqual([])
   })
 })
 

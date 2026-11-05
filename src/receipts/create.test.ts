@@ -68,13 +68,13 @@ describe.skipIf(!canValidateXsd(SCHEMA))('buildCreateReceiptXml XSD szerződés'
     expect(validateAgainstXsd(build(FULL_INPUT), SCHEMA)).toEqual([])
   })
 
-  test('a torloKod a docs XSD-jében szerepel, a letölthető XSD-ben még nem', () => {
+  test('a torloKod a letölthető XSD szerint is érvényes', () => {
     const xml = build({
       ...MINIMAL_INPUT,
       items: [{ name: 'Tétel', grossUnitPrice: 1000, vat: 27, dataDeletionCode: 123 }],
     })
 
-    expect(validateAgainstXsd(xml, SCHEMA).join('\n')).toContain('torloKod')
+    expect(validateAgainstXsd(xml, SCHEMA)).toEqual([])
   })
 })
 
