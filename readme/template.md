@@ -3,8 +3,12 @@
 </p>
 
 <p align="center">
+  <a href="{{docs:alapok/mi-a-kassza}}#hivatalos-plugin">{{image:hivatalos-szamlazz-plugin.svg|Hivatalos Számlázz.hu plugin|h120}}</a>
+</p>
+
+<p align="center">
   <b>Számlázz.hu, TypeScriptben, egyszerűbben.</b><br>
-  Nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. Mind a 11 Agent művelet, 0 függőség, nulla runtime kompromisszum.<br>
+  Hivatalos Számlázz.hu plugin: TypeScript kliens a Számla Agenthez. Mind a 11 Agent művelet, 0 függőség, nulla runtime kompromisszum.<br>
   <sub><a href="{{repo}}/blob/main/README.en.md">English overview</a></sub>
 </p>
 
@@ -1199,4 +1203,4 @@ A kassza nem küld semmilyen használati adatot, ezért csak az derül ki, ki ha
   <a href="{{web}}">Weboldal</a> · <a href="{{docs}}">Dokumentáció</a> · <a href="{{sandbox}}">Sandbox</a> · <a href="{{recipes}}">Receptek</a> · <a href="{{npm}}">npm</a> · <a href="{{changelog}}">Változásnapló</a>
 </p>
 
-<sub>Nem hivatalos csomag, nem kapcsolódik a KBOSS.hu Kft.-hez (Számlázz.hu). A hivatalos dokumentáció a <a href="{{officialDocs}}">docs.szamlazz.hu</a> oldalon érhető el. MIT licenc.</sub>
+<sub>A kassza hivatalos Számlázz.hu plugin. A Számla Agent hivatalos dokumentációja a <a href="{{officialDocs}}">docs.szamlazz.hu</a> oldalon érhető el. MIT licenc.</sub>

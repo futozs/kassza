@@ -5,8 +5,12 @@
 </p>
 
 <p align="center">
+  <a href="https://kasszajs.hu/docs/alapok/mi-a-kassza#hivatalos-plugin"><img src="https://raw.githubusercontent.com/futozs/kassza/main/readme/assets/hivatalos-szamlazz-plugin.svg" alt="Hivatalos Számlázz.hu plugin" height="120"></a>
+</p>
+
+<p align="center">
   <b>Számlázz.hu, TypeScriptben, egyszerűbben.</b><br>
-  Nem hivatalos TypeScript wrapper a Számlázz.hu Számla Agenthez. Mind a 11 Agent művelet, 0 függőség, nulla runtime kompromisszum.<br>
+  Hivatalos Számlázz.hu plugin: TypeScript kliens a Számla Agenthez. Mind a 11 Agent művelet, 0 függőség, nulla runtime kompromisszum.<br>
   <sub><a href="https://github.com/futozs/kassza/blob/main/README.en.md">English overview</a></sub>
 </p>
 
@@ -1294,4 +1298,4 @@ A kassza nem küld semmilyen használati adatot, ezért csak az derül ki, ki ha
   <a href="https://kasszajs.hu">Weboldal</a> · <a href="https://kasszajs.hu/docs">Dokumentáció</a> · <a href="https://kasszajs.hu/sandbox">Sandbox</a> · <a href="https://kasszajs.hu/docs/receptek">Receptek</a> · <a href="https://www.npmjs.com/package/kassza">npm</a> · <a href="https://github.com/futozs/kassza/blob/main/CHANGELOG.md">Változásnapló</a>
 </p>
 
-<sub>Nem hivatalos csomag, nem kapcsolódik a KBOSS.hu Kft.-hez (Számlázz.hu). A hivatalos dokumentáció a <a href="https://docs.szamlazz.hu/hu/agent/">docs.szamlazz.hu</a> oldalon érhető el. MIT licenc.</sub>
+<sub>A kassza hivatalos Számlázz.hu plugin. A Számla Agent hivatalos dokumentációja a <a href="https://docs.szamlazz.hu/hu/agent/">docs.szamlazz.hu</a> oldalon érhető el. MIT licenc.</sub>

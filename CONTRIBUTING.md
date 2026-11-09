@@ -1,6 +1,6 @@
 # Közreműködés
 
-Örülünk minden hibajelentésnek és javításnak. A kassza nem hivatalos Számlázz.hu Számla Agent kliens, ezért a hivatalos [docs](https://docs.szamlazz.hu/hu/agent/) az irányadó.
+Örülünk minden hibajelentésnek és javításnak. A kassza hivatalos Számlázz.hu plugin, a Számla Agent viselkedésében a hivatalos [docs](https://docs.szamlazz.hu/hu/agent/) az irányadó.
 
 ## Előkészület
 

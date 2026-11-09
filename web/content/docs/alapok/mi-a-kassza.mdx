@@ -18,6 +18,14 @@ const szamla = await kassza.invoices.create({
 })
 ```
 
+## Hivatalos Számlázz.hu plugin [#hivatalos-plugin]
+
+<OfficialBadge height={120} />
+
+A kassza a Számlázz.hu hivatalos pluginja. A Számlázz.hu a kasszát hivatalos pluginként tartja számon, ezt jelzi a fenti jelvény. A kassza továbbra is nyílt forráskódú, MIT licencű projekt: a kódja, a hibajegyei és a kiadásai a [GitHubon](https://github.com/futozs/kassza) vannak.
+
+A Számlázz.hu a kassza által kiállított bizonylatokat a saját aggregátor kódja alapján a kasszához köti. Ez nem telemetria: nem indít külön kérést, és csak a Számla Agenthez jut el.
+
 ## Mit csinál helyetted a kassza?
 
 | Feladat a nyers Agent API-val | A kasszában |
@@ -65,4 +73,3 @@ A kassza nulla futásidejű függőséggel készül, és csak a szabványos `fet
 
 - **Nem helyettesíti a Számlázz.hu fiókot.** Az előfizetés, a cégadatok, a számlaszám-előtagok és a számlázási beállítások a Számlázz.hu felületén maradnak.
 - **Nem ad adótanácsot.** Az áfakulcs, a bizonylattípus és a devizás számlázás szabályait könyvelőddel egyeztesd.
-- **Nem hivatalos termék.** A kassza független, nyílt forráskódú projekt, a Számlázz.hu (KBOSS.hu Kft.) nem támogatja és nem felel érte.

@@ -1,6 +1,7 @@
 import { ArrowRight } from 'lucide-react'
 import Link from 'next/link'
 import type { CSSProperties, ReactNode } from 'react'
+import { OfficialBadge } from '@/components/site/official-badge'
 import { type HeroInvoice, HeroStage } from './hero-stage'
 import { LandingContainer } from './landing-container'
 
@@ -29,6 +30,12 @@ export function Hero({
         <style>{'.hs-scene *,.hs-scene *::after{animation:none!important}'}</style>
       </noscript>
       <LandingContainer className="flex flex-col items-center pt-14 pb-20 text-center sm:pt-20 lg:pt-24 lg:pb-24">
+        <OfficialBadge
+          height={104}
+          className="hero-fade mb-7"
+          style={{ '--i': 0 } as CSSProperties}
+        />
+
         <Link
           href="/docs"
           className="hero-fade hero-pill group"

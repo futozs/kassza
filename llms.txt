@@ -1,6 +1,6 @@
 # kassza
 
-> Zero-dependency TypeScript client for the Számlázz.hu Számla Agent API (Hungarian invoicing): invoices, proformas, receipts, reversals, payments, PDFs, NAV taxpayer lookup, IPN webhooks. Also: exactly-once documents from Stripe, SimplePay, Barion, Revolut and PayPal payments, NAV daily receipt reports, delegated invoicing, the Számlázz.hu data link, a fake Számla Agent for tests, a CLI and an MCP server. Also: cross-process exactly-once locks, a receipt journal for NAV reports, partial refunds as corrective invoices, bulk/recurring invoicing, Express adapter, observability without telemetry. Unofficial.
+> The official Számlázz.hu plugin for TypeScript: a zero-dependency client for the Számlázz.hu Számla Agent API (Hungarian invoicing): invoices, proformas, receipts, reversals, payments, PDFs, NAV taxpayer lookup, IPN webhooks. Also: exactly-once documents from Stripe, SimplePay, Barion, Revolut and PayPal payments, NAV daily receipt reports, delegated invoicing, the Számlázz.hu data link, a fake Számla Agent for tests, a CLI and an MCP server. Also: cross-process exactly-once locks, a receipt journal for NAV reports, partial refunds as corrective invoices, bulk/recurring invoicing, Express adapter, observability without telemetry. Unofficial.
 
 ## Docs for coding agents
 

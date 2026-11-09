@@ -2,6 +2,7 @@ import { ArrowUpRight } from 'lucide-react'
 import Link from 'next/link'
 import { site } from '@/lib/site'
 import { LogoMark } from './logo'
+import { OfficialBadge } from './official-badge'
 
 const columns = [
   {
@@ -47,8 +48,10 @@ export function SiteFooter() {
             </span>
           </Link>
           <p className="mt-3 text-sm leading-relaxed text-muted">
-            Nyílt forráskódú TypeScript kliens a Számlázz.hu Számla Agenthez. MIT licenc.
+            Hivatalos Számlázz.hu plugin: nyílt forráskódú TypeScript kliens a Számla Agenthez. MIT
+            licenc.
           </p>
+          <OfficialBadge height={84} className="mt-5" />
         </div>
         {columns.map((column) => (
           <div key={column.title}>
@@ -82,8 +85,7 @@ export function SiteFooter() {
       </div>
       <div className="mx-auto max-w-[var(--docs-max)] px-5 pb-10 sm:px-8">
         <p className="border-t border-rule pt-6 text-xs leading-relaxed text-muted">
-          A kassza nem hivatalos projekt, és nem kapcsolódik a KBOSS.hu Kft.-hez (Számlázz.hu). A
-          Számla Agent hivatalos dokumentációja a{' '}
+          A kassza hivatalos Számlázz.hu plugin. A Számla Agent hivatalos dokumentációja a{' '}
           <a
             href={site.officialDocs}
             target="_blank"

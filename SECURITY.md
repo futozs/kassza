@@ -4,7 +4,7 @@ A kassza számlázási hozzáférést (Agent kulcsot) és vevői adatokat kezel,
 
 ## Támogatott verziók
 
-Biztonsági javítást csak a legutóbbi kiadott verzió kap. A csomag még 0.x, ezért érdemes mindig frissíteni.
+Biztonsági javítást csak a legutóbbi kiadott verzió kap. Érdemes mindig a legfrissebb verzióra frissíteni.
 
 ## Sebezhetőség bejelentése
 
@@ -28,7 +28,7 @@ Ne küldj valódi Agent kulcsot, jelszót vagy vevői adatot. Ha egy kulcs kiszi
 
 ## Hatókör
 
-A kassza nem hivatalos kliens, ezért a Számlázz.hu rendszerét érintő hibát a [Számlázz.hu](https://www.szamlazz.hu) felé kell jelezni. A kassza csomagjában lévő hibák (kérésépítés, válaszfeldolgozás, IPN ellenőrzés, tárhely- és cookie-adapterek) ide tartoznak.
+A Számlázz.hu rendszerét érintő hibát a [Számlázz.hu](https://www.szamlazz.hu) felé kell jelezni. A kassza csomagjában lévő hibák (kérésépítés, válaszfeldolgozás, IPN ellenőrzés, tárhely- és cookie-adapterek) ide tartoznak.
 
 ## English summary
 

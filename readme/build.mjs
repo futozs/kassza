@@ -101,6 +101,12 @@ function createRenderer({ config, pkg, site, assetNames }) {
     return `<picture><source media="(prefers-color-scheme: dark)" srcset="${asset(name, 'dark')}"><img src="${asset(name, 'light')}" alt="${escapeHtml(alt)}" ${dimension}></picture>`
   }
 
+  function image(file, alt, size) {
+    if (!assetNames.has(file)) problems.push(`Hiányzó kép: readme/assets/${file}`)
+    const dimension = size.startsWith('h') ? `height="${size.slice(1)}"` : `width="${size}"`
+    return `<img src="${urls.assets}/${file}" alt="${escapeHtml(alt)}" ${dimension}>`
+  }
+
   function linkedPicture(href, name, alt, size) {
     return `<a href="${href}">${picture(name, alt, size)}</a>`
   }
@@ -276,6 +282,7 @@ function createRenderer({ config, pkg, site, assetNames }) {
     example: (slug) => exampleLink(slug),
     recipe: (slug) => recipeLink(slug),
     picture: (name, alt = '', size = '100%') => picture(name, alt, size),
+    image: (file, alt = '', size = '100%') => image(file, alt, size),
     badges: () => badges(),
     links: (docsPath, sandboxSlug, recipeSlug) => links(docsPath, sandboxSlug, recipeSlug),
     more: (docsPath, sandboxSlug) => more(docsPath, sandboxSlug),

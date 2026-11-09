@@ -1,5 +1,9 @@
 # Változásnapló
 
+## Kiadatlan
+
+Az első stabil kiadás: a kassza hivatalos Számlázz.hu plugin lett, és kilépett a bétából. Az 1.0.0-tól a verziózás a szemantikus verziózást követi, törő változás csak új főverzióval jön.
+
 ## 0.20.0 (2026-11-05)
 
 ### Újdonságok

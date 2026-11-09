@@ -12,7 +12,7 @@ export const site = {
   name: 'kassza',
   tagline: 'Számlázz.hu, TypeScriptben.',
   description:
-    'Nem hivatalos, nulla függőségű TypeScript kliens a Számlázz.hu Számla Agenthez: számla, díjbekérő, nyugta, sztornó, befizetés, PDF és adószám-lekérdezés.',
+    'Hivatalos Számlázz.hu plugin: nulla függőségű TypeScript kliens a Számla Agenthez: számla, díjbekérő, nyugta, sztornó, befizetés, PDF és adószám-lekérdezés.',
   url: resolveSiteUrl(),
   version: kasszaRelease.version,
   repo: 'https://github.com/futozs/kassza',

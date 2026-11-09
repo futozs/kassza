@@ -1,6 +1,10 @@
 # kassza (English overview)
 
-kassza is an unofficial, zero-dependency TypeScript client for the [Számlázz.hu](https://www.szamlazz.hu) Számla Agent API, the most widely used Hungarian invoicing service. The full documentation is in Hungarian at [kasszajs.hu](https://kasszajs.hu), because the domain (Hungarian VAT, NAV reporting, receipt rules) is Hungarian. This page is a short entry point for developers who do not read Hungarian.
+<p align="center">
+  <a href="https://kasszajs.hu/docs/alapok/mi-a-kassza#hivatalos-plugin"><img src="readme/assets/hivatalos-szamlazz-plugin.svg" alt="Official Számlázz.hu plugin" height="120"></a>
+</p>
+
+kassza is the official Számlázz.hu plugin for TypeScript: a zero-dependency client for the [Számlázz.hu](https://www.szamlazz.hu) Számla Agent API, the most widely used Hungarian invoicing service. The full documentation is in Hungarian at [kasszajs.hu](https://kasszajs.hu), because the domain (Hungarian VAT, NAV reporting, receipt rules) is Hungarian. This page is a short entry point for developers who do not read Hungarian.
 
 ```bash
 npm install kassza
@@ -43,6 +47,6 @@ English docs for agents ship inside the package: [agents/README.md](agents/READM
 
 ## Status
 
-kassza is in beta (0.x). The API may still change between minor versions; see the [changelog](CHANGELOG.md) (in Hungarian). It is not affiliated with Számlázz.hu.
+kassza is stable (1.x) and an official Számlázz.hu plugin. It follows semantic versioning, so breaking changes only come with a new major version; see the [changelog](CHANGELOG.md) (in Hungarian).
 
 License: MIT.

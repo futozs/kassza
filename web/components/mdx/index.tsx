@@ -2,6 +2,7 @@ import * as Twoslash from 'fumadocs-twoslash/ui'
 import type { MDXComponents } from 'mdx/types'
 import Link from 'next/link'
 import type { ComponentProps } from 'react'
+import { OfficialBadge } from '@/components/site/official-badge'
 import { Callout } from './callout'
 import { Card, Cards } from './cards'
 import { CodeBlock } from './code-block'
@@ -68,6 +69,7 @@ export const baseMdxComponents = {
   ErrorCodeTable,
   Example,
   FlowDiagram,
+  OfficialBadge,
   OutboundIpTable,
   RoundingCalculator,
   Tab,

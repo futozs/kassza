@@ -4,7 +4,7 @@ This file guides AI agents that work **on this repository**. If you only *use* t
 
 ## What this is
 
-`kassza` is an unofficial, zero-dependency TypeScript client for the Számlázz.hu Számla Agent API. The official docs are at https://docs.szamlazz.hu/hu/agent/. A local copy lives in `.research/docs-agent/`; it is gitignored and never committed, for copyright reasons.
+`kassza` is the official Számlázz.hu plugin for TypeScript: a zero-dependency client for the Számla Agent API. The official docs are at https://docs.szamlazz.hu/hu/agent/. A local copy lives in `.research/docs-agent/`; it is gitignored and never committed, for copyright reasons.
 
 ## Commands
 
@@ -99,13 +99,17 @@ npm run ci
 - The owner's one-time setup (secrets, e-mail alerts, Trusted Publisher) is in `.github/BEALLITAS.md`.
 - The key lives only in the GitHub **environment** `e2e` (Settings → Environments), restricted to the `main` branch: secret `SZAMLAZZ_TEST_AGENT_KEY`, secret `SZAMLAZZ_E2E_EMAIL`, optional variables `SZAMLAZZ_E2E_INVOICE_PREFIX`, `SZAMLAZZ_E2E_RECEIPT_PREFIX` and `SZAMLAZZ_E2E_TAXPAYER`. Pull requests and forks never get it, and `ci.yml` does not use it. Never print the key or request XML in test output, because Actions logs of a public repository are public.
 
+## Official plugin badge
+
+kassza is an official Számlázz.hu plugin. The badge artwork is `hivatalos-szamlazz-plugin.svg`, kept byte-identical in `assets/` (brand assets), `readme/assets/` (README, served from GitHub raw) and `web/public/` (the website reads nothing outside `web/`); `tests/official-badge.test.ts` fails when the copies differ. The website shows it through `OfficialBadge` (`web/components/site/official-badge.tsx`) in the hero, the footer and on `/docs/alapok/mi-a-kassza#hivatalos-plugin`, which every badge links to. Never describe kassza as unofficial or as beta again.
+
 ## README
 
 `README.md` is generated. Never edit it by hand: edit `readme/template.md` and run `npm run readme`. CI fails when `README.md` is out of sync (`npm run readme:check`).
 
 - `readme/config.json` holds the variables: the website URL (`web`, also synced into `package.json#homepage`), the GitHub repo and branch for image URLs, the official docs URL and the badge color.
 - Placeholders: `{{web}}`, `{{docs}}`, `{{sandbox}}`, `{{recipes}}`, `{{npm}}`, `{{host}}`, `{{pages}}`, `{{examples}}`, `{{recipeCount}}` and others in `readme/build.mjs`.
-- Helpers: `{{docs:path}}` and `{{doc:path}}` (URL or titled link to a docs page), `{{sandbox:slug}}` and `{{example:slug}}` (sandbox deep link), `{{recipe:slug}}`, `{{picture:name|alt|width}}` (light and dark image), `{{links:docsPath|sandboxSlug|recipeSlug}}` (section buttons), `{{more:docsPath|sandboxSlug}}` (links under an example), `{{badges}}` (three rows: npm, downloads, dependencies and licence; CI, full check, release and OpenSSF Scorecard status; line, branch, function and statement coverage), `{{recipe-list}}`, `{{example-list}}`. The coverage badges read shields.io endpoint JSON from the `badges` branch, which `.github/workflows/badges.yml` force-pushes after every push to `main` (`scripts/coverage-badges.mjs`); never commit to that branch by hand. The workflow also writes a `web/vercel.json` onto that orphan branch: the Vercel project's Root Directory is `web`, so without it every badge push creates a Preview deployment that fails with "The specified Root Directory does not exist". That file turns the branch's deployments off (`git.deploymentEnabled`, with `ignoreCommand` as a fallback); Vercel ignores `[skip ci]` and `[vercel skip]` in commit messages.
+- Helpers: `{{docs:path}}` and `{{doc:path}}` (URL or titled link to a docs page), `{{sandbox:slug}}` and `{{example:slug}}` (sandbox deep link), `{{recipe:slug}}`, `{{picture:name|alt|width}}` (light and dark image), `{{image:file|alt|width}}` (one theme-independent file from `readme/assets/`, such as the badge), `{{links:docsPath|sandboxSlug|recipeSlug}}` (section buttons), `{{more:docsPath|sandboxSlug}}` (links under an example), `{{badges}}` (three rows: npm, downloads, dependencies and licence; CI, full check, release and OpenSSF Scorecard status; line, branch, function and statement coverage), `{{recipe-list}}`, `{{example-list}}`. The coverage badges read shields.io endpoint JSON from the `badges` branch, which `.github/workflows/badges.yml` force-pushes after every push to `main` (`scripts/coverage-badges.mjs`); never commit to that branch by hand. The workflow also writes a `web/vercel.json` onto that orphan branch: the Vercel project's Root Directory is `web`, so without it every badge push creates a Preview deployment that fails with "The specified Root Directory does not exist". That file turns the branch's deployments off (`git.deploymentEnabled`, with `ignoreCommand` as a fallback); Vercel ignores `[skip ci]` and `[vercel skip]` in commit messages.
 - Every docs path is checked against `web/content/docs`, every sandbox slug against `web/sandbox/examples/catalog.ts`, so a broken link fails the build.
 - The images are generated by `readme/art/` with the website's fonts turned into paths, so they look identical everywhere. The fonts are downloaded from Google Fonts once and cached in `node_modules/.cache`. The sandbox showcase uses the XML that the built package really sends, so run `npm run build` first on a fresh clone.
 
@@ -137,7 +141,7 @@ Only `main` deploys on Vercel: `git.deploymentEnabled` in `web/vercel.json` swit
 
 The site is only rebuilt when `web/` changed since the last successful deployment. `ignoreCommand` in `web/vercel.json` compares `web/` with `VERCEL_GIT_PREVIOUS_SHA` and skips the build only when they are identical; a missing or unreachable previous commit (Vercel clones just 10 commits deep) always means a build. The site reads nothing outside `web/`, so keep it that way or widen the pathspec. `tests/web-ignore-build.test.ts` runs the real command against throwaway git repositories; extend it before changing the command.
 
-On GitHub, `.github/workflows/release.yml` runs `release:ci` for every push to `main` and exits early when there is no releasable commit. A maintainer can also start it by hand from the Actions tab (`workflow_dispatch`) with `patch`, `minor` or `major` to force a release.
+On GitHub, `.github/workflows/release.yml` runs `release:ci` for every push to `main` and exits early when there is no releasable commit. A maintainer can also start it by hand from the Actions tab (`workflow_dispatch`) with `patch`, `minor` or `major` to force a release; the `stable` checkbox sets `KASSZA_ALLOW_STABLE=1`, which `release.mjs` requires for the one-time jump from 0.x to 1.0.0. Since 1.0.0 kassza follows semantic versioning: breaking changes bump major.
 
 Write commit messages as Conventional Commits (`feat: ...`, `fix: ...`) so the changelog groups them.
 

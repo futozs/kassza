@@ -29,7 +29,7 @@ import { source } from '@/lib/source'
 export const metadata: Metadata = {
   title: { absolute: 'kassza: Számlázz.hu Számla Agent kliens TypeScripthez' },
   description:
-    'Nem hivatalos, nulla függőségű TypeScript kliens a Számlázz.hu Számla Agenthez. Mind a 11 művelet, hivatalos kerekítés, magyar idő, magyar hibaüzenetek és védelem a dupla számla ellen.',
+    'Hivatalos Számlázz.hu plugin: nulla függőségű TypeScript kliens a Számla Agenthez. Mind a 11 művelet, hivatalos kerekítés, magyar idő, magyar hibaüzenetek és védelem a dupla számla ellen.',
   alternates: { canonical: '/' },
 }
 

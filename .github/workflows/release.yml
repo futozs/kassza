@@ -11,6 +11,10 @@ on:
         type: choice
         default: auto
         options: [auto, patch, minor, major]
+      stable:
+        description: A 0.x → 1.0 stabil ugrás engedélyezése (KASSZA_ALLOW_STABLE)
+        type: boolean
+        default: false
 
 concurrency:
   group: release
@@ -74,6 +78,7 @@ jobs:
       - name: Kiadás (lint, típusellenőrzés, teszt, build, verziólépés, publish, tag, push)
         env:
           BUMP: ${{ inputs.bump }}
+          KASSZA_ALLOW_STABLE: ${{ inputs.stable && '1' || '0' }}
         run: |
           if [ -n "$BUMP" ] && [ "$BUMP" != "auto" ]; then
             npm run release:ci -- "$BUMP"

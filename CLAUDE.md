@@ -1,6 +1,6 @@
 # kassza
 
-Nyílt forráskódú, nem hivatalos Számlázz.hu Számla Agent kliens (TypeScript, npm csomag). Az architektúra, a konvenciók és a release folyamat az `AGENTS.md`-ben van: munka előtt olvasd el.
+Nyílt forráskódú, hivatalos Számlázz.hu plugin: Számla Agent kliens (TypeScript, npm csomag). Az architektúra, a konvenciók és a release folyamat az `AGENTS.md`-ben van: munka előtt olvasd el.
 
 ## Források
 - Hivatalos docs: https://docs.szamlazz.hu/hu/agent/

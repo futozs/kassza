@@ -273,7 +273,7 @@
   "bugs": {
     "url": "https://github.com/futozs/kassza/issues"
   },
-  "description": "Számlázz.hu Számla Agent kliens TypeScripthez: számla, díjbekérő, nyugta, sztornó, befizetés, PDF, adószám. 0 függőség. Nem hivatalos.",
+  "description": "Számlázz.hu Számla Agent kliens TypeScripthez: számla, díjbekérő, nyugta, sztornó, befizetés, PDF, adószám. 0 függőség. Hivatalos Számlázz.hu plugin.",
   "engines": {
     "node": ">=22"
   },
