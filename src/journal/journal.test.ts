@@ -502,6 +502,54 @@ describe('kvJournal', () => {
     expect(await journal.entries(RANGE)).toMatchObject([{ number: receipt.number }])
   })
 
+  function flakyWithoutSetIfAbsent(failing: (key: string) => boolean): KeyValueStore {
+    const inner = memoryStore()
+    return resilientStore(
+      {
+        get: inner.get,
+        delete: inner.delete,
+        increment: (key, ttl) => inner.increment?.(key, ttl) ?? 0,
+        set: (key, value, ttl) =>
+          failing(key)
+            ? Promise.reject(new Error('Redis nem érhető el'))
+            : inner.set(key, value, ttl),
+      },
+      { onError: () => undefined },
+    )
+  }
+
+  test('setIfAbsent nélküli resilientStore fölött a bejegyzés elnyelt írása JournalWriteError, a foglalás megmarad, a settle pótolja', async () => {
+    let failEntry = true
+    const store = flakyWithoutSetIfAbsent((key) => failEntry && key.includes(':entry:'))
+    const journal = createJournal(kvJournal(store), { now: FAKE_NOW })
+    const { kassza } = fakeKassza()
+
+    const failure = await journal
+      .trackReceipt('WEB-1', () => kassza.receipts.createOnce(RECEIPT_INPUT))
+      .catch((error: unknown) => error)
+
+    expect(failure).toBeInstanceOf(JournalWriteError)
+    expect((failure as JournalWriteError).cause).toMatchObject({ category: 'store_unavailable' })
+    expect(await journal.entries(RANGE)).toEqual([])
+    expect(await journal.pending(RANGE)).toMatchObject([{ orderNumber: 'WEB-1' }])
+    failEntry = false
+    expect(await journal.settle(kassza, { range: RANGE })).toMatchObject({
+      recorded: [{ orderNumber: 'WEB-1' }],
+    })
+    expect(await journal.entries(RANGE)).toHaveLength(1)
+  })
+
+  test('setIfAbsent nélküli resilientStore fölött a foglalás elnyelt írása store_unavailable, a bizonylat ki sem állítódik', async () => {
+    const store = flakyWithoutSetIfAbsent((key) => key.includes(':reservation:'))
+    const journal = createJournal(kvJournal(store), { now: FAKE_NOW })
+    const { agent, kassza } = fakeKassza()
+
+    await expect(
+      journal.trackReceipt('WEB-1', () => kassza.receipts.createOnce(RECEIPT_INPUT)),
+    ).rejects.toMatchObject({ category: 'store_unavailable' })
+    expect(agent.receipts.size).toBe(0)
+  })
+
   test('a reconcile a tárolt, de indexből hiányzó bejegyzést újraindexeli', async () => {
     const store = memoryStore()
     const journal = createJournal(kvJournal(store), { now: FAKE_NOW })

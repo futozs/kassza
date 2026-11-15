@@ -108,6 +108,25 @@ export function kvJournal(store: KeyValueStore, options: KvJournalOptions = {}):
     return (await store.get(key)) === target
   }
 
+  async function setChecked(
+    key: string,
+    value: string,
+    ttl: number,
+    taken: (stored: string | undefined | null) => boolean,
+  ): Promise<boolean> {
+    await store.set(key, value, ttl)
+    const stored = await store.get(key)
+    if (stored === value) return true
+    if (taken(stored)) return false
+    throw new SzamlazzError(
+      `A napló „${key}” kulcsát nem sikerült beírni: visszaolvasáskor nem a beírt érték jött vissza.`,
+      {
+        category: 'store_unavailable',
+        hint: 'Ellenőrizd a tárolót; a resilientStore elnyeli a set hibáját, ezért setIfAbsent nélküli tárolóval a naplóhoz ne használd.',
+      },
+    )
+  }
+
   async function appendToDay(index: 'day' | 'rday', day: string, target: string, ttl: number) {
     const slot = await increment?.(`${prefix}${index}:${day}:count`, ttl)
     const key = `${prefix}${index}:${day}:${slot}`
@@ -149,8 +168,10 @@ export function kvJournal(store: KeyValueStore, options: KvJournalOptions = {}):
       await appendToDay('day', entry.date, `${entry.kind}:${entry.number}`, retention)
       const value = JSON.stringify(entry)
       if (store.setIfAbsent) return store.setIfAbsent(key, value, retention)
-      await store.set(key, value, retention)
-      return true
+      return setChecked(key, value, retention, (stored) => {
+        const current = parseJson<JournalEntry>(stored, isEntry)
+        return current?.kind === entry.kind && current.number === entry.number
+      })
     },
     async indexEntry(entry) {
       await appendToDay('day', entry.date, `${entry.kind}:${entry.number}`, retention)
@@ -179,8 +200,10 @@ export function kvJournal(store: KeyValueStore, options: KvJournalOptions = {}):
       if (store.setIfAbsent) return store.setIfAbsent(key, value, reservationTtl)
       const existing = await store.get(key)
       if (existing !== undefined && existing !== null) return false
-      await store.set(key, value, reservationTtl)
-      return true
+      return setChecked(key, value, reservationTtl, (stored) => {
+        const current = parseJson<JournalReservation>(stored, isReservation)
+        return current?.kind === reservation.kind && current.orderNumber === reservation.orderNumber
+      })
     },
     async deleteReservation(kind, orderNumber) {
       await store.delete(reservationKey(kind, orderNumber))
