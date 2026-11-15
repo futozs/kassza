@@ -141,11 +141,11 @@
 
 .pill-button--amber {
   background: var(--amber);
-  color: oklch(18% 0.03 45);
+  color: var(--brand-ink);
 }
 
 .pill-button--amber:hover {
-  background: oklch(from var(--amber) calc(l + 0.05) c h);
+  background: var(--brand-hover);
 }
 
 .pill-button--ghost {

@@ -19,7 +19,7 @@ function palette(theme, primary) {
     fill: theme.brand,
     stroke: theme.brand,
     lip: theme.brandShade,
-    tile: 'rgba(0,0,0,.14)',
+    tile: 'rgba(255,255,255,.14)',
     glyph: theme.brandInk,
     title: theme.brandInk,
     subtitle: theme.brandInk,

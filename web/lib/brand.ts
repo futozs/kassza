@@ -6,7 +6,7 @@ export const brandColors = {
   muted: '#5c6673',
   brand: '#ff6630',
   brandDeep: '#1c232d',
-  brandInk: '#1c232d',
+  brandInk: '#ffffff',
   accent: '#ff6630',
   accentSoft: '#fff0eb',
   amber: '#ff6630',

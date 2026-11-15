@@ -10,8 +10,8 @@
   --muted: oklch(50% 0.02 258);
   --brand: #ff6630;
   --brand-deep: oklch(24% 0.024 258);
-  --brand-hover: #ff8a60;
-  --brand-ink: oklch(21% 0.024 258);
+  --brand-hover: #db5729;
+  --brand-ink: #ffffff;
   --accent: #ff6630;
   --accent-hover: #db5729;
   --accent-soft: #fff0eb;
@@ -132,8 +132,8 @@
   --muted: oklch(70% 0.014 255);
   --brand: #ff6630;
   --brand-deep: oklch(24% 0.024 258);
-  --brand-hover: #ff8a60;
-  --brand-ink: oklch(18% 0.014 258);
+  --brand-hover: #db5729;
+  --brand-ink: #ffffff;
   --accent: #ff6630;
   --accent-hover: #ff8a60;
   --accent-soft: oklch(27% 0.05 39);
