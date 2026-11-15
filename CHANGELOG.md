@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 1.0.4 (2026-11-16)
+
+### Javítások
+
+- **release:** build again after the version bump so the CLI and MCP report the released version (f13302d)
+
 ## 1.0.3 (2026-11-16)
 
 ### Javítások
