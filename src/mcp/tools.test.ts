@@ -128,6 +128,48 @@ describe('MCP eszközök: számla', () => {
     expect(agent.invoices.size).toBe(0)
   })
 
+  test('éjfél után a korábbi előnézet kódja nem állít ki második, más dátumú számlát', async () => {
+    let current = new Date('2026-11-16T22:55:00.000Z')
+    const { call, agent } = mcpHarness({ allowWrite: true, now: () => current })
+    const preview = await call('preview_invoice', INVOICE)
+    const args = { ...INVOICE, confirmation: preview.data.confirmation }
+
+    current = new Date('2026-11-16T22:58:00.000Z')
+    const first = await call('create_invoice', args)
+    current = new Date('2026-11-16T23:05:00.000Z')
+    const afterMidnight = await call('create_invoice', args)
+
+    expect(preview.data).toMatchObject({ issueDate: '2026-11-16' })
+    expect(first.data).toMatchObject({ created: true })
+    expect(afterMidnight).toMatchObject({
+      isError: true,
+      text: expect.stringContaining('eltérnek'),
+    })
+    expect(afterMidnight.text).toContain('preview_invoice')
+    expect(agent.invoices.size).toBe(1)
+  })
+
+  test('megadott dátumokkal az éjfél előtti kód éjfél után is ugyanazt a számlát adja', async () => {
+    let current = new Date('2026-11-16T22:55:00.000Z')
+    const { call, agent } = mcpHarness({ allowWrite: true, now: () => current })
+    const input = {
+      ...INVOICE,
+      issueDate: '2026-11-16',
+      fulfillmentDate: '2026-11-16',
+      dueDate: '2026-11-30',
+    }
+    const preview = await call('preview_invoice', input)
+    const args = { ...input, confirmation: preview.data.confirmation }
+
+    const first = await call('create_invoice', args)
+    current = new Date('2026-11-16T23:05:00.000Z')
+    const again = await call('create_invoice', args)
+
+    expect(first.data).toMatchObject({ created: true })
+    expect(again.data).toMatchObject({ created: false, externalId: first.data.externalId })
+    expect(agent.invoices.size).toBe(1)
+  })
+
   test('a válasz elvesztésekor visszakeresi a létrejött számlát', async () => {
     const { call, agent } = mcpHarness({ allowWrite: true })
     const preview = await call('preview_invoice', INVOICE)
@@ -197,6 +239,25 @@ describe('MCP eszközök: nyugta', () => {
       callId: expect.stringMatching(/^MCP-[0-9A-F]{20}$/),
     })
     expect(again).toMatchObject({ isError: true, text: expect.stringContaining('ma már készült') })
+    expect(agent.receipts.size).toBe(1)
+  })
+
+  test('éjfél után a korábbi előnézet kódja nem állít ki második nyugtát', async () => {
+    let current = new Date('2026-11-16T22:55:00.000Z')
+    const { call, agent } = mcpHarness({ allowWrite: true, now: () => current })
+    const preview = await call('preview_receipt', RECEIPT)
+    const args = { ...RECEIPT, confirmation: preview.data.confirmation }
+
+    const first = await call('create_receipt', args)
+    current = new Date('2026-11-16T23:05:00.000Z')
+    const afterMidnight = await call('create_receipt', args)
+
+    expect(first.data).toMatchObject({ created: true })
+    expect(afterMidnight).toMatchObject({
+      isError: true,
+      text: expect.stringContaining('eltérnek'),
+    })
+    expect(afterMidnight.text).toContain('preview_receipt')
     expect(agent.receipts.size).toBe(1)
   })
 

@@ -66,9 +66,16 @@ function previewOf(input: CreateReceiptInput, context: McpToolContext): ReceiptP
   }
 }
 
+function signedReceipt(args: JsonObject, day: string): JsonObject {
+  return { ...args, resolved: { day } }
+}
+
 async function previewReceipt(args: JsonObject, context: McpToolContext): Promise<McpToolOutput> {
   const preview = previewOf(receiptInputOf(args), context)
-  const confirmation = await context.confirmations.issue(CREATE_RECEIPT, args)
+  const confirmation = await context.confirmations.issue(
+    CREATE_RECEIPT,
+    signedReceipt(args, toBudapestDate(context.now())),
+  )
   return {
     summary: lines(
       `Nyugta előnézete (még NEM készült el): bruttó ${money(preview.grossAmount, preview.currency)}.`,
@@ -116,10 +123,15 @@ function duplicateCallIdError(error: SzamlazzError, callId: string): SzamlazzErr
 
 async function createReceipt(args: JsonObject, context: McpToolContext): Promise<McpToolOutput> {
   const { payload, confirmation } = splitConfirmation(args)
-  await context.confirmations.verify(CREATE_RECEIPT, payload, confirmation, PREVIEW_RECEIPT)
   const input = receiptInputOf(payload)
   previewOf(input, context)
   const day = toBudapestDate(context.now())
+  await context.confirmations.verify(
+    CREATE_RECEIPT,
+    signedReceipt(payload, day),
+    confirmation,
+    PREVIEW_RECEIPT,
+  )
   const callId = `MCP-${await idempotencyKey(CREATE_RECEIPT, day, payload)}`
   const kassza = context.client()
   if (input.orderNumber !== undefined) {

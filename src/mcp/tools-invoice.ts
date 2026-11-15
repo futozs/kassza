@@ -29,6 +29,11 @@ function resolve(input: CreateInvoiceInput, context: McpToolContext): ResolvedIn
   return resolveInvoice(context.defaults.invoice ?? {}, input, context.now())
 }
 
+function signedInvoice(args: JsonObject, resolved: ResolvedInvoice): JsonObject {
+  const { issueDate, fulfillmentDate, dueDate } = resolved
+  return { ...args, resolved: { issueDate, fulfillmentDate, dueDate } }
+}
+
 function previewData(input: CreateInvoiceInput, resolved: ResolvedInvoice): JsonObject {
   const totals = summarizeItems(resolved.items.map((item) => item.amounts))
   return {
@@ -70,7 +75,10 @@ async function previewInvoice(args: JsonObject, context: McpToolContext): Promis
   const resolved = resolve(input, context)
   const data = previewData(input, resolved)
   const totals = summarizeItems(resolved.items.map((item) => item.amounts))
-  const confirmation = await context.confirmations.issue(CREATE_INVOICE, args)
+  const confirmation = await context.confirmations.issue(
+    CREATE_INVOICE,
+    signedInvoice(args, resolved),
+  )
   return {
     summary: lines(
       `${documentLabel(resolved)} előnézete (még NEM készült el): ${input.buyer.name}, nettó ${money(totals.netAmount, resolved.currency)}, bruttó ${money(totals.grossAmount, resolved.currency)}.`,
@@ -111,9 +119,14 @@ function existingOutput(
 
 async function createInvoice(args: JsonObject, context: McpToolContext): Promise<McpToolOutput> {
   const { payload, confirmation } = splitConfirmation(args)
-  await context.confirmations.verify(CREATE_INVOICE, payload, confirmation, PREVIEW_INVOICE)
   const input = invoiceInputOf(payload)
   const resolved = resolve(input, context)
+  await context.confirmations.verify(
+    CREATE_INVOICE,
+    signedInvoice(payload, resolved),
+    confirmation,
+    PREVIEW_INVOICE,
+  )
   const externalId =
     input.externalId ?? `MCP-${await idempotencyKey(CREATE_INVOICE, resolved.issueDate, payload)}`
   const kassza = context.client()
