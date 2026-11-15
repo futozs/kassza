@@ -92,4 +92,20 @@ describe('diagnoseStore', () => {
     const { deleteIfEquals: _unused, ...rest } = inner
     expect((await diagnoseStore(rest)).suitableFor.createOnceLock).toBe(true)
   })
+
+  test('a szinkron dobó delete sem szakítja meg a takarítást', async () => {
+    const inner = memoryStore()
+    let deletes = 0
+    const store: KeyValueStore = {
+      ...inner,
+      delete: (key) => {
+        deletes += 1
+        if (deletes === 3) throw new Error('takarítás nem megy')
+        return inner.delete(key)
+      },
+    }
+
+    await expect(diagnoseStore(store)).resolves.toMatchObject({ ok: true })
+    expect(deletes).toBe(3)
+  })
 })

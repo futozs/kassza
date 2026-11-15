@@ -83,7 +83,9 @@ export async function diagnoseStore(
       if (first !== 1 || second !== 2) throw new Error(`a számláló értékei: ${first}, ${second}`)
       await store.delete(key)
     }))
-  await Promise.resolve(store.delete(key)).catch(() => undefined)
+  await Promise.resolve()
+    .then(() => store.delete(key))
+    .catch(() => undefined)
   if (!capabilities.setIfAbsent) {
     problems.push('Nincs setIfAbsent: createOnce zárnak nem alkalmas (például Cloudflare KV).')
   }
