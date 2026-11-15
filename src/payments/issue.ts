@@ -490,7 +490,12 @@ async function reverseReceiptForRefund(
   const lookup = (): Promise<Receipt | null> =>
     api.receipts.find({ orderNumber, downloadPdf: false }, { signal: options.signal })
   const receipt = await lookup()
-  if (!receipt) throw refundBeforeDocumentError(payment, orderNumber)
+  if (!receipt) {
+    if (payment.includesPayment !== true) throw refundBeforeDocumentError(payment, orderNumber)
+    const sale = await issueForPaid(api, paidSnapshot(payment), orderNumber, options)
+    if (sale.kind === 'skipped') return sale
+    return reverseForRefund(api, withoutPayment(payment), orderNumber, options)
+  }
   if (isReversedReceipt(receipt)) {
     const originalNumber =
       receipt.type === 'reversal'
@@ -668,6 +673,37 @@ async function withRefundLock<T>(
   }
 }
 
+function paidSnapshot(payment: PaymentEvent): PaymentEvent {
+  return { ...payment, kind: 'paid', includesPayment: undefined }
+}
+
+function withoutPayment(payment: PaymentEvent): PaymentEvent {
+  return { ...payment, includesPayment: undefined }
+}
+
+async function issueForPaid(
+  api: PaymentDocumentsApi,
+  payment: PaymentEvent,
+  orderNumber: string,
+  options: IssueForPaymentOptions,
+): Promise<IssuedReceipt | IssuedInvoice | SkippedPayment> {
+  assertPaidAmount(payment)
+  if (payment.amount?.value === 0) {
+    return skipped(orderNumber, 'A fizetett összeg 0, ezért nem készül bizonylat.')
+  }
+  const currency = currencyOf(payment, options)
+  const items = itemsOf(payment, options)
+  const buyer = options.buyer ?? buyerFromCustomer(payment.customer)
+  const gross = payment.amount?.value ?? documentGross(items, currency, 'invoice')
+  const decision = decide(payment, buyer, gross, currency, options)
+  const kind = decision.type === 'receipt' ? 'receipt' : 'invoice'
+  assertAmountMatches(payment, items, currency, kind, options)
+  if (kind === 'receipt') {
+    return issueReceipt(api, payment, orderNumber, items, currency, decision, options)
+  }
+  return issueInvoice(api, payment, orderNumber, items, currency, buyer, decision, options)
+}
+
 function assertPaidAmount(payment: PaymentEvent): void {
   const value = payment.amount?.value
   if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
@@ -690,7 +726,15 @@ export async function issueForPayment(
     )
   }
   if (payment.kind === 'partially-refunded') {
-    return issueForPartialRefund(api, payment, orderNumber, options)
+    return issueForPartialRefund(
+      api,
+      payment,
+      orderNumber,
+      options,
+      payment.includesPayment === true
+        ? () => issueForPaid(api, paidSnapshot(payment), orderNumber, options)
+        : undefined,
+    )
   }
   if (payment.kind === 'refund-failed') {
     return reportRefundFailure(api, payment, orderNumber, options)
@@ -701,19 +745,5 @@ export async function issueForPayment(
       `A fizetés állapota (${payment.kind}) nem sikeres fizetés, ezért nem készül bizonylat.`,
     )
   }
-  assertPaidAmount(payment)
-  if (payment.amount?.value === 0) {
-    return skipped(orderNumber, 'A fizetett összeg 0, ezért nem készül bizonylat.')
-  }
-  const currency = currencyOf(payment, options)
-  const items = itemsOf(payment, options)
-  const buyer = options.buyer ?? buyerFromCustomer(payment.customer)
-  const gross = payment.amount?.value ?? documentGross(items, currency, 'invoice')
-  const decision = decide(payment, buyer, gross, currency, options)
-  const kind = decision.type === 'receipt' ? 'receipt' : 'invoice'
-  assertAmountMatches(payment, items, currency, kind, options)
-  if (kind === 'receipt') {
-    return issueReceipt(api, payment, orderNumber, items, currency, decision, options)
-  }
-  return issueInvoice(api, payment, orderNumber, items, currency, buyer, decision, options)
+  return issueForPaid(api, payment, orderNumber, options)
 }

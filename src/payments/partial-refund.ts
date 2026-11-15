@@ -387,34 +387,39 @@ async function correctInvoice(
 const RECEIPT_PROPOSAL_REASON =
   'Nyugtánál a részleges visszatérítés jogi menete nem egyértelmű (sztornó és új nyugta a megmaradó tételekről), ezért a kassza nem állít ki automatikusan bizonylatot. A javasolt tételbontást egyeztesd a könyvelőddel.'
 
+export type SaleIssuer = () => Promise<{ readonly kind: 'receipt' | 'invoice' } | SkippedPayment>
+
 export async function issueForPartialRefund(
   api: PaymentDocumentsApi,
   payment: PaymentEvent,
   orderNumber: string,
   options: IssueForPaymentOptions,
+  issueSale?: SaleIssuer | undefined,
 ): Promise<IssuedCorrection | IssuedRefundProposal | SkippedPayment> {
-  if (options.partialRefund === 'skip') {
-    return skipped(
-      orderNumber,
-      'Részleges visszatérítés: a partialRefund: skip beállítás miatt nem készül bizonylat.',
-    )
-  }
-  const refunds = payment.refunds ?? []
-  if (refunds.length === 0) {
-    return skipped(
-      orderNumber,
-      `Részleges visszatérítés: a(z) ${payment.provider} esemény nem adta át tételesen a visszatérítéseket (azonosító és összeg), ezért a kassza nem tud idempotens helyesbítést kiállítani. Állítsd ki kézzel, vagy kapcsold be a szolgáltató részletes lekérdezését.`,
-    )
-  }
   const find = (externalId: string): Promise<InvoiceDetails | null> =>
     api.invoices.find({ externalId }, { includePdf: false }, { signal: options.signal })
+  const findReceipt = (): Promise<Receipt | null> =>
+    api.receipts.find({ orderNumber, downloadPdf: false }, { signal: options.signal })
+  const refunds = payment.refunds ?? []
+  const reason =
+    options.partialRefund === 'skip'
+      ? 'Részleges visszatérítés: a partialRefund: skip beállítás miatt nem készül bizonylat.'
+      : refunds.length === 0
+        ? `Részleges visszatérítés: a(z) ${payment.provider} esemény nem adta át tételesen a visszatérítéseket (azonosító és összeg), ezért a kassza nem tud idempotens helyesbítést kiállítani. Állítsd ki kézzel, vagy kapcsold be a szolgáltató részletes lekérdezését.`
+        : undefined
+  if (reason !== undefined) {
+    if (issueSale && !(await find(orderNumber)) && !(await findReceipt())) await issueSale()
+    return skipped(orderNumber, reason)
+  }
   const invoice = await find(orderNumber)
   if (invoice) return correctInvoice(api, payment, orderNumber, invoice, refunds, options)
-  const receipt = await api.receipts.find(
-    { orderNumber, downloadPdf: false },
-    { signal: options.signal },
-  )
-  if (!receipt) throw refundBeforeDocumentError(payment, orderNumber)
+  const receipt = await findReceipt()
+  if (!receipt) {
+    if (!issueSale) throw refundBeforeDocumentError(payment, orderNumber)
+    const sale = await issueSale()
+    if (sale.kind === 'skipped') return sale
+    return issueForPartialRefund(api, payment, orderNumber, options)
+  }
   const original =
     receipt.type === 'reversal' ? (receipt.reversedReceiptNumber ?? receipt.number) : receipt.number
   if (receipt.type === 'reversal' || receipt.isReversed) {

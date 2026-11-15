@@ -592,6 +592,18 @@ describe('issueForPayment: teljes visszatérítés', () => {
     expect(kassza.calls.filter((call) => call.method === 'receipts.reverse')).toHaveLength(1)
   })
 
+  test('ha a fizetés eseménye elmaradt, a fizetést is hordozó visszatérítés előbb kiállítja, majd sztornózza a bizonylatot', async () => {
+    const kassza = mockKassza()
+
+    const result = await kassza.issueForPayment(refunded({ includesPayment: true }), { vat: 27 })
+    const again = await kassza.issueForPayment(refunded({ includesPayment: true }), { vat: 27 })
+
+    expect(result).toMatchObject({ kind: 'reversal', document: 'receipt', created: true })
+    expect(again).toMatchObject({ kind: 'reversal', document: 'receipt', created: false })
+    expect(kassza.calls.filter((call) => call.method === 'receipts.createOnce')).toHaveLength(1)
+    expect(kassza.calls.filter((call) => call.method === 'receipts.reverse')).toHaveLength(1)
+  })
+
   test('számlára cserélt nyugtánál a csereszámlát sztornózza', async () => {
     const kassza = mockKassza()
     const issued = await kassza.issueForPayment(paid(), { vat: 27 })

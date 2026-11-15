@@ -70,6 +70,7 @@ export interface PaymentEvent {
   readonly method: string
   readonly customer?: PaymentCustomer | undefined
   readonly items?: readonly PaymentLineItem[] | undefined
+  readonly includesPayment?: boolean | undefined
   readonly raw: unknown
 }
 

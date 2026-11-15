@@ -46,6 +46,8 @@ A kezelő a `paymentId`-t a query stringből, űrlapként vagy JSON-ként küld�
 
 A tételeket a fizetés tranzakcióinak `Items` listájából veszi, a díj- és visszatérítési tranzakciókat kihagyja.
 
+A callback mindig a fizetés aktuális állapotát hozza, ezért ha az első callback hibázott, és a Barion újrapróbálása előtt visszatérítés történt, minden későbbi callback már visszatérítés lesz. Az ilyen esemény a fizetést is hordozza (`includesPayment: true`), és ha a fizetéshez még nincs bizonylat, az `issueForPayment()` előbb kiállítja, utána sztornózza vagy helyesbíti. Így a vevőnél maradt összegről is készül bizonylat.
+
 <Callout type="warning" title="Céges vevő Barionnál">
   A Barion csak a fizető nevét és e-mail címét adja vissza, címet nem. Ha a fizető szervezet, a
   kassza számlát állítana ki, ehhez viszont cím kell. Céges vevőnél add át a számla vevőjét a saját

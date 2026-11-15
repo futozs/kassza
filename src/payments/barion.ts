@@ -289,6 +289,7 @@ export function barionPaymentEvent(
     method: methodOf(state, options.method),
     customer: customerOf(sales.length > 0 ? sales : transactions),
     items: itemsOf(sales),
+    includesPayment: refunds.length > 0 && sales.length > 0 ? true : undefined,
     raw: state,
   }
 }

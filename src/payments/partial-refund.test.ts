@@ -247,6 +247,52 @@ describe('issueForPayment részleges visszatérítésnél', () => {
     expect(correctives(agent)).toHaveLength(1)
   })
 
+  test('ha a fizetés eseménye elmaradt, a fizetést is hordozó részleges visszatérítés előbb kiállítja a számlát, majd helyesbít', async () => {
+    const { agent, kassza } = fakeKassza()
+    const event: PaymentEvent = {
+      ...partial([refund('TR-1', 3_500)]),
+      customer: CUSTOMER,
+      items: SINGLE_VAT,
+      includesPayment: true,
+    }
+
+    const result = await kassza.issueForPayment(event, { document: 'invoice' })
+    const again = await kassza.issueForPayment(event, { document: 'invoice' })
+
+    expect(result).toMatchObject({ kind: 'correction', created: true })
+    expect(again).toMatchObject({ kind: 'correction', created: false })
+    expect(
+      [...agent.invoices.values()].filter((invoice) => invoice.typeCode === 'SZ'),
+    ).toHaveLength(1)
+    expect(correctives(agent)).toHaveLength(1)
+  })
+
+  test('a fizetést is hordozó visszatérítés skip módban és tételes lista nélkül is kiállítja a fizetés bizonylatát', async () => {
+    const { agent, kassza } = fakeKassza()
+    const base: PaymentEvent = {
+      ...partial([refund('TR-1', 3_500)]),
+      customer: CUSTOMER,
+      items: SINGLE_VAT,
+      includesPayment: true,
+    }
+
+    const skipMode = await kassza.issueForPayment(base, {
+      document: 'invoice',
+      partialRefund: 'skip',
+    })
+    const noList = await kassza.issueForPayment(
+      { ...base, refunds: undefined },
+      { document: 'invoice' },
+    )
+
+    expect(skipMode).toMatchObject({ kind: 'skipped' })
+    expect(noList).toMatchObject({ kind: 'skipped' })
+    expect(
+      [...agent.invoices.values()].filter((invoice) => invoice.typeCode === 'SZ'),
+    ).toHaveLength(1)
+    expect(correctives(agent)).toHaveLength(0)
+  })
+
   test('sztornózott számlát nem helyesbít', async () => {
     const { kassza, original } = await invoiced()
     await kassza.invoices.reverse(original)

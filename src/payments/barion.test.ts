@@ -230,6 +230,20 @@ describe('barionPaymentEvent', () => {
     })
   })
 
+  test('a fizetést is tartalmazó visszatérítési állapotot includesPayment jelzéssel adja', () => {
+    expect(
+      barionPaymentEvent(paymentState({ Transactions: [shopTransaction(), refund(1000)] })),
+    ).toMatchObject({
+      kind: 'partially-refunded',
+      includesPayment: true,
+      amount: { value: 3023, currency: 'HUF' },
+    })
+    expect(barionPaymentEvent(paymentState()).includesPayment).toBeUndefined()
+    expect(
+      barionPaymentEvent(paymentState({ Transactions: [refund(1000)] })).includesPayment,
+    ).toBeUndefined()
+  })
+
   test('a részleges és a több részletben teljes visszatérítést részlegesnek jelöli', () => {
     expect(
       barionPaymentEvent(paymentState({ Transactions: [shopTransaction(), refund(1000)] })).kind,
