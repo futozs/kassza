@@ -373,6 +373,40 @@ describe('stripePaymentEvent', () => {
     ).toMatchObject({ id: 'ch_9', kind: 'refunded' })
   })
 
+  test('a meghiúsult vagy visszavont visszatérítésből refund-failed eseményt ad, a sikeresből semmit', () => {
+    const refund = {
+      id: 're_1',
+      object: 'refund',
+      amount: 302_300,
+      currency: 'huf',
+      charge: 'ch_1',
+      payment_intent: 'pi_1',
+      status: 'failed',
+      metadata: { orderId: '1001' },
+    }
+    for (const type of ['charge.refund.updated', 'refund.updated', 'refund.failed']) {
+      expect(stripePaymentEvent(parsed(type, refund))).toMatchObject({
+        provider: 'stripe',
+        kind: 'refund-failed',
+        id: 'pi_1',
+        eventType: type,
+        orderRef: '1001',
+        refundedAmount: { value: 3023, currency: 'HUF' },
+        refunds: [{ id: 're_1', amount: { value: 3023, currency: 'HUF' } }],
+      })
+    }
+    expect(
+      stripePaymentEvent(parsed('charge.refund.updated', { ...refund, status: 'canceled' }))?.kind,
+    ).toBe('refund-failed')
+    expect(
+      stripePaymentEvent(parsed('charge.refund.updated', { ...refund, payment_intent: null }))?.id,
+    ).toBe('ch_1')
+    expect(
+      stripePaymentEvent(parsed('charge.refund.updated', { ...refund, status: 'succeeded' })),
+    ).toBeUndefined()
+    expect(stripePaymentEvent(parsed('refund.updated', { id: 'ch_1' }))).toBeUndefined()
+  })
+
   test('az ismeretlen eseménytípust figyelmen kívül hagyja', () => {
     expect(stripePaymentEvent(parsed('customer.created', { id: 'cus_1' }))).toBeUndefined()
   })
@@ -664,6 +698,26 @@ describe('stripeWebhook', () => {
       }),
     )
     expect(onPayment).toHaveBeenCalledWith(expect.objectContaining({ kind: 'refunded' }))
+  })
+
+  test('a meghiúsult visszatérítést refund-failed eseményként adja az onPayment-nek', async () => {
+    const onPayment = vi.fn()
+    const handler = stripeWebhook({ secret: SECRET, now, onPayment })
+    const response = await deliver(
+      handler,
+      event('charge.refund.updated', {
+        id: 're_1',
+        object: 'refund',
+        amount: 302_300,
+        currency: 'huf',
+        payment_intent: 'pi_1',
+        status: 'failed',
+      }),
+    )
+    expect(response.status).toBe(200)
+    expect(onPayment).toHaveBeenCalledWith(
+      expect.objectContaining({ kind: 'refund-failed', id: 'pi_1' }),
+    )
   })
 
   test('nem releváns eseményre 200-at ad, onPayment nélkül', async () => {

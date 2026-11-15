@@ -22,6 +22,11 @@ export const STRIPE_SHIPPING_ITEM_NAME = 'Szállítási díj'
 const PAGE_SIZE = 100
 const ORDER_REF_KEYS = ['orderRef', 'order_ref', 'orderId', 'order_id', 'orderNumber', 'order']
 const INACTIVE_REFUND_STATUSES: ReadonlySet<string> = new Set(['failed', 'canceled'])
+const REFUND_UPDATE_EVENTS: ReadonlySet<string> = new Set([
+  'charge.refund.updated',
+  'refund.updated',
+  'refund.failed',
+])
 
 export interface StripeSignatureHeader {
   readonly timestamp: number
@@ -274,6 +279,36 @@ function fromRefundedCharge(event: StripeEvent, options: StripePaymentOptions): 
   }
 }
 
+function fromFailedRefund(
+  event: StripeEvent,
+  options: StripePaymentOptions,
+): PaymentEvent | undefined {
+  const refund = event.object
+  if (text(refund.object) !== 'refund') return undefined
+  if (!INACTIVE_REFUND_STATUSES.has(text(refund.status) ?? '')) return undefined
+  const refundId = text(refund.id)
+  const amount = amountOf(refund, 'amount')
+  return {
+    provider: 'stripe',
+    kind: 'refund-failed',
+    id:
+      text(refund.payment_intent) ??
+      text(path(refund, 'payment_intent', 'id')) ??
+      text(refund.charge) ??
+      text(path(refund, 'charge', 'id')) ??
+      event.id,
+    eventId: event.id,
+    eventType: event.type,
+    orderRef: orderRefOf(refund),
+    refundedAmount: amount,
+    refunds:
+      refundId && amount ? [{ id: refundId, amount, createdAt: paidAtOf(event) }] : undefined,
+    paidAt: paidAtOf(event),
+    method: options.method ?? STRIPE_DEFAULT_METHOD,
+    raw: event,
+  }
+}
+
 export function stripePaymentEvent(
   event: StripeEvent,
   options: StripePaymentOptions = {},
@@ -298,7 +333,7 @@ export function stripePaymentEvent(
     case 'charge.refunded':
       return fromRefundedCharge(event, options)
     default:
-      return undefined
+      return REFUND_UPDATE_EVENTS.has(event.type) ? fromFailedRefund(event, options) : undefined
   }
 }
 

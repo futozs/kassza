@@ -74,6 +74,19 @@ function skipped(orderNumber: string, reason: string): SkippedPayment {
   return { kind: 'skipped', orderNumber, reason }
 }
 
+export function refundBeforeDocumentError(
+  payment: PaymentEvent,
+  orderNumber: string,
+): SzamlazzError {
+  return new SzamlazzError(
+    `A(z) ${payment.provider} visszatérítéshez (${payment.id}) még nincs kiállított bizonylat (rendelésszám: ${orderNumber}): a fizetés eseménye valószínűleg még nem futott le, például egy korábbi hiba után újraküldésre vár.`,
+    {
+      category: 'in_progress',
+      hint: 'A webhook 500-at ad, így a szolgáltató később újraküldi a visszatérítést; addigra a fizetés bizonylata elkészül, és a visszatérítés sztornózza vagy helyesbíti. Ha ehhez a fizetéshez soha nem készül bizonylat (például a kassza bevezetése előtti fizetés), kezeld kézzel, és az onPayment-ben nyugtázd ezt az in_progress hibát.',
+    },
+  )
+}
+
 async function refundKey(id: string): Promise<string> {
   if (id.length <= MAX_PLAIN_REFUND_KEY && /^[A-Za-z0-9_.:-]+$/.test(id)) return id
   const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(id))
@@ -401,12 +414,7 @@ export async function issueForPartialRefund(
     { orderNumber, downloadPdf: false },
     { signal: options.signal },
   )
-  if (!receipt) {
-    return skipped(
-      orderNumber,
-      `A(z) ${payment.provider} részleges visszatérítéshez (${payment.id}) nem található kiállított bizonylat.`,
-    )
-  }
+  if (!receipt) throw refundBeforeDocumentError(payment, orderNumber)
   const original =
     receipt.type === 'reversal' ? (receipt.reversedReceiptNumber ?? receipt.number) : receipt.number
   if (receipt.type === 'reversal' || receipt.isReversed) {

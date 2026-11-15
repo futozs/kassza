@@ -219,19 +219,32 @@ describe('issueForPayment részleges visszatérítésnél', () => {
     expect(agent.receipts.size).toBe(1)
   })
 
-  test('tételes visszatérítés nélkül, skip módban vagy bizonylat nélkül kihagyja', async () => {
+  test('tételes visszatérítés nélkül vagy skip módban kihagyja', async () => {
     const { kassza } = await invoiced()
 
     const noRefunds = await kassza.issueForPayment({ ...partial([]), refunds: undefined })
     const skipMode = await kassza.issueForPayment(partial([refund('TR-1', 1)]), {
       partialRefund: 'skip',
     })
-    const unknown = await kassza.issueForPayment({ ...partial([refund('TR-1', 1)]), id: 'MAS' })
 
     expect(noRefunds).toMatchObject({ kind: 'skipped' })
     expect(noRefunds.kind === 'skipped' && noRefunds.reason).toContain('tételesen')
     expect(skipMode).toMatchObject({ kind: 'skipped' })
-    expect(unknown).toMatchObject({ kind: 'skipped' })
+  })
+
+  test('a bizonylat előtt érkező részleges visszatérítés in_progress hibát ad, a fizetés után helyesbít', async () => {
+    const { agent, kassza } = fakeKassza()
+
+    const early = await kassza
+      .issueForPayment(partial([refund('TR-1', 3_500)]))
+      .catch((error: unknown) => error)
+    await kassza.issueForPayment(paid(SINGLE_VAT, 10_000), { document: 'invoice' })
+    const redelivered = await kassza.issueForPayment(partial([refund('TR-1', 3_500)]))
+
+    expect(early).toBeInstanceOf(SzamlazzError)
+    expect(early).toMatchObject({ category: 'in_progress' })
+    expect(redelivered).toMatchObject({ kind: 'correction', created: true })
+    expect(correctives(agent)).toHaveLength(1)
   })
 
   test('sztornózott számlát nem helyesbít', async () => {

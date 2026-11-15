@@ -120,6 +120,23 @@ function reversalOutput(
   return { summary, data: { created, document, reversedNumber, number } }
 }
 
+const reversalsInFlight = new Map<string, Promise<unknown>>()
+
+async function oneReversalAtATime<T>(key: string, run: () => Promise<T>): Promise<T> {
+  for (;;) {
+    const pending = reversalsInFlight.get(key)
+    if (!pending) break
+    await pending.catch(() => undefined)
+  }
+  const current = run()
+  reversalsInFlight.set(key, current)
+  try {
+    return await current
+  } finally {
+    if (reversalsInFlight.get(key) === current) reversalsInFlight.delete(key)
+  }
+}
+
 async function reverseInvoice(args: JsonObject, context: McpToolContext): Promise<McpToolOutput> {
   assertKnownKeys(args, ['invoiceNumber', 'confirmation'], '')
   const invoiceNumber = requiredString(args, 'invoiceNumber', '')
@@ -129,6 +146,15 @@ async function reverseInvoice(args: JsonObject, context: McpToolContext): Promis
     args.confirmation,
     PREVIEW_REVERSAL,
   )
+  return oneReversalAtATime(`invoice:${invoiceNumber}`, () =>
+    reverseInvoiceOnce(invoiceNumber, context),
+  )
+}
+
+async function reverseInvoiceOnce(
+  invoiceNumber: string,
+  context: McpToolContext,
+): Promise<McpToolOutput> {
   const kassza = context.client()
   const externalId = `${invoiceNumber}/SS`
   const lookup = (): Promise<InvoiceDetails | null> =>
@@ -169,6 +195,15 @@ async function reverseReceipt(args: JsonObject, context: McpToolContext): Promis
     args.confirmation,
     PREVIEW_REVERSAL,
   )
+  return oneReversalAtATime(`receipt:${receiptNumber}`, () =>
+    reverseReceiptOnce(receiptNumber, context),
+  )
+}
+
+async function reverseReceiptOnce(
+  receiptNumber: string,
+  context: McpToolContext,
+): Promise<McpToolOutput> {
   const kassza = context.client()
   const original = await kassza.receipts.get({ receiptNumber, downloadPdf: false })
   assertReversibleReceipt(original)

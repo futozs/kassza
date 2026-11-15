@@ -81,9 +81,9 @@ vagy a `KASSZA_MCP_ALLOW_WRITE=1` környezeti változóval.
 1. Az asszisztens meghívja a `preview_invoice` eszközt, és megmutatja neked az előnézetet (vevő, tételek, végösszeg, dátumok, hogy kap-e a vevő e-mailt).
 2. Ha jóváhagyod, a `create_invoice` eszközt pontosan ugyanazokkal az adatokkal és a kapott kóddal hívja.
 
-A kód 15 percig érvényes, és csak ugyanarra a kérésre jó: ha az asszisztens bármit megváltoztat az adatokon, a kiállítás elutasítva, új előnézet kell. A kódot a szerver egy indításonként véletlen titokkal írja alá, így kitalálni nem lehet.
+A kód 15 percig érvényes, csak az előnézet budapesti napján (éjfél után új előnézet kell), és csak ugyanarra a kérésre jó: ha az asszisztens bármit megváltoztat az adatokon, a kiállítás elutasítva, új előnézet kell. A kódot a szerver egy indításonként véletlen titokkal írja alá, így kitalálni nem lehet.
 
-**Pontosan egyszer.** A `create_invoice` a kiállítás előtt külső azonosító alapján megkeresi a már elkészült számlát, így egy újrapróbált hívás nem állít ki másodikat. A `create_receipt` hívásazonosítóval dolgozik, rendelésszámmal pedig egy rendeléshez egy nyugtát enged. A sztornó eszközök egy bizonylatot csak egyszer sztornóznak.
+**Pontosan egyszer.** A `create_invoice` a kiállítás előtt külső azonosító alapján megkeresi a már elkészült számlát, így egy újrapróbált hívás nem állít ki másodikat. A `create_receipt` hívásazonosítóval dolgozik, rendelésszámmal pedig egy rendeléshez egy nyugtát enged. A sztornó eszközök egy bizonylatot csak egyszer sztornóznak: az ugyanarra a bizonylatra egyszerre érkező hívások egymás után futnak, a második már a kész sztornót adja vissza.
 
 **Nem küld e-mailt magától.** A `create_invoice` alapból nem küldi el a számlát a vevőnek; ehhez a `sendEmail: true` mező kell, ami az előnézetben is látszik.
 

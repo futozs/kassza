@@ -64,6 +64,7 @@ Az `issueForPayment()` a fizetés fajtája szerint dolgozik:
 | --- | --- |
 | `paid` | Eldönti, nyugta vagy számla jár, és pontosan egyszer kiállítja. |
 | `refunded` | Sztornózza a fizetéshez kiállított számlát vagy nyugtát (pontosan egyszer). |
+| `refund-failed` | Semmit nem ír: a meghiúsult visszatérítést kézi teendőként adja vissza, lásd [Meghiúsult visszatérítés](#meghiúsult-visszatérítés). |
 | `partially-refunded` | Számlánál visszatérítésenként egy helyesbítő számlát állít ki (pontosan egyszer); nyugtánál javaslatot ad, lásd [Részleges visszatérítés](#részleges-visszatérítés). |
 | `failed`, `other` | Kihagyja. |
 
@@ -83,6 +84,9 @@ switch (eredmeny.kind) {
     break
   case 'refund-proposal':
     console.log('Kézi teendő:', eredmeny.reason, eredmeny.refunds)
+    break
+  case 'refund-failed':
+    console.log('Meghiúsult visszatérítés:', eredmeny.documentNumber, eredmeny.reason)
     break
   case 'skipped':
     console.log('Nincs bizonylat:', eredmeny.reason)
@@ -121,7 +125,9 @@ A rendelésszám a szolgáltatóból és a fizetés azonosítójából áll, pé
 - **Számla:** `invoices.createOnce()`, külső azonosítónak a rendelésszámmal, kifizetettként.
 - **Sztornó:** számlánál `{rendelésszám}/SS` külső azonosítóval, nyugtánál `{rendelésszám}/SN` hívásazonosítóval.
 
-Ha a webhook kétszer érkezik, a második hívás `created: false` eredményt ad, és nem állít ki új bizonylatot. Ha a sztornó után ismét `paid` esemény jön, a kassza kihagyja, mert a rendeléshez tartozó nyugtát már sztornózták. Ha a nyugtát időközben [számlává alakították](/docs/alapok/nyugta-vagy-szamla#ha-a-vevő-utólag-számlát-kér), visszatérítéskor az átalakított számlát sztornózza.
+Ha a webhook kétszer érkezik, a második hívás `created: false` eredményt ad, és nem állít ki új bizonylatot. Ha ugyanaz a teljes visszatérítés egyszerre kétszer fut, egy folyamaton belül a hívások egymás után futnak, így csak egy sztornó készül. Több példány (például serverless) között ehhez add meg a `lock` opciót egy `setIfAbsent`-et ismerő tárolóval (`lock: upstashRedisStore(redis)`); ha a zárat épp más tartja, `in_progress` hibát kapsz, a webhook 500-at ad, és az újraküldés már a kész sztornót adja vissza.
+
+Ha a visszatérítés előbb érkezik, mint hogy a fizetés bizonylata elkészült volna (például mert a fizetés webhookja hibázott, és újraküldésre vár), a kassza `in_progress` hibát dob: a webhook 500-at ad, és a szolgáltató a fizetés után újraküldi a visszatérítést. Ha egy fizetéshez soha nem készül bizonylat (például a kassza bevezetése előtti fizetés), ezt a hibát az `onPayment`-ben kell nyugtáznod. Ha a sztornó után ismét `paid` esemény jön, a kassza kihagyja, mert a rendeléshez tartozó nyugtát már sztornózták. Ha a nyugtát időközben [számlává alakították](/docs/alapok/nyugta-vagy-szamla#ha-a-vevő-utólag-számlát-kér), visszatérítéskor az átalakított számlát sztornózza.
 
 ### Részleges visszatérítés
 
@@ -144,6 +150,10 @@ await kassza.issueForPayment(payment, { partialRefund: 'proportional' })
 A `refundItems` a visszatérített tételeket adja vissza pozitív bruttó egységárral (a kassza fordítja negatívba, és ellenőrzi, hogy az összeg egyezik). A `partialRefund: 'proportional'` arányos szétosztást kér, ami például százalékos utólagos kedvezménynél helyes. A `partialRefund: 'skip'` a régi viselkedést adja vissza (kihagyás).
 
 **Nyugtánál** a részleges visszatérítés jogi menete nem egyértelmű (sztornó és új nyugta a megmaradó tételekről), ezért a kassza nem állít ki semmit: `refund-proposal` eredményt ad a kiszámolt bontással, amit a könyvelőddel egyeztetve kézzel intézhetsz.
+
+### Meghiúsult visszatérítés
+
+A Stripe-nál a visszatérítés a `charge.refunded` után is meghiúsulhat (`charge.refund.updated`, `failed` vagy `canceled` állapottal). Ilyenkor a kassza `refund-failed` eredményt ad a bizonylat számával és az okkal, de semmit nem ír: a visszatérítésre már kiállított sztornót vagy helyesbítő számlát nem fordítja vissza, mert a pénz a vevőnél maradt, és hogy mi jár helyette (új számla vagy nyugta), az könyvelői döntés. Ha a fizetéshez nincs bizonylat, `skipped` jön.
 
 ### Ismételt webhookok szűrése
 

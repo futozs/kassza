@@ -8,7 +8,7 @@ A `stripeWebhook()` ellenőrzi a `Stripe-Signature` fejlécet, a Stripe esemény
 ## Beállítás
 
 1. A Stripe Dashboardon a **Developers / Webhooks** alatt vegyél fel egy végpontot, például `https://bolt.example.hu/api/stripe/webhook`.
-2. Válaszd ki az eseményeket: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed` és `charge.refunded`. Checkout nélkül (saját Payment Element) a `payment_intent.succeeded` és a `payment_intent.payment_failed` kell a Checkout események helyett.
+2. Válaszd ki az eseményeket: `checkout.session.completed`, `checkout.session.async_payment_succeeded`, `checkout.session.async_payment_failed`, `charge.refunded` és `charge.refund.updated`. Checkout nélkül (saját Payment Element) a `payment_intent.succeeded` és a `payment_intent.payment_failed` kell a Checkout események helyett.
 3. Másold ki a végpont aláíró titkát (`whsec_…`).
 
 ```dotenv title=".env.local"
@@ -53,6 +53,7 @@ export const POST = stripeWebhook({
 | `payment_intent.succeeded` | `paid` |
 | `payment_intent.payment_failed` | `failed` |
 | `charge.refunded` | `refunded` vagy `partially-refunded` |
+| `charge.refund.updated`, `refund.updated`, `refund.failed` `failed` vagy `canceled` állapottal | `refund-failed` |
 
 Más eseményre a kezelő `200`-at ad, és nem hívja meg az `onPayment`-et. A fizetés azonosítója mindig a Payment Intent azonosítója, így a `charge.refunded` ugyanahhoz a rendelésszámhoz tartozik, mint a fizetés.
 

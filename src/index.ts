@@ -146,6 +146,7 @@ export {
   type IssuedDocument,
   type IssuedInvoice,
   type IssuedReceipt,
+  type IssuedRefundFailure,
   type IssuedReversal,
   type IssueForPaymentOptions,
   issueForPayment,

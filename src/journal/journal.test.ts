@@ -6,6 +6,7 @@ import { type KeyValueStore, memoryStore } from '../core/store'
 import type { CreateInvoiceInput } from '../invoices/create-types'
 import type { Receipt } from '../receipts/types'
 import { navDailyReports } from '../reports'
+import { resilientStore } from '../stores'
 import {
   createJournal,
   type JournalEntry,
@@ -456,5 +457,80 @@ describe('kvJournal', () => {
     await journal.storage.putEntry(entry)
 
     expect(set.mock.calls.every((call) => call[2] === 10 * 86_400)).toBe(true)
+  })
+
+  function failingSlots(inner: KeyValueStore, failing: () => boolean): KeyValueStore {
+    return {
+      ...inner,
+      set: (key, value, ttl) =>
+        failing() && /:day:\d{4}-\d{2}-\d{2}:\d+$/.test(key)
+          ? Promise.reject(new Error('Redis nem érhető el'))
+          : inner.set(key, value, ttl),
+    }
+  }
+
+  test('resilientStore fölött a napi index írása nem vész el, a bejegyzés listázható', async () => {
+    const store = resilientStore(
+      failingSlots(memoryStore(), () => true),
+      { onError: () => undefined },
+    )
+    const journal = createJournal(kvJournal(store), { now: FAKE_NOW })
+    const { kassza } = fakeKassza()
+    const receipt = await kassza.receipts.create(RECEIPT_INPUT)
+
+    expect(await journal.recordReceipt(receipt)).toBe(true)
+    expect(await journal.entries(RANGE)).toMatchObject([{ number: receipt.number }])
+  })
+
+  test('setIfAbsent nélküli resilientStore fölött a sikertelen indexírás hiba, nem láthatatlan bejegyzés', async () => {
+    let down = true
+    const { setIfAbsent: _unused, ...inner } = memoryStore()
+    const store = resilientStore(
+      failingSlots(inner, () => down),
+      { onError: () => undefined },
+    )
+    const journal = createJournal(kvJournal(store), { now: FAKE_NOW })
+    const { kassza } = fakeKassza()
+    const receipt = await kassza.receipts.create(RECEIPT_INPUT)
+
+    await expect(journal.recordReceipt(receipt)).rejects.toMatchObject({
+      category: 'store_unavailable',
+    })
+    down = false
+
+    expect(await journal.recordReceipt(receipt)).toBe(true)
+    expect(await journal.entries(RANGE)).toMatchObject([{ number: receipt.number }])
+  })
+
+  test('a reconcile a tárolt, de indexből hiányzó bejegyzést újraindexeli', async () => {
+    const store = memoryStore()
+    const journal = createJournal(kvJournal(store), { now: FAKE_NOW })
+    const { kassza } = fakeKassza()
+    const receipt = await kassza.receipts.create(RECEIPT_INPUT)
+    await journal.recordReceipt(receipt)
+    for (const key of [
+      'szamlazz:journal:day:2026-10-02:1',
+      'szamlazz:journal:day:2026-10-02:count',
+    ]) {
+      await store.delete(key)
+    }
+    expect(await journal.entries(RANGE)).toEqual([])
+
+    const first = await journal.reconcile([receipt])
+    const second = await journal.reconcile([receipt])
+
+    expect(first.added).toEqual([receipt.number])
+    expect(second.added).toEqual([])
+    expect(await journal.entries(RANGE)).toMatchObject([{ number: receipt.number }])
+  })
+
+  test('ha a tároló tartalmazza, de nem listázza és nem tudja újraindexelni, a reconcile hibát dob', async () => {
+    const storage: JournalStorage = { ...memoryJournal(), listEntries: async () => [] }
+    const journal = createJournal(storage, { now: FAKE_NOW })
+    const { kassza } = fakeKassza()
+    const receipt = await kassza.receipts.create(RECEIPT_INPUT)
+    await journal.recordReceipt(receipt)
+
+    await expect(journal.reconcile([receipt])).rejects.toThrow('újraindexelni')
   })
 })

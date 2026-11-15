@@ -688,8 +688,9 @@ export const POST = stripeWebhook({
 ```
 
 - Az újraküldött webhook nem állít ki második bizonylatot; a `dedupe: store` opcióval a már feldolgozott eseményt a Számla Agent hívása nélkül nyugtázza.
-- Teljes visszatérítéskor a kassza sztornózza a bizonylatot.
+- Teljes visszatérítéskor a kassza egyszer sztornózza a bizonylatot; több példány között ehhez a `lock` opció kell. A fizetés bizonylata előtt érkező visszatérítésre `in_progress` hibát ad, így a szolgáltató a fizetés után újraküldi.
 - Részleges visszatérítéskor számlánál visszatérítésenként egy helyesbítő számlát állít ki, a visszatérített összeget tételenként pontosan szétosztva; több áfakulcsnál és nyugtánál javaslatot ad.
+- A meghiúsult Stripe visszatérítés `refund-failed` eredményt ad, írás nélkül, kézi rendezésre.
 - Ugyanígy működik a `simplePayWebhook`, a `barionWebhook`, a `revolutWebhook` és a `payPalWebhook`.
 
 {{more:fizetesek|}}
@@ -1169,7 +1170,7 @@ A `doctor` ellenőrzi a Node.js-t, az Agent kulcsot, a gép óráját és a munk
 }
 ```
 
-Claude, Cursor és más MCP kliensek számára. Alapból csak olvas. Az `--allow-write` kapcsolóval kiállíthat és sztornózhat is, de minden íráshoz kell a megfelelő előnézeti eszköz megerősítő kódja.
+Claude, Cursor és más MCP kliensek számára. Alapból csak olvas. Az `--allow-write` kapcsolóval kiállíthat és sztornózhat is, de minden íráshoz kell a megfelelő előnézeti eszköz megerősítő kódja, 15 percig és csak az előnézet budapesti napján.
 
 {{more:kiegeszitok/mcp-szerver|}}
 

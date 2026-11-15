@@ -149,7 +149,7 @@ describe('MCP eszközök: számla', () => {
     expect(agent.invoices.size).toBe(1)
   })
 
-  test('megadott dátumokkal az éjfél előtti kód éjfél után is ugyanazt a számlát adja', async () => {
+  test('megadott dátumokkal az éjfél utáni új előnézet ugyanazt a számlát adja vissza', async () => {
     let current = new Date('2026-11-16T22:55:00.000Z')
     const { call, agent } = mcpHarness({ allowWrite: true, now: () => current })
     const input = {
@@ -159,13 +159,20 @@ describe('MCP eszközök: számla', () => {
       dueDate: '2026-11-30',
     }
     const preview = await call('preview_invoice', input)
-    const args = { ...input, confirmation: preview.data.confirmation }
-
-    const first = await call('create_invoice', args)
+    const first = await call('create_invoice', {
+      ...input,
+      confirmation: preview.data.confirmation,
+    })
     current = new Date('2026-11-16T23:05:00.000Z')
-    const again = await call('create_invoice', args)
+    const stale = await call('create_invoice', {
+      ...input,
+      confirmation: preview.data.confirmation,
+    })
+    const fresh = await call('preview_invoice', input)
+    const again = await call('create_invoice', { ...input, confirmation: fresh.data.confirmation })
 
     expect(first.data).toMatchObject({ created: true })
+    expect(stale).toMatchObject({ isError: true, text: expect.stringContaining('éjfél') })
     expect(again.data).toMatchObject({ created: false, externalId: first.data.externalId })
     expect(agent.invoices.size).toBe(1)
   })
@@ -322,6 +329,74 @@ describe('MCP eszközök: sztornó', () => {
       text: expect.stringContaining('már sztornózták'),
     })
     expect(agent.invoices.get(String(number))?.reversed).toBe(true)
+  })
+
+  test('két egyidejű hívás ugyanazzal a kóddal egyetlen sztornó számlát állít ki', async () => {
+    let paired = false
+    let partner: (() => void) | undefined
+    const lockstep = (fetch: typeof globalThis.fetch): typeof globalThis.fetch => {
+      return async (input, init) => {
+        if (paired) {
+          await new Promise<void>((resolve) => {
+            if (partner) {
+              partner()
+              partner = undefined
+              resolve()
+              return
+            }
+            const timer = setTimeout(() => {
+              partner = undefined
+              resolve()
+            }, 50)
+            partner = () => {
+              clearTimeout(timer)
+              resolve()
+            }
+          })
+        }
+        return fetch(input, init)
+      }
+    }
+    const { call, agent } = mcpHarness({ allowWrite: true }, {}, lockstep)
+    const invoicePreview = await call('preview_invoice', INVOICE)
+    const invoice = await call('create_invoice', {
+      ...INVOICE,
+      confirmation: invoicePreview.data.confirmation,
+    })
+    const number = invoice.data.number
+    const preview = await call('preview_reversal', { document: 'invoice', number })
+    const args = { invoiceNumber: number, confirmation: preview.data.confirmation }
+    paired = true
+
+    const results = await Promise.all([
+      call('reverse_invoice', args),
+      call('reverse_invoice', args),
+    ])
+
+    expect(results.map((result) => result.data.created).sort()).toEqual([false, true])
+    expect([...agent.invoices.values()].filter((entry) => entry.typeCode === 'SS')).toHaveLength(1)
+  })
+
+  test('éjfél után a sztornó előnézetének kódja nem érvényes', async () => {
+    let current = new Date('2026-11-16T22:55:00.000Z')
+    const { call, agent } = mcpHarness({ allowWrite: true, now: () => current })
+    const invoicePreview = await call('preview_invoice', INVOICE)
+    const invoice = await call('create_invoice', {
+      ...INVOICE,
+      confirmation: invoicePreview.data.confirmation,
+    })
+    const number = invoice.data.number
+    const preview = await call('preview_reversal', { document: 'invoice', number })
+
+    current = new Date('2026-11-16T23:05:00.000Z')
+    const late = await call('reverse_invoice', {
+      invoiceNumber: number,
+      confirmation: preview.data.confirmation,
+    })
+
+    expect(late).toMatchObject({ isError: true, text: expect.stringContaining('éjfél') })
+    expect(late.text).toContain('preview_reversal')
+    expect(agent.invoices.get(String(number))?.reversed).not.toBe(true)
   })
 
   test('díjbekérőt és sztornó számlát nem enged sztornózni', async () => {

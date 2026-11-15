@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from 'vitest'
 import { SzamlazzError } from '../core/errors'
+import { type KeyValueStore, memoryStore } from '../core/store'
 import type { InvoiceBuyer } from '../invoices/create-types'
 import { createMockKassza } from '../testing'
 import { buyerFromCustomer, issueForPayment, paymentOrderNumber } from './issue'
@@ -471,6 +472,54 @@ describe('issueForPayment: nem sikeres fizetés', () => {
   })
 })
 
+describe('issueForPayment: meghiúsult visszatérítés', () => {
+  function refundFailed(): PaymentEvent {
+    return paid({
+      kind: 'refund-failed',
+      refunds: [{ id: 're_1', amount: { value: 2540, currency: 'HUF' } }],
+    })
+  }
+
+  function writes(kassza: ReturnType<typeof mockKassza>): string[] {
+    return kassza.calls
+      .map((call) => call.method)
+      .filter((method) => /create|reverse/i.test(method))
+  }
+
+  test('a már sztornózott nyugtát írás nélkül, kézi teendőként jelzi', async () => {
+    const kassza = mockKassza()
+    const issued = await kassza.issueForPayment(paid(), { vat: 27 })
+    await kassza.issueForPayment(refunded())
+    const before = writes(kassza).length
+
+    const result = await kassza.issueForPayment(refundFailed())
+
+    expect(result).toMatchObject({
+      kind: 'refund-failed',
+      orderNumber: 'STRIPE-pi_123',
+      document: 'receipt',
+      documentNumber: issued.kind === 'receipt' ? issued.number : '',
+      reason: expect.stringContaining('re_1'),
+    })
+    expect(writes(kassza)).toHaveLength(before)
+  })
+
+  test('számlánál a számlát adja, bizonylat nélkül kihagyja', async () => {
+    const kassza = mockKassza()
+    const empty = await kassza.issueForPayment(refundFailed())
+    const issued = await kassza.issueForPayment(paid({ customer: COMPANY_CUSTOMER }), { vat: 27 })
+
+    const result = await kassza.issueForPayment(refundFailed())
+
+    expect(empty).toMatchObject({ kind: 'skipped', reason: expect.stringContaining('re_1') })
+    expect(result).toMatchObject({
+      kind: 'refund-failed',
+      document: 'invoice',
+      documentNumber: issued.kind === 'invoice' ? issued.number : '',
+    })
+  })
+})
+
 describe('issueForPayment: teljes visszatérítés', () => {
   test('a nyugtát egyszer sztornózza', async () => {
     const kassza = mockKassza()
@@ -523,12 +572,24 @@ describe('issueForPayment: teljes visszatérítés', () => {
     expect(kassza.calls.filter((call) => call.method === 'invoices.reverse')).toHaveLength(1)
   })
 
-  test('bizonylat nélkül kihagyja a visszatérítést', async () => {
+  test('a bizonylat előtt érkező visszatérítés in_progress hibát ad, a fizetés újraküldése után pedig sztornózza', async () => {
     const kassza = mockKassza()
-    await expect(kassza.issueForPayment(refunded())).resolves.toMatchObject({
-      kind: 'skipped',
-      reason: expect.stringContaining('nem található'),
+
+    const early = await kassza.issueForPayment(refunded()).catch((error: unknown) => error)
+    const issued = await kassza.issueForPayment(paid(), { vat: 27 })
+    const redelivered = await kassza.issueForPayment(refunded())
+
+    expect(early).toBeInstanceOf(SzamlazzError)
+    expect(early).toMatchObject({ category: 'in_progress' })
+    expect((early as SzamlazzError).message).toContain('STRIPE-pi_123')
+    expect(issued).toMatchObject({ kind: 'receipt', created: true })
+    expect(redelivered).toMatchObject({
+      kind: 'reversal',
+      document: 'receipt',
+      reversedNumber: issued.kind === 'receipt' ? issued.number : '',
+      created: true,
     })
+    expect(kassza.calls.filter((call) => call.method === 'receipts.reverse')).toHaveLength(1)
   })
 
   test('számlára cserélt nyugtánál a csereszámlát sztornózza', async () => {
@@ -632,6 +693,59 @@ describe('issueForPayment: teljes visszatérítés', () => {
     kassza.failNext('receipts.reverse', failure)
 
     await expect(kassza.issueForPayment(refunded())).rejects.toBe(failure)
+  })
+
+  test('két egyidejű teljes visszatérítés egy folyamatban egyetlen sztornó kérést küld', async () => {
+    const kassza = mockKassza()
+    await kassza.issueForPayment(paid({ customer: COMPANY_CUSTOMER }), { vat: 27 })
+
+    const results = await Promise.all([
+      kassza.issueForPayment(refunded()),
+      kassza.issueForPayment(refunded()),
+    ])
+
+    expect(results.map((result) => result.kind === 'reversal' && result.created)).toEqual([
+      true,
+      false,
+    ])
+    expect(kassza.calls.filter((call) => call.method === 'invoices.reverse')).toHaveLength(1)
+  })
+
+  test('a lock tárolóval zárolja a sztornót, és a végén felszabadítja', async () => {
+    const kassza = mockKassza()
+    await kassza.issueForPayment(paid({ customer: COMPANY_CUSTOMER }), { vat: 27 })
+    const lock = memoryStore()
+    const setIfAbsent = vi.spyOn(lock, 'setIfAbsent')
+
+    const result = await kassza.issueForPayment(refunded(), { lock })
+
+    expect(result).toMatchObject({ kind: 'reversal', created: true })
+    expect(setIfAbsent).toHaveBeenCalledTimes(1)
+    const key = setIfAbsent.mock.calls[0]?.[0] ?? ''
+    expect(key).toContain('STRIPE-pi_123')
+    expect(await lock.get(key)).toBeUndefined()
+  })
+
+  test('ha egy másik folyamat tartja a zárat, in_progress hibát ad sztornó kérés nélkül', async () => {
+    const kassza = mockKassza()
+    await kassza.issueForPayment(paid({ customer: COMPANY_CUSTOMER }), { vat: 27 })
+    const busy: KeyValueStore = { ...memoryStore(), setIfAbsent: async () => false }
+    const broken: KeyValueStore = {
+      ...memoryStore(),
+      setIfAbsent: () => Promise.reject(new Error('Redis nem érhető el')),
+    }
+    const { setIfAbsent: _unused, ...withoutSetIfAbsent } = memoryStore()
+
+    await expect(kassza.issueForPayment(refunded(), { lock: busy })).rejects.toMatchObject({
+      category: 'in_progress',
+    })
+    await expect(kassza.issueForPayment(refunded(), { lock: broken })).rejects.toMatchObject({
+      category: 'store_unavailable',
+    })
+    await expect(
+      kassza.issueForPayment(refunded(), { lock: withoutSetIfAbsent }),
+    ).rejects.toMatchObject({ category: 'configuration' })
+    expect(kassza.calls.some((call) => call.method === 'invoices.reverse')).toBe(false)
   })
 })
 

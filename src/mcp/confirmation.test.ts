@@ -23,6 +23,27 @@ describe('megerősítő kódok', () => {
     expect(issued.expiresAt).toBe('2026-10-02T10:15:00.000Z')
   })
 
+  test('a kód csak az előnézet budapesti napján érvényes, éjfél után érthető hibát ad', async () => {
+    let now = new Date('2026-11-16T22:55:00.000Z')
+    const confirmations = createConfirmations({ secret: 'titok', now: () => now })
+    const issued = await confirmations.issue('reverse_invoice', { invoiceNumber: 'A-1' })
+
+    now = new Date('2026-11-16T22:59:59.000Z')
+    await expect(
+      confirmations.verify('reverse_invoice', { invoiceNumber: 'A-1' }, issued.token, 'preview'),
+    ).resolves.toBeUndefined()
+    now = new Date('2026-11-16T23:00:00.000Z')
+    const failure = await confirmations
+      .verify('reverse_invoice', { invoiceNumber: 'A-1' }, issued.token, 'preview')
+      .catch((error: unknown) => error)
+
+    expect((failure as Error).message).toContain('2026-11-16')
+    expect((failure as Error).message).toContain('éjfél')
+    await expect(
+      confirmations.verify('reverse_invoice', { invoiceNumber: 'A-2' }, issued.token, 'preview'),
+    ).rejects.toThrow('eltérnek')
+  })
+
   test('más titokkal készült kódot nem fogad el', async () => {
     const first = createConfirmations({ secret: 'egyik', now: FAKE_NOW })
     const second = createConfirmations({ secret: 'masik', now: FAKE_NOW })

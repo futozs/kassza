@@ -1,6 +1,8 @@
 import type { InvoicesApi, ReceiptsApi } from '../client'
 import { SzamlazzError } from '../core/errors'
 import { isUncertainOutcome, recoverAfterFailure, resolveRecoveryDelay } from '../core/once'
+import { DEFAULT_LOCK_TTL_SECONDS } from '../core/once-guard'
+import type { KeyValueStore } from '../core/store'
 import { chooseDocument, type DocumentDecision } from '../documents/choose'
 import type { InvoiceOnceResult } from '../invoices/create-once'
 import type { InvoiceBuyer, StandardInvoiceInput } from '../invoices/create-types'
@@ -16,6 +18,7 @@ import {
   issueForPartialRefund,
   type PartialRefundMode,
   type RefundItemsResolver,
+  refundBeforeDocumentError,
 } from './partial-refund'
 import type { PaymentCustomer, PaymentEvent, PaymentLineItem } from './types'
 
@@ -71,6 +74,7 @@ export interface IssueForPaymentOptions {
         >
       >
     | undefined
+  readonly lock?: KeyValueStore | undefined
   readonly recoveryDelayMs?: number | undefined
   readonly signal?: AbortSignal | undefined
 }
@@ -102,6 +106,14 @@ export interface IssuedReversal {
   readonly created: boolean
 }
 
+export interface IssuedRefundFailure {
+  readonly kind: 'refund-failed'
+  readonly orderNumber: string
+  readonly document: 'receipt' | 'invoice'
+  readonly documentNumber: string
+  readonly reason: string
+}
+
 export interface SkippedPayment {
   readonly kind: 'skipped'
   readonly orderNumber: string
@@ -114,6 +126,7 @@ export type IssuedDocument =
   | IssuedReversal
   | IssuedCorrection
   | IssuedRefundProposal
+  | IssuedRefundFailure
   | SkippedPayment
 
 export interface PaymentDocumentsApi {
@@ -127,6 +140,9 @@ const DEFAULT_CURRENCY = 'HUF'
 const DEFAULT_EXCHANGE_BANK = 'MNB'
 const INVOICE_REVERSAL_SUFFIX = '/SS'
 const RECEIPT_REVERSAL_SUFFIX = '/SN'
+export const REFUND_LOCK_KEY_PREFIX = 'szamlazz:refund:'
+
+const refundsInFlight = new WeakMap<object, Map<string, Promise<unknown>>>()
 function validation(message: string, hint?: string): SzamlazzError {
   return new SzamlazzError(message, { category: 'validation', hint })
 }
@@ -474,12 +490,7 @@ async function reverseReceiptForRefund(
   const lookup = (): Promise<Receipt | null> =>
     api.receipts.find({ orderNumber, downloadPdf: false }, { signal: options.signal })
   const receipt = await lookup()
-  if (!receipt) {
-    return skipped(
-      orderNumber,
-      `A(z) ${payment.provider} visszatérítéshez (${payment.id}) nem található kiállított bizonylat.`,
-    )
-  }
+  if (!receipt) throw refundBeforeDocumentError(payment, orderNumber)
   if (isReversedReceipt(receipt)) {
     const originalNumber =
       receipt.type === 'reversal'
@@ -535,6 +546,128 @@ async function reverseForRefund(
   return reverseReceiptForRefund(api, payment, orderNumber, options)
 }
 
+function refundIdsOf(payment: PaymentEvent): string {
+  const ids = (payment.refunds ?? []).map((refund) => refund.id)
+  return ids.length > 0 ? ids.join(', ') : payment.id
+}
+
+async function reportRefundFailure(
+  api: PaymentDocumentsApi,
+  payment: PaymentEvent,
+  orderNumber: string,
+  options: IssueForPaymentOptions,
+): Promise<IssuedRefundFailure | SkippedPayment> {
+  const which = refundIdsOf(payment)
+  const invoice = await api.invoices.find(
+    { externalId: orderNumber },
+    { includePdf: false },
+    { signal: options.signal },
+  )
+  const receipt = invoice
+    ? undefined
+    : await api.receipts.find({ orderNumber, downloadPdf: false }, { signal: options.signal })
+  const found = invoice
+    ? { document: 'invoice' as const, number: invoice.header.number }
+    : receipt && {
+        document: 'receipt' as const,
+        number:
+          receipt.type === 'reversal'
+            ? (receipt.reversedReceiptNumber ?? receipt.number)
+            : receipt.number,
+      }
+  if (!found) {
+    return skipped(
+      orderNumber,
+      `A(z) ${payment.provider} visszatérítés (${which}) meghiúsult, de ehhez a fizetéshez nincs kiállított bizonylat, így nincs mit rendezni.`,
+    )
+  }
+  return {
+    kind: 'refund-failed',
+    orderNumber,
+    document: found.document,
+    documentNumber: found.number,
+    reason: `A(z) ${payment.provider} visszatérítés (${which}) meghiúsult vagy visszavonták, a pénz nem ment vissza a vevőnek. A kassza a visszatérítésre kiállított sztornót vagy helyesbítő számlát nem fordítja vissza magától: ellenőrizd a(z) ${found.number} bizonylatot és a hozzá tartozó javító bizonylatokat, és ha kell, kézzel állíts ki új bizonylatot a vevőnél maradt összegről.`,
+  }
+}
+
+async function oneAtATime<T>(
+  scope: object,
+  key: string,
+  signal: AbortSignal | undefined,
+  run: () => Promise<T>,
+): Promise<T> {
+  let running = refundsInFlight.get(scope)
+  if (!running) {
+    running = new Map()
+    refundsInFlight.set(scope, running)
+  }
+  for (;;) {
+    const pending = running.get(key)
+    if (!pending) break
+    await pending.catch(() => undefined)
+    signal?.throwIfAborted()
+  }
+  const current = run()
+  running.set(key, current)
+  try {
+    return await current
+  } finally {
+    if (running.get(key) === current) running.delete(key)
+  }
+}
+
+async function releaseRefundLock(lock: KeyValueStore, key: string, token: string): Promise<void> {
+  if (lock.deleteIfEquals) {
+    await lock.deleteIfEquals(key, token)
+    return
+  }
+  if ((await lock.get(key)) === token) await lock.delete(key)
+}
+
+async function withRefundLock<T>(
+  lock: KeyValueStore | undefined,
+  orderNumber: string,
+  run: () => Promise<T>,
+): Promise<T> {
+  if (!lock) return run()
+  const setIfAbsent = lock.setIfAbsent?.bind(lock)
+  if (!setIfAbsent) {
+    throw new SzamlazzError(
+      'A visszatérítés zárához (lock) olyan tároló kell, amely támogatja a setIfAbsent műveletet (például a kassza/stores Redis adapterei vagy a Durable Object tároló). A Cloudflare KV erre nem alkalmas.',
+      { category: 'configuration' },
+    )
+  }
+  const key = `${REFUND_LOCK_KEY_PREFIX}${orderNumber}`
+  const token = crypto.randomUUID()
+  let acquired: boolean
+  try {
+    acquired = await setIfAbsent(key, token, DEFAULT_LOCK_TTL_SECONDS)
+  } catch (error) {
+    throw new SzamlazzError(
+      `A visszatérítés zárának tárolója nem érhető el, ezért a kassza nem sztornózott (${orderNumber}).`,
+      {
+        category: 'store_unavailable',
+        cause: error,
+        hint: 'Állítsd helyre a tárolót, a webhook 500-at ad, és a szolgáltató újraküldi a visszatérítést.',
+      },
+    )
+  }
+  if (!acquired) {
+    throw new SzamlazzError(
+      `Egy másik folyamat éppen sztornózza a(z) ${orderNumber} rendelés bizonylatát.`,
+      {
+        category: 'in_progress',
+        hint: 'Ne sztornózd kézzel. A webhook 500-at ad, a szolgáltató újraküldi a visszatérítést, és akkor a kassza a már elkészült sztornót adja vissza.',
+      },
+    )
+  }
+  try {
+    return await run()
+  } finally {
+    await releaseRefundLock(lock, key, token).catch(() => undefined)
+  }
+}
+
 function assertPaidAmount(payment: PaymentEvent): void {
   const value = payment.amount?.value
   if (value !== undefined && (!Number.isFinite(value) || value < 0)) {
@@ -549,9 +682,18 @@ export async function issueForPayment(
 ): Promise<IssuedDocument> {
   resolveRecoveryDelay(options.recoveryDelayMs)
   const orderNumber = options.orderNumber?.trim() || paymentOrderNumber(payment)
-  if (payment.kind === 'refunded') return reverseForRefund(api, payment, orderNumber, options)
+  if (payment.kind === 'refunded') {
+    return oneAtATime(api.invoices, orderNumber, options.signal, () =>
+      withRefundLock(options.lock, orderNumber, () =>
+        reverseForRefund(api, payment, orderNumber, options),
+      ),
+    )
+  }
   if (payment.kind === 'partially-refunded') {
     return issueForPartialRefund(api, payment, orderNumber, options)
+  }
+  if (payment.kind === 'refund-failed') {
+    return reportRefundFailure(api, payment, orderNumber, options)
   }
   if (payment.kind !== 'paid') {
     return skipped(

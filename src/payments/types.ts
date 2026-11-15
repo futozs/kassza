@@ -9,7 +9,13 @@ export type PaymentProvider =
   | 'paypal'
   | (string & {})
 
-export type PaymentEventKind = 'paid' | 'refunded' | 'partially-refunded' | 'failed' | 'other'
+export type PaymentEventKind =
+  | 'paid'
+  | 'refunded'
+  | 'partially-refunded'
+  | 'refund-failed'
+  | 'failed'
+  | 'other'
 
 export interface PaymentAmount {
   readonly value: number

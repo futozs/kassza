@@ -1,4 +1,5 @@
 import { digestHex, hmacHex, timingSafeEqual } from '../core/crypto'
+import { toBudapestDate } from '../core/dates'
 import { ToolInputError } from './arguments'
 
 export const DEFAULT_CONFIRMATION_TTL_MS = 900_000
@@ -64,19 +65,25 @@ export function createConfirmations(options: ConfirmationOptions): Confirmations
   const secret = options.secret ?? randomSecret()
   const ttlMs = resolveTtl(options.ttlMs)
 
-  const sign = async (action: string, expiresAt: number, payload: unknown): Promise<string> => {
+  const sign = async (
+    action: string,
+    expiresAt: number,
+    day: string,
+    payload: unknown,
+  ): Promise<string> => {
     const signature = await hmacHex(
       'SHA-256',
       secret,
-      `${action}\n${expiresAt}\n${canonicalJson(payload)}`,
+      `${action}\n${expiresAt}\n${day}\n${canonicalJson(payload)}`,
     )
     return signature.slice(0, SIGNATURE_LENGTH)
   }
 
   return {
     async issue(action, payload) {
-      const expiresAt = options.now().getTime() + ttlMs
-      const signature = await sign(action, expiresAt, payload)
+      const now = options.now()
+      const expiresAt = now.getTime() + ttlMs
+      const signature = await sign(action, expiresAt, toBudapestDate(now), payload)
       return {
         token: `${expiresAt.toString(36)}.${signature}`,
         expiresAt: new Date(expiresAt).toISOString(),
@@ -92,11 +99,22 @@ export function createConfirmations(options: ConfirmationOptions): Confirmations
       if (!match?.[2] || !Number.isSafeInteger(expiresAt)) {
         throw new ToolInputError(`A megerősítő kód formátuma érvénytelen. ${again}`)
       }
-      if (options.now().getTime() > expiresAt) {
+      const now = options.now()
+      if (now.getTime() > expiresAt) {
         throw new ToolInputError(`A megerősítő kód lejárt. ${again}`)
       }
-      const expected = await sign(action, expiresAt, payload)
+      const today = toBudapestDate(now)
+      const expected = await sign(action, expiresAt, today, payload)
       if (!timingSafeEqual(expected, match[2])) {
+        const previewDay = toBudapestDate(new Date(expiresAt - ttlMs))
+        if (
+          previewDay !== today &&
+          timingSafeEqual(await sign(action, expiresAt, previewDay, payload), match[2])
+        ) {
+          throw new ToolInputError(
+            `A megerősítő kód egy előző napi (${previewDay}) előnézethez tartozik, budapesti idő szerint éjfél után nem érvényes. ${again}`,
+          )
+        }
         throw new ToolInputError(
           `A megerősítő kód nem ehhez a kéréshez tartozik (az adatok eltérnek az előnézettől). ${again}`,
         )

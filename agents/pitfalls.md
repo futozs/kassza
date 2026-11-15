@@ -48,6 +48,9 @@ Read this before writing any code that issues invoices or receipts. These rules 
 | `maintenanceCooldownMs` | After error `1`, kassza sends nothing for the cooldown and throws `maintenance` at once | Switch to a fallback, for example a paper receipt pad |
 | `in_progress` error | Another process holds the `createOnce` lock for this order | Do not issue by hand; call `createOnce` again later (5xx in a webhook) |
 | `store_unavailable` error | The lock store (or a `fail-closed` attempt ledger) is down; nothing was sent | Restore the store, or choose `lockFailure: 'proceed'` / `attemptLedgerMode: 'fail-open'` deliberately |
+| Refund before the payment's document | `issueForPayment` throws `in_progress` on purpose: acknowledging the refund would let the paid redelivery issue a document for returned money | Let the webhook answer 500; acknowledge it only for payments that will never get a document |
+| Stripe refund fails after `charge.refunded` | `charge.refund.updated` gives `refund-failed`; the reversal or corrective invoice stays | Correct the books by hand |
+| Concurrent full refunds on several instances | Only one process at a time may reverse; in one process kassza serializes | Pass `lock` (a store with `setIfAbsent`) to `issueForPayment` |
 | Partial refund on a mixed-VAT invoice | `issueForPayment` returns `refund-proposal`, issues nothing | Pass `refundItems` (what was returned) or `partialRefund: 'proportional'` |
 | `registerPayment` twice | Two payments on the invoice (`additive` defaults to `true`) | Use `registerPaymentOnce({ key })` with a stable bank or payment ID |
 | `szamlaLetoltesPld` (PDF copies) | Obsolete in the XSD; Számlázz.hu ignores it, so kassza does not offer it | Nothing to do |

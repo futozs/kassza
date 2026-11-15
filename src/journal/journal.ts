@@ -207,6 +207,16 @@ export function createJournal(storage: JournalStorage, options: JournalOptions =
     return 'recorded'
   }
 
+  async function reindex(entry: JournalEntry): Promise<void> {
+    const stored = await storage.getEntry(entry.kind, entry.number)
+    if (!stored || !storage.indexEntry) {
+      throw new Error(
+        `A napló tárolója már tartalmazza a(z) ${entry.number} nyugta bejegyzését, de nem listázza, és nem tudja újraindexelni. Javítsd a JournalStorage listEntries vagy indexEntry műveletét.`,
+      )
+    }
+    await storage.indexEntry(stored)
+  }
+
   const journal: Journal = {
     storage,
     async record(event) {
@@ -281,7 +291,8 @@ export function createJournal(storage: JournalStorage, options: JournalOptions =
         if (range && !inRange(receipt.issueDate, range)) continue
         if (known.has(receipt.number)) continue
         if (reconcileOptions.dryRun !== true) {
-          await storage.putEntry(receiptEntry(receipt, 'reconcile', now()))
+          const entry = receiptEntry(receipt, 'reconcile', now())
+          if (!(await storage.putEntry(entry))) await reindex(entry)
         }
         added.push(receipt.number)
       }

@@ -102,9 +102,24 @@ export function kvJournal(store: KeyValueStore, options: KvJournalOptions = {}):
   const reservationKey = (kind: JournalDocumentKind, orderNumber: string): string =>
     `${prefix}reservation:${kind}:${orderNumber}`
 
+  async function writeSlot(key: string, target: string, ttl: number): Promise<boolean> {
+    if (store.setIfAbsent) return store.setIfAbsent(key, target, ttl)
+    await store.set(key, target, ttl)
+    return (await store.get(key)) === target
+  }
+
   async function appendToDay(index: 'day' | 'rday', day: string, target: string, ttl: number) {
     const slot = await increment?.(`${prefix}${index}:${day}:count`, ttl)
-    await store.set(`${prefix}${index}:${day}:${slot}`, target, ttl)
+    const key = `${prefix}${index}:${day}:${slot}`
+    if (!(await writeSlot(key, target, ttl))) {
+      throw new SzamlazzError(
+        `A napló napi indexét (${key}) nem sikerült beírni, ezért a bejegyzés nem került a naplóba.`,
+        {
+          category: 'store_unavailable',
+          hint: 'Ellenőrizd a tárolót; a resilientStore elnyeli a set hibáját, ezért setIfAbsent nélküli tárolóval a naplóhoz ne használd.',
+        },
+      )
+    }
   }
 
   async function slotsOf(index: 'day' | 'rday', range: JournalRange): Promise<string[]> {
@@ -136,6 +151,9 @@ export function kvJournal(store: KeyValueStore, options: KvJournalOptions = {}):
       if (store.setIfAbsent) return store.setIfAbsent(key, value, retention)
       await store.set(key, value, retention)
       return true
+    },
+    async indexEntry(entry) {
+      await appendToDay('day', entry.date, `${entry.kind}:${entry.number}`, retention)
     },
     async listEntries(range) {
       const normalized = normalizeRange(range)

@@ -28,11 +28,12 @@ let nextId = 1
 export function mcpHarness(
   options: Partial<KasszaMcpServerOptions> = {},
   agentOptions: FakeAgentOptions = {},
+  wrapFetch: (fetch: typeof globalThis.fetch) => typeof globalThis.fetch = (fetch) => fetch,
 ): McpHarness {
   const agent = createFakeAgentFetch({ now: FAKE_NOW, ...agentOptions })
   const server = createKasszaMcpServer({
     agentKey: TEST_AGENT_KEY,
-    fetch: agent.fetch,
+    fetch: wrapFetch(agent.fetch),
     retryDelayMs: 0,
     recoveryDelayMs: 0,
     now: FAKE_NOW,
