@@ -1,5 +1,11 @@
 # Változásnapló
 
+## 1.0.2 (2026-11-15)
+
+### Javítások
+
+- close the payments, MCP and journal issues found in the tarca review (6203866)
+
 ## 1.0.1 (2026-11-15)
 
 ### Javítások
