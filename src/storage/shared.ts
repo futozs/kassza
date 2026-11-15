@@ -7,6 +7,11 @@ export const S3_MAX_PRESIGN_SECONDS = 604_800
 const MAX_KEY_LENGTH = 1024
 const CONTROL_CHARACTERS = /[\p{Cc}]/u
 
+function isDotSegment(segment: string): boolean {
+  const decoded = segment.replace(/%2e/gi, '.')
+  return decoded === '.' || decoded === '..'
+}
+
 export function assertStorageKey(key: string): string {
   const invalid = (reason: string): StorageError =>
     new StorageError(`Érvénytelen tárhelykulcs (${reason}): ${JSON.stringify(key)}`, {
@@ -19,8 +24,8 @@ export function assertStorageKey(key: string): string {
   if (key.includes('\\')) throw invalid('visszaperjel nem lehet benne')
   if (CONTROL_CHARACTERS.test(key)) throw invalid('vezérlőkaraktert tartalmaz')
   for (const segment of key.split('/')) {
-    if (segment === '' || segment === '.' || segment === '..') {
-      throw invalid('üres, "." vagy ".." útvonalszakaszt tartalmaz')
+    if (segment === '' || isDotSegment(segment)) {
+      throw invalid('üres, "." vagy ".." útvonalszakaszt tartalmaz, akár %2e kódolással')
     }
   }
   return key

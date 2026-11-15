@@ -130,6 +130,8 @@ describe('s3FetchStorage put', () => {
     const storage = s3FetchStorage({ ...R2, fetch })
 
     await expect(storage.get('../masik-bucket/x.pdf')).rejects.toThrow(StorageError)
+    await expect(storage.get('%2e%2e/masik-bucket/x.pdf')).rejects.toThrow(StorageError)
+    await expect(storage.delete('a/.%2E/x.pdf')).rejects.toThrow(StorageError)
     expect(calls).toHaveLength(0)
   })
 })
