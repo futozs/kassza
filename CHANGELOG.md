@@ -1,5 +1,16 @@
 # Változásnapló
 
+## 1.0.1 (2026-11-15)
+
+### Javítások
+
+- **payments:** reject a non-finite webhook timestamp tolerance (ad75ab1)
+- **mcp:** bind confirmation codes to the resolved issue day (8ac05e3)
+- **payments:** look up SimplePay merchants by own property only (50227f5)
+- **stores:** catch a synchronous throw from delete in diagnoseStore cleanup (6128d58)
+- **storage:** keep fsStorage put and delete inside the root through symlinks (8c00378)
+- **storage:** reject percent-encoded dot segments in storage keys (7d8f07d)
+
 ## 1.0.0 (2026-11-09)
 
 Az első stabil kiadás: a kassza hivatalos Számlázz.hu plugin lett, és kilépett a bétából. Az 1.0.0-tól a verziózás a szemantikus verziózást követi, törő változás csak új főverzióval jön.
