@@ -1,5 +1,12 @@
 # Változásnapló
 
+## 1.0.3 (2026-11-16)
+
+### Javítások
+
+- **payments:** issue the Barion sale before applying a refund (f4fa111)
+- **journal:** check the entry and reservation writes of kvJournal without setIfAbsent (e177c70)
+
 ## 1.0.2 (2026-11-15)
 
 ### Javítások
