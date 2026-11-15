@@ -133,6 +133,18 @@ describe('verifyStripeSignature', () => {
     ).resolves.toBeUndefined()
   })
 
+  test('a NaN, negatív vagy végtelen tolerancia nem kapcsolja ki csendben az ellenőrzést, hanem TypeError', async () => {
+    const old = await signature(payload, SECRET, NOW_SECONDS - 301)
+    for (const toleranceSeconds of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
+      await expect(
+        verifyStripeSignature(payload, old, SECRET, { now, toleranceSeconds }),
+      ).rejects.toBeInstanceOf(TypeError)
+      expect(() => stripeWebhook({ secret: SECRET, toleranceSeconds, onPayment: vi.fn() })).toThrow(
+        TypeError,
+      )
+    }
+  })
+
   test('üres titokra TypeError-t dob', async () => {
     await expect(verifyStripeSignature(payload, 't=1,v1=a', ' ')).rejects.toBeInstanceOf(TypeError)
     await expect(verifyStripeSignature(payload, 't=1,v1=a', [])).rejects.toBeInstanceOf(TypeError)

@@ -145,6 +145,20 @@ describe('verifyRevolutSignature', () => {
     ).resolves.toBeUndefined()
   })
 
+  test('a NaN, negatív vagy végtelen tolerancia nem kapcsolja ki csendben az ellenőrzést, hanem TypeError', async () => {
+    for (const toleranceMs of [Number.NaN, -1, Number.POSITIVE_INFINITY]) {
+      await expect(
+        verifyRevolutSignature(DOC_PAYLOAD, DOC_SIGNATURE, DOC_TIMESTAMP, DOC_SECRET, {
+          now: () => Number(DOC_TIMESTAMP) + 300_001,
+          toleranceMs,
+        }),
+      ).rejects.toBeInstanceOf(TypeError)
+      expect(() =>
+        revolutWebhook({ secret: SECRET, apiKey: API_KEY, toleranceMs, onPayment: vi.fn() }),
+      ).toThrow(TypeError)
+    }
+  })
+
   test('hiányzó fejlécre, hibás időbélyegre és üres titokra hibát dob', async () => {
     await expect(
       verifyRevolutSignature(DOC_PAYLOAD, null, DOC_TIMESTAMP, DOC_SECRET),

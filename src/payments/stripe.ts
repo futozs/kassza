@@ -56,6 +56,16 @@ function secretsOf(secret: string | readonly string[]): string[] {
   return list
 }
 
+function resolveTolerance(value: number | undefined): number {
+  if (value === undefined) return STRIPE_DEFAULT_TOLERANCE_SECONDS
+  if (!Number.isFinite(value) || value < 0) {
+    throw new TypeError(
+      `A toleranceSeconds nemnegatív véges szám legyen (a 0 kikapcsolja az időbélyeg-ellenőrzést), kapott: ${String(value)}`,
+    )
+  }
+  return value
+}
+
 export async function verifyStripeSignature(
   payload: string,
   header: string | null | undefined,
@@ -63,6 +73,7 @@ export async function verifyStripeSignature(
   options: VerifyStripeSignatureOptions = {},
 ): Promise<void> {
   const secrets = secretsOf(secret)
+  const tolerance = resolveTolerance(options.toleranceSeconds)
   if (!header) {
     throw new WebhookVerificationError(
       'stripe',
@@ -78,7 +89,6 @@ export async function verifyStripeSignature(
       'A Stripe-Signature fejléc formátuma hibás.',
     )
   }
-  const tolerance = options.toleranceSeconds ?? STRIPE_DEFAULT_TOLERANCE_SECONDS
   const nowSeconds = Math.floor((options.now?.() ?? Date.now()) / 1000)
   if (tolerance > 0 && nowSeconds - parsed.timestamp > tolerance) {
     throw new WebhookVerificationError(
@@ -451,6 +461,7 @@ async function enrich(
 
 export function stripeWebhook(options: StripeWebhookOptions): WebhookHandler {
   secretsOf(options.secret)
+  resolveTolerance(options.toleranceSeconds)
   return (request) =>
     respondToWebhook(options, async () => {
       const payload = await readRawBody(request, 'stripe', options.maxBodyBytes)

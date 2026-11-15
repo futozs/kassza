@@ -55,6 +55,16 @@ function signaturesOf(header: string): string[] {
     .filter((part) => part.startsWith(`${SIGNATURE_VERSION}=`))
 }
 
+function resolveTolerance(value: number | undefined): number {
+  if (value === undefined) return REVOLUT_DEFAULT_TOLERANCE_MS
+  if (!Number.isFinite(value) || value < 0) {
+    throw new TypeError(
+      `A toleranceMs nemnegatív véges szám legyen (a 0 kikapcsolja az időbélyeg-ellenőrzést), kapott: ${String(value)}`,
+    )
+  }
+  return value
+}
+
 export async function verifyRevolutSignature(
   payload: string,
   signatureHeader: string | null | undefined,
@@ -63,6 +73,7 @@ export async function verifyRevolutSignature(
   options: VerifyRevolutSignatureOptions = {},
 ): Promise<void> {
   const secrets = secretsOf(secret)
+  const tolerance = resolveTolerance(options.toleranceMs)
   const signatures = signatureHeader ? signaturesOf(signatureHeader) : []
   const timestamp = timestampHeader?.trim()
   if (signatures.length === 0 || !timestamp) {
@@ -79,7 +90,6 @@ export async function verifyRevolutSignature(
       'A Revolut-Request-Timestamp fejléc nem ezredmásodperces UNIX időbélyeg.',
     )
   }
-  const tolerance = options.toleranceMs ?? REVOLUT_DEFAULT_TOLERANCE_MS
   const now = options.now?.() ?? Date.now()
   if (tolerance > 0 && Math.abs(now - Number(timestamp)) > tolerance) {
     throw new WebhookVerificationError(
@@ -418,6 +428,7 @@ async function loadOrders(
 
 export function revolutWebhook(options: RevolutWebhookOptions): WebhookHandler {
   secretsOf(options.secret)
+  resolveTolerance(options.toleranceMs)
   const apiKey = options.apiKey?.trim()
   if (!apiKey) {
     throw new TypeError(
