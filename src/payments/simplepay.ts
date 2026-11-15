@@ -424,7 +424,8 @@ function merchantOf(
   secretKey: string | undefined,
   merchant: string,
 ): SimplePayMerchant | undefined {
-  const configured = merchants?.[merchant]
+  const configured =
+    merchants && Object.hasOwn(merchants, merchant) ? merchants[merchant] : undefined
   if (typeof configured === 'string') return { secretKey: configured }
   if (configured) return configured
   return secretKey ? { secretKey } : undefined

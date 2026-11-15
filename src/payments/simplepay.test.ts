@@ -451,6 +451,18 @@ describe('simplePayWebhook', () => {
     expect(onPayment).not.toHaveBeenCalled()
   })
 
+  test('az Object.prototype nevű kereskedőt is ismeretlenként kezeli: 400, onError nélkül', async () => {
+    const onPayment = vi.fn()
+    const onError = vi.fn()
+    const handler = simplePayWebhook({ merchants: { MASIK: KEY }, onPayment, onError })
+    for (const merchant of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      const response = await deliver(handler, IPN.replace('PUBLICTESTHUF', merchant))
+      expect(response.status).toBe(400)
+    }
+    expect(onError).not.toHaveBeenCalled()
+    expect(onPayment).not.toHaveBeenCalled()
+  })
+
   test('ha a lekérdezés nem találja a tranzakciót, 500-at ad', async () => {
     const api = simplePayApi([])
     const onError = vi.fn()
@@ -547,6 +559,11 @@ describe('verifySimplePayRedirect', () => {
     await expect(
       verifySimplePayRedirect(await redirectUrl(BACK), { MASIK: KEY }),
     ).rejects.toMatchObject({ reason: 'verification_failed' })
+    for (const m of ['constructor', 'toString', '__proto__']) {
+      await expect(
+        verifySimplePayRedirect(await redirectUrl({ ...BACK, m }), { MASIK: KEY }),
+      ).rejects.toMatchObject({ reason: 'verification_failed' })
+    }
     await expect(
       verifySimplePayRedirect(await redirectUrl(BACK, 'masik'), KEY),
     ).rejects.toMatchObject({ reason: 'invalid_signature' })
