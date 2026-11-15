@@ -87,6 +87,28 @@ describe('fsStorage', () => {
     expect(await readdir(outside)).toEqual(['titok.pdf'])
   })
 
+  test('a kifelé mutató szimbolikus link alá mappát sem hoz létre a gyökéren kívül', async () => {
+    await mkdir(root)
+    await symlink(outside, join(root, 'link'))
+    const storage = fsStorage({ directory: root })
+
+    await expect(
+      storage.put('link/uj/mappa/x.pdf', FAKE_PDF_BYTES, { contentType: 'application/pdf' }),
+    ).rejects.toThrow('kívülre mutat')
+    expect(await readdir(outside)).toEqual([])
+  })
+
+  test('a gyökérből kifelé mutató szimbolikus linken át nem töröl', async () => {
+    await mkdir(root)
+    await symlink(outside, join(root, 'link'))
+    await writeFile(join(outside, 'titok.pdf'), 'titok')
+    const storage = fsStorage({ directory: root })
+
+    await expect(storage.delete('link/titok.pdf')).rejects.toThrow('kívülre mutat')
+    expect(await readdir(outside)).toEqual(['titok.pdf'])
+    await expect(storage.delete('nincs/ilyen/mappa.pdf')).resolves.toBeUndefined()
+  })
+
   test('írási és olvasási hibát StorageError-rá csomagol, a temp fájlt eltakarítja', async () => {
     const storage = fsStorage({ directory: root })
     await mkdir(join(root, 'mappa.pdf'), { recursive: true })

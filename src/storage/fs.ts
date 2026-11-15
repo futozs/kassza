@@ -1,5 +1,5 @@
 import { mkdir, readFile, realpath, rename, rm, writeFile } from 'node:fs/promises'
-import { dirname, isAbsolute, relative, resolve } from 'node:path'
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path'
 import { SzamlazzError } from '../core/errors'
 import { guardStorageCall, StorageError, type StorageOperation } from './errors'
 import {
@@ -62,16 +62,28 @@ export function fsStorage(options: FsStorageOptions): FsStorage {
     if (realTarget !== realRoot && !isInside(realRoot, realTarget)) throw traversal(operation, key)
   }
 
+  async function createDirectory(directory: string, key: string): Promise<void> {
+    await guardStorageCall('Fájlrendszer', 'put', key, () => mkdir(root, { recursive: true }))
+    let current = root
+    for (const segment of relative(root, directory).split(sep)) {
+      if (segment === '') continue
+      const next = join(current, segment)
+      await guardStorageCall('Fájlrendszer', 'put', key, () =>
+        mkdir(next).catch((error: unknown) => {
+          if (!hasCode(error, 'EEXIST')) throw error
+        }),
+      )
+      await assertRealPathInside(next, 'put', key)
+      current = next
+    }
+  }
+
   return {
     directory: root,
     pathFor: (key) => pathFor(key),
     async put(key: string, body: Uint8Array, putOptions: StoragePutOptions): Promise<StoredFile> {
       const target = pathFor(key, 'put')
-      const directory = dirname(target)
-      await guardStorageCall('Fájlrendszer', 'put', key, () =>
-        mkdir(directory, { recursive: true }),
-      )
-      await assertRealPathInside(directory, 'put', key)
+      await createDirectory(dirname(target), key)
       const temporary = `${target}.${crypto.randomUUID()}.tmp`
       try {
         await writeFile(temporary, body)
@@ -110,6 +122,12 @@ export function fsStorage(options: FsStorageOptions): FsStorage {
     },
     async delete(key) {
       const target = pathFor(key, 'delete')
+      try {
+        await assertRealPathInside(dirname(target), 'delete', key)
+      } catch (error) {
+        if (hasCode(error, 'ENOENT')) return
+        throw error
+      }
       await guardStorageCall('Fájlrendszer', 'delete', key, () => rm(target, { force: true }))
     },
     async getUrl(key, urlOptions = {}) {
