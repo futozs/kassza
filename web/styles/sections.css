@@ -388,7 +388,7 @@
   height: 3.5rem;
   border-radius: 50%;
   background: var(--brand);
-  color: var(--amber);
+  color: var(--brand-ink);
   box-shadow: 0 0 0 8px var(--paper);
 }
 

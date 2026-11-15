@@ -327,7 +327,7 @@ export function SandboxApp({
                 type="button"
                 onClick={() => execute(code)}
                 aria-keyshortcuts="Meta+Enter Control+Enter"
-                className="inline-flex h-9 items-center gap-2 rounded-full bg-brand px-4 text-sm font-semibold whitespace-nowrap text-brand-ink transition-[background-color,transform] duration-150 hover:bg-brand-deep active:translate-y-px dark:hover:bg-accent-hover"
+                className="inline-flex h-9 items-center gap-2 rounded-full bg-brand px-4 text-sm font-semibold whitespace-nowrap text-brand-ink transition-[background-color,transform] duration-150 hover:bg-brand-hover active:translate-y-px"
               >
                 <Play className="size-3.5 fill-current" aria-hidden="true" />
                 Futtatás

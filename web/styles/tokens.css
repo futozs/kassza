@@ -8,25 +8,26 @@
   --ink: oklch(23.5% 0.024 258);
   --ink-2: oklch(36% 0.022 258);
   --muted: oklch(50% 0.02 258);
-  --brand: oklch(31% 0.027 258);
+  --brand: #ff6630;
   --brand-deep: oklch(24% 0.024 258);
-  --brand-ink: oklch(100% 0 0);
-  --accent: oklch(55% 0.165 42);
-  --accent-hover: oklch(49% 0.15 40);
-  --accent-soft: oklch(96.2% 0.025 55);
-  --tint: oklch(98.2% 0.011 60);
-  --tint-edge: oklch(93.5% 0.03 55);
-  --amber: oklch(68% 0.19 45);
-  --amber-soft: oklch(94% 0.045 60);
-  --amber-ink: oklch(45% 0.13 42);
-  --focus: oklch(55% 0.165 42);
+  --brand-hover: #ff8a60;
+  --brand-ink: oklch(21% 0.024 258);
+  --accent: #ff6630;
+  --accent-hover: #db5729;
+  --accent-soft: #fff0eb;
+  --tint: oklch(98.4% 0.009 39);
+  --tint-edge: #ffe1d6;
+  --amber: #ff6630;
+  --amber-soft: #ffe1d6;
+  --amber-ink: #b64922;
+  --focus: #ff6630;
   --receipt: oklch(100% 0 0);
   --receipt-edge: oklch(92.5% 0.008 255);
   --receipt-ink: oklch(24% 0.024 258);
   --receipt-muted: oklch(48% 0.02 258);
   --receipt-rule: oklch(86% 0.01 255);
   --receipt-hover: oklch(96.5% 0.006 255);
-  --receipt-accent: oklch(55% 0.165 42);
+  --receipt-accent: #ff6630;
   --receipt-shadow: oklch(30% 0.03 258 / 0.16);
   --overlay: oklch(23.5% 0.024 258 / 0.42);
   --shadow-color: oklch(30% 0.03 258);
@@ -34,9 +35,9 @@
   --note-bg: oklch(97.4% 0.004 255);
   --note-border: oklch(89% 0.008 255);
   --note-ink: oklch(36% 0.022 258);
-  --tip-bg: oklch(96.6% 0.025 55);
-  --tip-border: oklch(87% 0.07 50);
-  --tip-ink: oklch(47% 0.14 42);
+  --tip-bg: #fff0eb;
+  --tip-border: #ffae91;
+  --tip-ink: #b64922;
   --info-bg: oklch(96.5% 0.02 240);
   --info-border: oklch(86% 0.05 245);
   --info-ink: oklch(43% 0.1 250);
@@ -57,8 +58,8 @@
   --code-token-parameter: oklch(36% 0.022 258);
   --code-token-punctuation: oklch(53% 0.014 258);
   --code-token-comment: oklch(57% 0.014 258);
-  --code-token-link: oklch(55% 0.165 42);
-  --code-line-highlight: oklch(94% 0.045 60 / 0.55);
+  --code-token-link: #ff6630;
+  --code-line-highlight: oklch(93.1% 0.036 41 / 0.55);
   --code-line-inserted: oklch(94% 0.05 150 / 0.7);
   --code-line-deleted: oklch(94% 0.035 25 / 0.8);
 
@@ -113,8 +114,8 @@
   --printer-rim: oklch(37% 0.024 258);
   --printer-slot: oklch(13% 0.015 258);
   --printer-ink: oklch(80% 0.015 258);
-  --led: oklch(72% 0.18 45);
-  --amber-tag-ink: oklch(26% 0.06 45);
+  --led: #ff6630;
+  --amber-tag-ink: #491d0e;
 
   color-scheme: light;
 }
@@ -129,18 +130,19 @@
   --ink: oklch(95% 0.004 255);
   --ink-2: oklch(85% 0.008 255);
   --muted: oklch(70% 0.014 255);
-  --brand: oklch(74% 0.16 48);
+  --brand: #ff6630;
   --brand-deep: oklch(24% 0.024 258);
+  --brand-hover: #ff8a60;
   --brand-ink: oklch(18% 0.014 258);
-  --accent: oklch(76% 0.15 50);
-  --accent-hover: oklch(83% 0.12 55);
-  --accent-soft: oklch(27% 0.045 45);
-  --tint: oklch(21% 0.02 50);
-  --tint-edge: oklch(30% 0.04 48);
-  --amber: oklch(72% 0.18 47);
-  --amber-soft: oklch(32% 0.07 45);
-  --amber-ink: oklch(85% 0.11 55);
-  --focus: oklch(76% 0.15 50);
+  --accent: #ff6630;
+  --accent-hover: #ff8a60;
+  --accent-soft: oklch(27% 0.05 39);
+  --tint: oklch(21% 0.02 39);
+  --tint-edge: oklch(30% 0.045 39);
+  --amber: #ff6630;
+  --amber-soft: oklch(32% 0.075 39);
+  --amber-ink: #ffae91;
+  --focus: #ff6630;
   --receipt: oklch(97% 0.004 255);
   --receipt-edge: oklch(88% 0.01 255);
   --receipt-hover: oklch(92% 0.008 255);
@@ -151,9 +153,9 @@
   --note-bg: oklch(22% 0.016 258);
   --note-border: oklch(33.5% 0.017 258);
   --note-ink: oklch(85% 0.008 255);
-  --tip-bg: oklch(24% 0.04 45);
-  --tip-border: oklch(40% 0.08 45);
-  --tip-ink: oklch(82% 0.11 52);
+  --tip-bg: oklch(24% 0.045 39);
+  --tip-border: oklch(40% 0.085 39);
+  --tip-ink: #ffae91;
   --info-bg: oklch(22.5% 0.03 245);
   --info-border: oklch(38% 0.06 245);
   --info-ink: oklch(82% 0.08 245);
@@ -174,8 +176,8 @@
   --code-token-parameter: oklch(87% 0.01 95);
   --code-token-punctuation: oklch(67% 0.014 255);
   --code-token-comment: oklch(62% 0.014 255);
-  --code-token-link: oklch(76% 0.15 50);
-  --code-line-highlight: oklch(32% 0.07 45 / 0.55);
+  --code-token-link: #ff6630;
+  --code-line-highlight: oklch(32% 0.075 39 / 0.55);
   --code-line-inserted: oklch(30% 0.06 150 / 0.6);
   --code-line-deleted: oklch(30% 0.06 25 / 0.6);
 
@@ -185,8 +187,8 @@
   --printer-rim: oklch(30% 0.017 258);
   --printer-slot: oklch(6% 0.008 258);
   --printer-ink: oklch(74% 0.014 255);
-  --led: oklch(74% 0.18 47);
-  --amber-tag-ink: oklch(24% 0.06 60);
+  --led: #ff6630;
+  --amber-tag-ink: #491d0e;
 
   color-scheme: dark;
 }

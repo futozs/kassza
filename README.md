@@ -15,10 +15,10 @@
 </p>
 
 <p align="center">
-  <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/v/kassza?label=npm&style=flat-square&labelColor=28313d&color=c2501a" alt="npm verzió"></a>
-  <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/dm/kassza?label=let%C3%B6lt%C3%A9s&style=flat-square&labelColor=28313d&color=c2501a" alt="havi letöltés"></a>
-  <a href="https://github.com/futozs/kassza/blob/main/package.json"><img src="https://img.shields.io/badge/f%C3%BCgg%C5%91s%C3%A9g-0-c2501a?style=flat-square&labelColor=28313d" alt="0 futásidejű függőség"></a>
-  <a href="https://github.com/futozs/kassza/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/kassza?label=licenc&style=flat-square&labelColor=28313d&color=c2501a" alt="MIT licenc"></a>
+  <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/v/kassza?label=npm&style=flat-square&labelColor=28313d&color=ff6630" alt="npm verzió"></a>
+  <a href="https://www.npmjs.com/package/kassza"><img src="https://img.shields.io/npm/dm/kassza?label=let%C3%B6lt%C3%A9s&style=flat-square&labelColor=28313d&color=ff6630" alt="havi letöltés"></a>
+  <a href="https://github.com/futozs/kassza/blob/main/package.json"><img src="https://img.shields.io/badge/f%C3%BCgg%C5%91s%C3%A9g-0-ff6630?style=flat-square&labelColor=28313d" alt="0 futásidejű függőség"></a>
+  <a href="https://github.com/futozs/kassza/blob/main/LICENSE"><img src="https://img.shields.io/npm/l/kassza?label=licenc&style=flat-square&labelColor=28313d&color=ff6630" alt="MIT licenc"></a>
   <br>
   <a href="https://github.com/futozs/kassza/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/futozs/kassza/ci.yml?branch=main&label=CI&style=flat-square&labelColor=28313d" alt="CI állapota"></a>
   <a href="https://github.com/futozs/kassza/actions/workflows/full-check.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/futozs/kassza/full-check.yml?branch=main&label=heti%20teljes%20teszt&style=flat-square&labelColor=28313d" alt="Heti teljes ellenőrzés: CI, XSD, változásfigyelő, élő e2e"></a>

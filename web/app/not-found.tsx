@@ -82,7 +82,7 @@ export default function NotFound() {
           <div className="mt-9 flex flex-wrap items-center gap-3">
             <Link
               href="/docs"
-              className="group inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-brand px-4.5 py-2.5 text-[0.95rem] font-medium text-brand-ink shadow-whisper transition-[background-color,transform] duration-[var(--dur-short)] ease-[var(--ease-out)] hover:bg-brand-deep active:translate-y-px dark:hover:bg-accent-hover"
+              className="group inline-flex items-center gap-2 rounded-[var(--radius-md)] bg-brand px-4.5 py-2.5 text-[0.95rem] font-medium text-brand-ink shadow-whisper transition-[background-color,transform] duration-[var(--dur-short)] ease-[var(--ease-out)] hover:bg-brand-hover active:translate-y-px"
             >
               <BookOpen className="size-4" aria-hidden="true" />
               Dokumentáció

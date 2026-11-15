@@ -126,7 +126,7 @@
 }
 
 .pill-button--primary:hover {
-  background: var(--brand-deep);
+  background: var(--brand-hover);
 }
 
 .pill-button--secondary {

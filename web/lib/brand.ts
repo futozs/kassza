@@ -4,12 +4,12 @@ export const brandColors = {
   ink: '#1c232d',
   ink2: '#363f4b',
   muted: '#5c6673',
-  brand: '#28313d',
+  brand: '#ff6630',
   brandDeep: '#1c232d',
-  brandInk: '#ffffff',
-  accent: '#c2501a',
-  accentSoft: '#fdeee4',
-  amber: '#f26b21',
+  brandInk: '#1c232d',
+  accent: '#ff6630',
+  accentSoft: '#fff0eb',
+  amber: '#ff6630',
   receipt: '#ffffff',
   receiptEdge: '#e6e9ee',
 } as const
@@ -23,7 +23,7 @@ export const logoPaths = {
 export const logoGradients = {
   tile: ['#3b4656', '#1a212b'],
   stem: ['#ffffff', '#d9dfe7'],
-  chevron: ['#ff9a4d', '#e8590f'],
+  chevron: ['#ff8a60', '#db5729'],
   rim: 0.34,
   shadow: 0.4,
 } as const

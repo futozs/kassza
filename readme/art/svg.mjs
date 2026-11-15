@@ -6,7 +6,7 @@ const LOGO_DEFS = [
   '<linearGradient id="km-tile" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3B4656"/><stop offset="1" stop-color="#1A212B"/></linearGradient>',
   '<linearGradient id="km-rim" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF" stop-opacity="0.34"/><stop offset="0.45" stop-color="#FFFFFF" stop-opacity="0"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0.08"/></linearGradient>',
   '<linearGradient id="km-stem" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFFFFF"/><stop offset="1" stop-color="#D9DFE7"/></linearGradient>',
-  '<linearGradient id="km-chev" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9A4D"/><stop offset="1" stop-color="#E8590F"/></linearGradient>',
+  '<linearGradient id="km-chev" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF8A60"/><stop offset="1" stop-color="#DB5729"/></linearGradient>',
   '<filter id="km-shadow" x="-25%" y="-20%" width="150%" height="160%" color-interpolation-filters="sRGB"><feDropShadow dx="0" dy="10" stdDeviation="9" flood-color="#000000" flood-opacity="0.4"/></filter>',
 ].join('')
 

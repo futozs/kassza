@@ -26,6 +26,7 @@
   --color-ink-2: var(--ink-2);
   --color-muted: var(--muted);
   --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
   --color-brand-deep: var(--brand-deep);
   --color-brand-ink: var(--brand-ink);
   --color-accent: var(--accent);

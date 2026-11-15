@@ -257,7 +257,7 @@ function mainHeader(scope, type, theme) {
   const runLabelWidth = type.measure(runLabel, { font: 'sansSemibold', size: 14.5 })
   const runWidth = 16 + 16 + 9 + runLabelWidth + 12 + 40 + 10
   const runX = WINDOW.width - 20 - runWidth
-  const runFill = theme.name === 'dark' ? theme.accent : theme.brand
+  const runFill = theme.brand
   const share = ghostButton(scope, type, theme, {
     x: runX - 124,
     label: 'Megosztás',
